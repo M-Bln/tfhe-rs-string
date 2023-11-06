@@ -43,10 +43,8 @@ mod tests {
     #[test]
     fn test_encrypt() {
 	let (client_key, _) = gen_keys();
-
-	if let Ok(_) = encrypt_str(&client_key, "Hello world!") {    
-	} else {
-	 panic!("encryption failed");   
+	if !encrypt_str(&client_key, "Hello world!").is_ok() {
+	    panic!("encryption failed");
 	}
     }
 
