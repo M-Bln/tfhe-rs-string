@@ -253,5 +253,9 @@ required-features = ["integer"]
 name = "sha256_bool"
 required-features = ["boolean"]
 
+[[example]]
+name = "fhe_strings"
+required-features = ["integer"]
+
 [lib]
 crate-type = ["lib", "staticlib", "cdylib"]
