@@ -38,11 +38,31 @@ pub fn gen_keys() -> (RadixClientKey, ServerKey){
 mod tests {
     use crate::ciphertext::gen_keys;
     use crate::ciphertext::encrypt_str;
+    use crate::ciphertext::decrypt_fhe_string;
 
     #[test]
     fn test_encrypt() {
 	let (client_key, _) = gen_keys();
 
-	let _ = encrypt_str(&client_key, "Hello world!");	
+	if let Ok(_) = encrypt_str(&client_key, "Hello world!") {    
+	} else {
+	 panic!("encryption failed");   
+	}
+    }
+
+    #[test]
+    fn test_decrypt_encrypt(){
+	let (client_key, _) = gen_keys();
+	if let Ok(encrypted_s) = encrypt_str(&client_key, "Hello world!"){
+	    if let Ok(decrypted_s) = decrypt_fhe_string(&client_key, &encrypted_s){
+		println!("the decrypted string is \"{}\"", decrypted_s);
+		println!("it is expected to be \"Hello world\"");
+		assert!(decrypted_s.eq("Hello world!"));
+	    } else {
+		panic!("decryption failed");
+	    };
+	} else {
+	    panic!("encryption failed");
+	}
     }
 }
