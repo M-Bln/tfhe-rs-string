@@ -6,6 +6,17 @@ pub struct FheAsciiChar(RadixCiphertext);
 
 pub type FheString = Vec<FheAsciiChar>;
 
+pub fn encrypt_ascii_vec(
+    client_key: &RadixClientKey,
+    utf8_vec: &Vec<u8>,
+) -> Result<FheString, Box<dyn std::error::Error>> {
+    if utf8_vec.iter().any(|c| !c.is_ascii()) {
+	return Err("content contains non-ascii characters".into())
+    }
+    Ok(utf8_vec.iter()
+               .map(|byte| FheAsciiChar(client_key.encrypt(*byte as u64)))
+               .collect())
+}
 
 pub fn encrypt_str(
     client_key: &RadixClientKey,
@@ -18,6 +29,15 @@ pub fn encrypt_str(
         .iter()
         .map(|byte| FheAsciiChar(client_key.encrypt(*byte as u64)))
         .collect())
+}
+
+pub fn decrypt_fhe_ascii_vec(
+    client_key: &RadixClientKey,
+    s: &FheString,
+) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    Ok(s.iter()
+        .map(|crypted_char| client_key.decrypt::<u8>(&crypted_char.0))
+        .collect::<Vec<u8>>())
 }
 
 pub fn decrypt_fhe_string(
@@ -62,9 +82,36 @@ pub fn null_padded_utf8_from_str(s: &str, length : usize ) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use crate::ciphertext::gen_keys;
+    use crate::ciphertext::encrypt_ascii_vec;
+
+    #[test]
+    fn test_encrypt_ascii_vec() {
+	let (client_key, _) = gen_keys();
+	assert!(encrypt_ascii_vec(&client_key, &vec![0,0,97,98,99,100,0]).is_ok());
+	assert!(encrypt_ascii_vec(&client_key, &vec![0,0,0xc3,0x28,0,0]).is_err());
+    }
+
+    use crate::ciphertext::decrypt_fhe_ascii_vec;
+
+    #[test]
+    fn test_decrypt_encrypt_ascii_vec(){
+	let (client_key, _) = gen_keys();
+	if let Ok(encrypted_s) = encrypt_ascii_vec(&client_key, &vec![0,0,97,98,99,100,0]){
+	    if let Ok(decrypted_s) = decrypt_fhe_ascii_vec(&client_key, &encrypted_s){
+		println!("the decrypted vec is \"{:?}\"", decrypted_s);
+		println!("it is expected to be \"[0,0,97,98,99,100,0]\"");
+		assert_eq!(decrypted_s,vec![0,0,97,98,99,100,0]);
+	    } else {
+		panic!("decryption failed");
+	    };
+	} else {
+	    panic!("encryption failed");
+	}
+	
+    } 
+    
     use crate::ciphertext::encrypt_str;
    
-
     #[test]
     fn test_encrypt() {
 	let (client_key, _) = gen_keys();
