@@ -1,0 +1,327 @@
+
+scripts/no_tfhe_typo.sh,0
+
+scripts/integer-tests.sh,30
+function usage() {usage5,21
+
+scripts/get_arch_feature.sh,0
+
+scripts/dieharder_test.sh,0
+
+scripts/check_cargo_min_ver.sh,31
+function usage() {usage9,201
+
+scripts/shortint-tests.sh,30
+function usage() {usage5,21
+
+scripts/no_dbg_calls.sh,0
+
+scripts/c_api_tests.sh,30
+function usage() {usage5,29
+
+katex-header.html,0
+
+ci/parse_integer_benches_to_csv.py,436
+def main(args):main6,55
+    parser = argparse.ArgumentParser("Parse criterion results to csv file")parser88,2865
+        type=str,type91,2993
+        default="target/criterion",default92,3011
+        help="Where to look for criterion result json files",help93,3047
+        type=str,type97,3165
+        default="parsed_benches.csv",default98,3183
+        help="Path of the output file, will be csv formatted",help99,3221
+
+ci/benchmark_parser.py,2711
+ONE_HOUR_IN_NANOSECONDS = 3600E9ONE_HOUR_IN_NANOSECONDS14,158
+parser = argparse.ArgumentParser()parser16,192
+                    help='Location of criterion benchmark results directory.'help18,258
+                    help='Name of the database used to store results')help23,603
+                    help='Hardware reference used to perform benchmark')help25,731
+                    help='Commit hash reference')help27,875
+                    help='Git branch name on which benchmark was performed')help29,978
+                    help='Timestamp of commit hash used in project_version')help31,1112
+                    help='Timestamp when benchmark was run')help33,1244
+                    help='Suffix to append to each of the result test names')help35,1374
+                    help='Append parsed results to an existing file')help37,1536
+                    help='Check for results in subdirectories')help39,1686
+                    help='Parse only the results regarding keys size measurements')help41,1824
+                    help='Parse only the results regarding keys generation time measurements')help43,1978
+                    help='Compute and append number of operations per second and'help45,2149
+                    help='Backend on which benchmarks have run')help48,2345
+def recursive_parse(directory, walk_subdirs=False, name_suffix="", compute_throughput=False,recursive_parse51,2412
+def _create_point(value, test_name, bench_class, bench_type, operator, params, display_name=None):_create_point158,7088
+def parse_benchmark_file(directory):parse_benchmark_file169,7397
+def parse_estimate_file(directory):parse_estimate_file181,7791
+def _parse_key_results(result_file, bench_type):_parse_key_results196,8230
+def parse_key_sizes(result_file):parse_key_sizes228,9274
+def parse_key_gen_time(result_file):parse_key_gen_time239,9595
+def get_parameters(bench_id):get_parameters250,9929
+def compute_ops_per_dollar(data_point, product_hourly_cost):compute_ops_per_dollar271,10630
+def compute_ops_per_second(data_point):compute_ops_per_second283,11051
+def _parse_file_to_json(directory, filename):_parse_file_to_json294,11334
+def dump_results(parsed_results, filename, input_args):dump_results299,11476
+def check_mandatory_args(input_args):check_mandatory_args328,12529
+    args = parser.parse_args()args354,13415
+    raw_results = pathlib.Path(args.results)raw_results358,13497
+        hardware_cost = Nonehardware_cost369,13928
+            ec2_costs = json.loads(ec2_costs372,14037
+                hardware_cost = abs(ec2_costs[args.hardware])hardware_cost375,14177
+    output_file = pathlib.Path(args.output_file)output_file386,14652
+
+Makefile,7346
+SHELL:=$(shell /usr/bin/env which bash)SHELL1,0
+OS:=$(shell uname)OS2,40
+RS_CHECK_TOOLCHAIN:=$(shell cat toolchain.txt | tr -d '\n')RS_CHECK_TOOLCHAIN3,59
+CARGO_RS_CHECK_TOOLCHAIN:=+$(RS_CHECK_TOOLCHAIN)CARGO_RS_CHECK_TOOLCHAIN4,119
+TARGET_ARCH_FEATURE:=$(shell ./scripts/get_arch_feature.sh)TARGET_ARCH_FEATURE5,168
+RS_BUILD_TOOLCHAIN:=stableRS_BUILD_TOOLCHAIN6,228
+CARGO_RS_BUILD_TOOLCHAIN:=+$(RS_BUILD_TOOLCHAIN)CARGO_RS_BUILD_TOOLCHAIN7,255
+CARGO_PROFILE?=releaseCARGO_PROFILE8,304
+MIN_RUST_VERSION:=$(shell grep rust-version tfhe/Cargo.toml | cut -d '=' -f 2 | xargs)MIN_RUST_VERSION9,327
+AVX512_SUPPORT?=OFFAVX512_SUPPORT10,414
+WASM_RUSTFLAGS:=WASM_RUSTFLAGS11,434
+BIG_TESTS_INSTANCE?=FALSEBIG_TESTS_INSTANCE12,451
+GEN_KEY_CACHE_MULTI_BIT_ONLY?=FALSEGEN_KEY_CACHE_MULTI_BIT_ONLY13,477
+GEN_KEY_CACHE_COVERAGE_ONLY?=FALSEGEN_KEY_CACHE_COVERAGE_ONLY14,513
+PARSE_INTEGER_BENCH_CSV_FILE?=tfhe_rs_integer_benches.csvPARSE_INTEGER_BENCH_CSV_FILE15,548
+FAST_TESTS?=FALSEFAST_TESTS16,606
+FAST_BENCH?=FALSEFAST_BENCH17,624
+BENCH_OP_FLAVOR?=DEFAULTBENCH_OP_FLAVOR18,642
+NODE_VERSION=20NODE_VERSION19,667
+export RUSTFLAGS?=-C target-cpu=nativeRUSTFLAGS22,881
+		AVX512_FEATURE=nightly-avx512AVX512_FEATURE25,949
+		AVX512_FEATURE=AVX512_FEATURE27,986
+		MULTI_BIT_ONLY=--multi-bit-onlyMULTI_BIT_ONLY31,1055
+		MULTI_BIT_ONLY=MULTI_BIT_ONLY33,1094
+		COVERAGE_ONLY=--coverage-onlyCOVERAGE_ONLY37,1162
+		COVERAGE_ONLY=COVERAGE_ONLY39,1199
+REGEX_STRING?=''REGEX_STRING43,1270
+REGEX_PATTERN?=''REGEX_PATTERN44,1287
+define COVERAGE_EXCLUDED_FILESCOVERAGE_EXCLUDED_FILES47,1350
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS144,5549
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS147,5693
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS153,5966
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS159,6237
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS165,6506
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy --all-targets \RUSTFLAGS171,6768
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS177,7078
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy \RUSTFLAGS183,7405
+	RUSTFLAGS="$(RUSTFLAGS)" cargo "$(CARGO_RS_CHECK_TOOLCHAIN)" clippy -p tfhe-trivium \RUSTFLAGS194,7894
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS220,9199
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS227,9583
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS236,10094
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS245,10566
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS250,10824
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS255,11080
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS260,11361
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS265,11652
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS271,12073
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) build --profile $(CARGO_PROFILE) \RUSTFLAGS300,13707
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS305,14039
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS314,14550
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \RUSTFLAGS319,14855
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS327,15262
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \BIG_TESTS_INSTANCE341,15805
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \BIG_TESTS_INSTANCE348,16168
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS355,16468
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) tarpaulin --profile $(CARGO_PROFILE) \RUSTFLAGS360,16796
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \BIG_TESTS_INSTANCE368,17228
+	BIG_TESTS_INSTANCE="$(BIG_TESTS_INSTANCE)" \BIG_TESTS_INSTANCE375,17624
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS382,18014
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS387,18337
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS392,18630
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) --doc \RUSTFLAGS398,18939
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS404,19260
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS410,19532
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS419,19881
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_BUILD_TOOLCHAIN) test --profile $(CARGO_PROFILE) \RUSTFLAGS424,20113
+	RUSTDOCFLAGS="--html-in-header katex-header.html" \RUSTDOCFLAGS434,20547
+	RUSTDOCFLAGS="--html-in-header katex-header.html -Dwarnings" \RUSTDOCFLAGS443,20862
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \RUSTFLAGS519,23966
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \RUSTFLAGS526,24382
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) __TFHE_RS_FAST_BENCH=$(FAST_BENCH) \RUSTFLAGS534,24797
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \RUSTFLAGS541,25232
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_OP_FLAVOR=$(BENCH_OP_FLAVOR) \RUSTFLAGS549,25636
+	RUSTFLAGS="$(RUSTFLAGS)" __TFHE_RS_BENCH_TYPE=MULTI_BIT \RUSTFLAGS556,26010
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \RUSTFLAGS565,26372
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) bench \RUSTFLAGS571,26634
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS591,27411
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS597,27764
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS603,28108
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS615,28697
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS622,29092
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS632,29409
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS639,29697
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \RUSTFLAGS646,30005
+
+tfhe/js_on_wasm_tests/test-hlapi-signed.js,884
+function hlapi_compact_public_key_encrypt_decrypt_int32_single(config) {hlapi_compact_public_key_encrypt_decrypt_int32_single374,15259
+function hlapi_compact_public_key_encrypt_decrypt_int32_single_compact(config) {hlapi_compact_public_key_encrypt_decrypt_int32_single_compact411,16913
+function hlapi_compact_public_key_encrypt_decrypt_int32_list_compact(config) {hlapi_compact_public_key_encrypt_decrypt_int32_list_compact449,18718
+function hlapi_compact_public_key_encrypt_decrypt_int256_single(config) {hlapi_compact_public_key_encrypt_decrypt_int256_single502,20747
+function hlapi_compact_public_key_encrypt_decrypt_int256_single_compact(config) {hlapi_compact_public_key_encrypt_decrypt_int256_single_compact539,22413
+function hlapi_compact_public_key_encrypt_decrypt_int256_list_compact(config) {hlapi_compact_public_key_encrypt_decrypt_int256_list_compact577,24230
+
+tfhe/js_on_wasm_tests/test.js,78
+function genRandomBigIntWithBytes(byteCount) {genRandomBigIntWithBytes6,186
+
+tfhe/js_on_wasm_tests/test-hlapi-unsigned.js,896
+function hlapi_compact_public_key_encrypt_decrypt_uint32_single(config) {hlapi_compact_public_key_encrypt_decrypt_uint32_single413,16262
+function hlapi_compact_public_key_encrypt_decrypt_uint32_single_compact(config) {hlapi_compact_public_key_encrypt_decrypt_uint32_single_compact450,17924
+function hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact(config) {hlapi_compact_public_key_encrypt_decrypt_uint32_list_compact488,19737
+function hlapi_compact_public_key_encrypt_decrypt_uint256_single(config) {hlapi_compact_public_key_encrypt_decrypt_uint256_single541,21773
+function hlapi_compact_public_key_encrypt_decrypt_uint256_single_compact(config) {hlapi_compact_public_key_encrypt_decrypt_uint256_single_compact578,23447
+function hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact(config) {hlapi_compact_public_key_encrypt_decrypt_uint256_list_compact616,25272
+
+tfhe/katex-header.html,0
+
+tfhe/c_api_tests/test_high_level_boolean.c,291
+int client_key_test(const ClientKey *client_key) {client_key_test7,81
+int public_key_test(const ClientKey *client_key, const PublicKey *public_key) {public_key_test38,748
+int trivial_encrypt_test(const ClientKey *client_key) {trivial_encrypt_test69,1444
+int main(void) {main100,2076
+
+tfhe/c_api_tests/test_shortint_keygen.c,446
+void test_predefined_keygen_w_serde(void) {test_predefined_keygen_w_serde8,120
+void test_server_key_trivial_encrypt(void) {test_server_key_trivial_encrypt75,2396
+void test_custom_keygen(void) {test_custom_keygen98,3067
+void test_public_keygen(ShortintPBSParameters params) {test_public_keygen125,3798
+void test_compressed_public_keygen(ShortintPBSParameters params) {test_compressed_public_keygen163,4965
+int main(void) {main204,6186
+
+tfhe/c_api_tests/test_micro_bench_and.c,77
+void micro_bench_and() {micro_bench_and9,138
+int main(void) {main50,1393
+
+tfhe/c_api_tests/test_boolean_keygen.c,308
+void test_default_keygen_w_serde(void) {test_default_keygen_w_serde8,120
+void test_predefined_keygen_w_serde(void) {test_predefined_keygen_w_serde74,2305
+void test_custom_keygen(void) {test_custom_keygen95,2845
+void test_public_keygen(void) {test_public_keygen118,3409
+int main(void) {main145,4096
+
+tfhe/c_api_tests/test_high_level_128_bits.c,308
+int uint128_client_key(const ClientKey *client_key) {uint128_client_key7,81
+int uint128_encrypt_trivial(const ClientKey *client_key) {uint128_encrypt_trivial37,829
+int uint128_public_key(const ClientKey *client_key, const PublicKey *public_key) {uint128_public_key67,1542
+int main(void) {main97,2320
+
+tfhe/c_api_tests/test_high_level_integers.c,494
+int uint8_client_key(const ClientKey *client_key) {uint8_client_key7,81
+int uint8_public_key(const ClientKey *client_key, const PublicKey *public_key) {uint8_public_key37,763
+int uint8_safe_serialization(const ClientKey *client_key, const ServerKey *server_key) {uint8_safe_serialization67,1474
+int uint8_serialization(const ClientKey *client_key) {uint8_serialization128,3365
+int uint8_compressed(const ClientKey *client_key) {uint8_compressed174,4687
+int main(void) {main200,5274
+
+tfhe/c_api_tests/test_high_level_256_bits.c,589
+int uint256_client_key(const ClientKey *client_key) {uint256_client_key7,81
+int uint256_encrypt_trivial(const ClientKey *client_key) {uint256_encrypt_trivial49,1208
+int uint256_public_key(const ClientKey *client_key, const PublicKey *public_key) {uint256_public_key81,1996
+int int256_client_key(const ClientKey *client_key) {int256_client_key113,2846
+int int256_encrypt_trivial(const ClientKey *client_key) {int256_encrypt_trivial171,4489
+int int256_public_key(const ClientKey *client_key, const PublicKey *public_key) {int256_public_key204,5313
+int main(void) {main241,6311
+
+tfhe/c_api_tests/test_high_level_custom_integers.c,387
+int uint256_client_key(const ClientKey *client_key) {uint256_client_key7,81
+int uint256_encrypt_trivial(const ClientKey *client_key) {uint256_encrypt_trivial49,1208
+int uint256_compact_public_key(const ClientKey *client_key,uint256_compact_public_key81,1996
+int int32_compact_public_key(const ClientKey *client_key,int32_compact_public_key161,4265
+int main(void) {main235,6499
+
+tfhe/c_api_tests/test_shortint_server_key.c,4300
+typedef int (*BinaryCallback)(const ShortintServerKey *, ShortintCiphertext *, ShortintCiphertext *,BinaryCallback8,120
+typedef int (*BinaryAssignCallback)(const ShortintServerKey *, ShortintCiphertext *,BinaryAssignCallback11,276
+typedef int (*BinaryScalarCallback)(const ShortintServerKey *, ShortintCiphertext *, uint8_t,BinaryScalarCallback14,421
+typedef int (*UnaryCallback)(const ShortintServerKey *, ShortintCiphertext *,UnaryCallback17,576
+typedef int (*UnaryAssignCallback)(const ShortintServerKey *, ShortintCiphertext *);UnaryAssignCallback20,708
+void test_shortint_unary_op(const ShortintClientKey *cks, const ShortintServerKey *sks,test_shortint_unary_op22,794
+void test_shortint_unary_op_assign(const ShortintClientKey *cks, const ShortintServerKey *sks,test_shortint_unary_op_assign70,2361
+void test_shortint_binary_op(const ShortintClientKey *cks, const ShortintServerKey *sks,test_shortint_binary_op116,3906
+void test_shortint_binary_op_assign(const ShortintClientKey *cks, const ShortintServerKey *sks,test_shortint_binary_op_assign175,6065
+uint64_t homomorphic_div(uint64_t left, uint64_t right, uint64_t value_on_div_by_zero) {homomorphic_div235,8265
+void test_shortint_div(const ShortintClientKey *cks, const ShortintServerKey *sks,test_shortint_div244,8536
+void test_shortint_div_assign(const ShortintClientKey *cks, const ShortintServerKey *sks,test_shortint_div_assign303,10662
+void test_shortint_binary_scalar_op(test_shortint_binary_scalar_op361,12786
+void test_shortint_binary_scalar_op_assign(test_shortint_binary_scalar_op_assign428,15090
+uint64_t add(uint64_t left, uint64_t right) { return left + right; }add494,17348
+uint64_t sub(uint64_t left, uint64_t right) { return left - right; }sub495,17417
+uint64_t mul(uint64_t left, uint64_t right) { return left * right; }mul496,17486
+uint64_t neg(uint64_t in) { return -in; }neg497,17555
+uint64_t bitand(uint64_t left, uint64_t right) { return left & right; }bitand499,17598
+uint64_t bitxor(uint64_t left, uint64_t right) { return left ^ right; }bitxor500,17670
+uint64_t bitor (uint64_t left, uint64_t right) { return left | right; }bitor501,17742
+uint64_t greater(uint64_t left, uint64_t right) { return (uint64_t)(left > right); }greater503,17815
+uint64_t greater_or_equal(uint64_t left, uint64_t right) { return (uint64_t)(left >= right); }greater_or_equal504,17900
+uint64_t less(uint64_t left, uint64_t right) { return (uint64_t)(left < right); }less505,17995
+uint64_t less_or_equal(uint64_t left, uint64_t right) { return (uint64_t)(left <= right); }less_or_equal506,18077
+uint64_t equal(uint64_t left, uint64_t right) { return (uint64_t)(left == right); }equal507,18169
+uint64_t not_equal(uint64_t left, uint64_t right) { return (uint64_t)(left != right); }not_equal508,18253
+uint64_t scalar_greater(uint64_t left, uint8_t right) { return (uint64_t)(left > right); }scalar_greater510,18342
+uint64_t scalar_greater_or_equal(uint64_t left, uint8_t right) { return (uint64_t)(left >= right); }scalar_greater_or_equal511,18433
+uint64_t scalar_less(uint64_t left, uint8_t right) { return (uint64_t)(left < right); }scalar_less512,18534
+uint64_t scalar_less_or_equal(uint64_t left, uint8_t right) { return (uint64_t)(left <= right); }scalar_less_or_equal513,18622
+uint64_t scalar_equal(uint64_t left, uint8_t right) { return (uint64_t)(left == right); }scalar_equal514,18720
+uint64_t scalar_not_equal(uint64_t left, uint8_t right) { return (uint64_t)(left != right); }scalar_not_equal515,18810
+uint64_t scalar_add(uint64_t left, uint8_t right) { return left + right; }scalar_add517,18905
+uint64_t scalar_sub(uint64_t left, uint8_t right) { return left - right; }scalar_sub518,18980
+uint64_t scalar_mul(uint64_t left, uint8_t right) { return left * right; }scalar_mul519,19055
+uint64_t scalar_div(uint64_t left, uint8_t right) { return left / right; }scalar_div520,19130
+uint64_t scalar_mod(uint64_t left, uint8_t right) { return left % right; }scalar_mod521,19205
+uint64_t left_shift(uint64_t left, uint8_t right) { return left << right; }left_shift523,19281
+uint64_t right_shift(uint64_t left, uint8_t right) { return left >> right; }right_shift524,19357
+void test_server_key(void) {test_server_key526,19435
+int main(void) {main837,37098
+
+tfhe/c_api_tests/test_shortint_pbs.c,775
+uint64_t double_lookup_table_2_bits_message(uint64_t in) { return (in * 2) % 4; }double_lookup_table_2_bits_message8,120
+uint64_t get_max_value_of_lookup_table_generator(uint64_t (*lookup_table_func)(uint64_t),get_max_value_of_lookup_table_generator10,203
+uint64_t product_lookup_table_2_bits_encrypted_mul(uint64_t left, uint64_t right) {product_lookup_table_2_bits_encrypted_mul21,600
+uint64_t get_max_value_of_bivariate_lookup_table_generator(uint64_t (*lookup_table_func)(uint64_t,get_max_value_of_bivariate_lookup_table_generator25,716
+void test_shortint_pbs_2_bits_message(void) {test_shortint_pbs_2_bits_message40,1464
+void test_shortint_bivariate_pbs_2_bits_message(void) {test_shortint_bivariate_pbs_2_bits_message114,3952
+int main(void) {main186,6785
+
+tfhe/c_api_tests/test_boolean_server_key.c,1295
+void test_binary_boolean_function(BooleanClientKey *cks, BooleanServerKey *sks,test_binary_boolean_function8,120
+void test_binary_boolean_function_assign(test_binary_boolean_function_assign63,2283
+void test_binary_boolean_function_scalar(BooleanClientKey *cks, BooleanServerKey *sks,test_binary_boolean_function_scalar114,4224
+void test_binary_boolean_function_scalar_assign(BooleanClientKey *cks, BooleanServerKey *sks,test_binary_boolean_function_scalar_assign148,5456
+void test_not(BooleanClientKey *cks, BooleanServerKey *sks) {test_not179,6585
+void test_not_assign(BooleanClientKey *cks, BooleanServerKey *sks) {test_not_assign214,7618
+void test_mux(BooleanClientKey *cks, BooleanServerKey *sks) {test_mux247,8627
+bool c_and(bool left, bool right) { return left && right; }c_and315,11371
+bool c_nand(bool left, bool right) { return !c_and(left, right); }c_nand317,11432
+bool c_or(bool left, bool right) { return left || right; }c_or319,11500
+bool c_nor(bool left, bool right) { return !c_or(left, right); }c_nor321,11560
+bool c_xor(bool left, bool right) { return left != right; }c_xor323,11626
+bool c_xnor(bool left, bool right) { return !c_xor(left, right); }c_xnor325,11687
+void test_server_key(void) {test_server_key327,11755
+int main(void) {main421,16580
+
+tfhe/web_wasm_parallel_tests/test/public-key-ct.test.js,0
+
+tfhe/web_wasm_parallel_tests/test/compressed-publik-key-small.test.js,0
+
+tfhe/web_wasm_parallel_tests/test/compact-public-key.test.js,0
+
+tfhe/web_wasm_parallel_tests/Makefile,175
+test: script = testscript1,0
+test-ci: script = test-separate-processesscript2,20
+bench: script = benchscript3,62
+bench-ci: script = bench-separate-processesscript4,84
+
+tfhe/web_wasm_parallel_tests/index.html,0
+
+tfhe/web_wasm_parallel_tests/index.js,82
+function setButtonsDisabledState(buttonIds, state) {setButtonsDisabledState5,85
+
+tfhe/web_wasm_parallel_tests/worker.js,176
+function assert(cond, text) {assert28,586
+function assert_eq(a, b, text) {assert_eq34,737
+function append_param_name(bench_results, params_name) {append_param_name40,917
+
+tfhe/web_wasm_parallel_tests/jest.config.js,0
+
+tfhe/web_wasm_parallel_tests/babel.config.js,0
