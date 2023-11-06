@@ -20,5 +20,6 @@ dieharder_run.log
 # Coverage reports
 ./coverage/
 
+# emacs files
 TAGS
 *~

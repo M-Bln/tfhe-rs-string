@@ -34,11 +34,36 @@ pub fn gen_keys() -> (RadixClientKey, ServerKey){
     gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block)
 }
 
+
+/// Trim the initial and final '\0' bytes from a Vec<u8>, return a &str
+pub fn str_from_null_padded_utf8(utf8_src: &Vec<u8>) -> Result<&str, std::str::Utf8Error> {
+    let range_start = utf8_src.iter()
+        .position(|&c| c != b'\0')
+        .unwrap_or(utf8_src.len()); // default to length if no `\0` present
+    let range_end = utf8_src[range_start..utf8_src.len()].iter()
+	.position(|&c| c == b'\0')
+	.unwrap_or(utf8_src.len());
+    ::std::str::from_utf8(&utf8_src[range_start..(range_end + range_start)])
+}
+
+/// Produce a Vec<u8> of length length from str by adding trailing '\0'
+/// if str.length() > length, the end of the string is truncated. 
+pub fn null_padded_utf8_from_str(s: &str, length : usize ) -> Vec<u8> {
+    let mut result : Vec<u8> = s.as_bytes().to_vec();
+    if s.len() > length {
+	result[0..length].to_vec()
+    } else {
+	result.append(&mut vec![0;length - s.len()]);
+	result
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::ciphertext::gen_keys;
     use crate::ciphertext::encrypt_str;
-    use crate::ciphertext::decrypt_fhe_string;
+   
 
     #[test]
     fn test_encrypt() {
@@ -48,6 +73,8 @@ mod tests {
 	}
     }
 
+    use crate::ciphertext::decrypt_fhe_string;
+    
     #[test]
     fn test_decrypt_encrypt(){
 	let (client_key, _) = gen_keys();
@@ -62,5 +89,28 @@ mod tests {
 	} else {
 	    panic!("encryption failed");
 	}
+    }
+
+    use crate::ciphertext::str_from_null_padded_utf8;
+
+    #[test]
+    fn test_str_from_null_padded_utf8(){
+	let valid_utf8_src = vec![0,0,0,0,97,98,99,100,0,0,0,0,0,0];
+	let s = str_from_null_padded_utf8(&valid_utf8_src).unwrap();
+	assert!(s.eq("abcd"));
+
+	let invalid_utf8_src = vec![0,0,0xc3,0x28,0,0];
+	assert!(str_from_null_padded_utf8(&invalid_utf8_src).is_err());
+    }
+
+    use crate::ciphertext::null_padded_utf8_from_str;
+
+    #[test]
+    fn test_null_padded_utf8_from_str(){
+	let padded_utf8 = null_padded_utf8_from_str("abc", 5);
+	assert_eq!(padded_utf8, vec![97,98,99,0,0]);
+
+	let truncated_utf8 = null_padded_utf8_from_str("abcdef",3);
+	assert_eq!(truncated_utf8, vec![97,98,99]);
     }
 }
