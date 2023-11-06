@@ -19,3 +19,6 @@ dieharder_run.log
 
 # Coverage reports
 ./coverage/
+
+TAGS
+*~
