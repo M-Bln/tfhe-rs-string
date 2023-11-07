@@ -1,4 +1,3 @@
 mod ciphertext;
 
-fn main() {
-}
+fn main() {}
