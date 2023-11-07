@@ -74,8 +74,7 @@ pub fn null_padded_utf8_from_str(s: &str, length: usize) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::encrypt_ascii_vec;
-    use crate::ciphertext::gen_keys;
+    use crate::ciphertext::{encrypt_ascii_vec, gen_keys};
 
     #[test]
     fn test_encrypt_ascii_vec() {
