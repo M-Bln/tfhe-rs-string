@@ -1,16 +1,23 @@
+use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
-pub struct FheAsciiChar(RadixCiphertext);
+pub struct FheAsciiChar(pub RadixCiphertext);
 
 pub type FheString = Vec<FheAsciiChar>;
+
+#[derive(Debug)]
+pub enum ConversionError {
+    NonAsciiCharacters,
+}
 
 pub fn encrypt_ascii_vec(
     client_key: &RadixClientKey,
     utf8_vec: &Vec<u8>,
-) -> Result<FheString, Box<dyn std::error::Error>> {
+) -> Result<FheString, ConversionError> {
     if utf8_vec.iter().any(|c| !c.is_ascii()) {
-        return Err("content contains non-ascii characters".into());
+        return Err(ConversionError::NonAsciiCharacters);
     }
     Ok(utf8_vec
         .iter()
@@ -18,14 +25,7 @@ pub fn encrypt_ascii_vec(
         .collect())
 }
 
-pub fn encrypt_str(
-    client_key: &RadixClientKey,
-    s: &str,
-) -> Result<FheString, Box<dyn std::error::Error>> {
-    // not sure if this is necessary as it's also checked in encrypt_ascii_vec
-    if !s.is_ascii() {
-        return Err("content contains non-ascii characters".into());
-    }
+pub fn encrypt_str(client_key: &RadixClientKey, s: &str) -> Result<FheString, ConversionError> {
     encrypt_ascii_vec(client_key, &s.as_bytes().to_vec())
 }
 
@@ -38,8 +38,8 @@ pub fn decrypt_fhe_ascii_vec(client_key: &RadixClientKey, s: &FheString) -> Vec<
 pub fn decrypt_fhe_string(
     client_key: &RadixClientKey,
     s: &FheString,
-) -> Result<String, Box<dyn std::error::Error>> {
-    Ok(String::from_utf8(decrypt_fhe_ascii_vec(client_key, s))?)
+) -> Result<String, FromUtf8Error> {
+    String::from_utf8(decrypt_fhe_ascii_vec(client_key, s))
 }
 
 pub fn gen_keys() -> (RadixClientKey, ServerKey) {
@@ -48,7 +48,7 @@ pub fn gen_keys() -> (RadixClientKey, ServerKey) {
 }
 
 /// Trim the initial and final '\0' bytes from a Vec<u8>, return a &str
-pub fn str_from_null_padded_utf8(utf8_src: &Vec<u8>) -> Result<&str, std::str::Utf8Error> {
+pub fn str_from_null_padded_utf8(utf8_src: &Vec<u8>) -> Result<&str, Utf8Error> {
     let range_start = utf8_src
         .iter()
         .position(|&c| c != b'\0')
@@ -75,21 +75,25 @@ pub fn null_padded_utf8_from_str(s: &str, length: usize) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use crate::ciphertext::{encrypt_ascii_vec, gen_keys};
+    use lazy_static::lazy_static;
+    use tfhe::integer::{RadixClientKey, ServerKey};
+
+    lazy_static! {
+        pub static ref KEYS: (RadixClientKey, ServerKey) = gen_keys();
+    }
 
     #[test]
     fn test_encrypt_ascii_vec() {
-        let (client_key, _) = gen_keys();
-        assert!(encrypt_ascii_vec(&client_key, &vec![0, 0, 97, 98, 99, 100, 0]).is_ok());
-        assert!(encrypt_ascii_vec(&client_key, &vec![0, 0, 0xc3, 0x28, 0, 0]).is_err());
+        assert!(encrypt_ascii_vec(&KEYS.0, &vec![0, 0, 97, 98, 99, 100, 0]).is_ok());
+        assert!(encrypt_ascii_vec(&KEYS.0, &vec![0, 0, 0xc3, 0x28, 0, 0]).is_err());
     }
 
     use crate::ciphertext::decrypt_fhe_ascii_vec;
 
     #[test]
     fn test_decrypt_encrypt_ascii_vec() {
-        let (client_key, _) = gen_keys();
-        let encrypted_s = encrypt_ascii_vec(&client_key, &vec![0, 0, 97, 98, 99, 100, 0]).unwrap();
-        let decrypted_s = decrypt_fhe_ascii_vec(&client_key, &encrypted_s);
+        let encrypted_s = encrypt_ascii_vec(&KEYS.0, &vec![0, 0, 97, 98, 99, 100, 0]).unwrap();
+        let decrypted_s = decrypt_fhe_ascii_vec(&KEYS.0, &encrypted_s);
         println!("the decrypted vec is \"{:?}\"", decrypted_s);
         println!("it is expected to be \"[0,0,97,98,99,100,0]\"");
         assert_eq!(decrypted_s, vec![0, 0, 97, 98, 99, 100, 0]);
@@ -99,18 +103,16 @@ mod tests {
 
     #[test]
     fn test_encrypt() {
-        let (client_key, _) = gen_keys();
-        assert!(encrypt_str(&client_key, "Hello world!").is_ok())
+        assert!(encrypt_str(&KEYS.0, "Hello world!").is_ok())
     }
 
     use crate::ciphertext::decrypt_fhe_string;
 
     #[test]
     fn test_decrypt_encrypt() {
-        let (client_key, _) = gen_keys();
         let plain_text = "abc";
-        let encrypted_str = encrypt_str(&client_key, plain_text).unwrap();
-        let decrypted_str = decrypt_fhe_string(&client_key, &encrypted_str).unwrap();
+        let encrypted_str = encrypt_str(&KEYS.0, plain_text).unwrap();
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &encrypted_str).unwrap();
         println!(
             "the decrypted string is \"{}\", it is expected to be \"{}\"",
             decrypted_str, plain_text,
