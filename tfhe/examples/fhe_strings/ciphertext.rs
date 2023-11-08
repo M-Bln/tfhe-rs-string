@@ -1,8 +1,9 @@
-use std::{str::Utf8Error, string::FromUtf8Error};
+use std::str::Utf8Error;
+use std::string::FromUtf8Error;
 use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
-pub struct FheAsciiChar(RadixCiphertext);
+pub struct FheAsciiChar(pub RadixCiphertext);
 
 pub type FheString = Vec<FheAsciiChar>;
 
