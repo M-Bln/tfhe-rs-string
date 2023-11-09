@@ -1,7 +1,8 @@
 use std::str::Utf8Error;
 use std::string::FromUtf8Error;
-use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey, ServerKey};
+use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use crate::server_key::StringServerKey;
 
 pub struct FheAsciiChar(pub RadixCiphertext);
 
@@ -42,9 +43,11 @@ pub fn decrypt_fhe_string(
     String::from_utf8(decrypt_fhe_ascii_vec(client_key, s))
 }
 
-pub fn gen_keys() -> (RadixClientKey, ServerKey) {
+pub fn gen_keys() -> (RadixClientKey, StringServerKey) {
     let num_block = 4;
-    gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block)
+    match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block){
+	(radix_client_key, server_key) => (radix_client_key, StringServerKey{integer_key: server_key})
+    }
 }
 
 /// Trim the initial and final '\0' bytes from a Vec<u8>, return a &str
@@ -79,7 +82,9 @@ mod tests {
     use tfhe::integer::{RadixClientKey, ServerKey};
 
     lazy_static! {
-        pub static ref KEYS: (RadixClientKey, ServerKey) = gen_keys();
+        pub static ref KEYS: (RadixClientKey, ServerKey) = match gen_keys() {
+	    (client_key, string_sks) => (client_key, string_sks.integer_key)
+	};
     }
 
     #[test]
