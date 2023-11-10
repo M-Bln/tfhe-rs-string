@@ -3,7 +3,6 @@ use std::string::FromUtf8Error;
 use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
-
 #[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);
 
@@ -11,6 +10,7 @@ pub struct FheAsciiChar(pub RadixCiphertext);
 pub enum Padding {
     None,
     Final,
+    Initial,
     InitialAndFinal,
 }
 

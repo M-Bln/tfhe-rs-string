@@ -45,8 +45,12 @@ impl StringServerKey {
         *length = self.add_radix_length(&length, &encrypted_int);
     }
 
-    pub fn eq_clear_or_encrypted_char(&self, c: &FheAsciiChar, character: &ClearOrEncryptedChar) -> RadixCiphertext {
-	match character {
+    pub fn eq_clear_or_encrypted_char(
+        &self,
+        c: &FheAsciiChar,
+        character: &ClearOrEncryptedChar,
+    ) -> RadixCiphertext {
+        match character {
             ClearOrEncryptedChar::Clear(clear_char) => {
                 self.integer_key.scalar_eq_parallelized(&c.0, *clear_char)
             }
@@ -56,21 +60,68 @@ impl StringServerKey {
         }
     }
 
-
-    pub fn trim_start_no_padding(
-        &self,
-        s: &FheString,
-        character: &ClearOrEncryptedChar,
-    ) -> FheString {
-	self.trim_start_with_padding(s, character, Padding::None)
+    pub fn reverse_string_content(&self, s: &FheString) -> FheString {
+        FheString {
+            content: s.content.clone().into_iter().rev().collect(),
+            padding: match s.padding {
+                Padding::None => Padding::None,
+                Padding::Final => Padding::Initial,
+                Padding::Initial => Padding::Final,
+                Padding::InitialAndFinal => Padding::InitialAndFinal,
+            },
+            length: s.length.clone(),
+        }
     }
 
-    
-    pub fn trim_start_with_padding (
+    pub fn trim_end_char(&self, s: &FheString, character: u8) -> FheString {
+        self.reverse_string_content(
+            &self.trim_start_char(&self.reverse_string_content(s), character),
+        )
+    }
+
+    pub fn trim_end(&self, s: &FheString) -> FheString {
+        self.reverse_string_content(
+            &self.trim_start_char(&self.reverse_string_content(s), ASCII_WHITE_SPACE),
+        )
+    }
+
+    pub fn trim_end_encrypted(&self, s: &FheString, character: &FheAsciiChar) -> FheString {
+        self.reverse_string_content(
+            &self.trim_start_encrypted(&self.reverse_string_content(s), character),
+        )
+    }
+
+    pub fn trim_char(&self, s: &FheString, character: u8) -> FheString {
+        self.trim_end_char(&self.trim_start_char(s, character), character)
+    }
+
+    pub fn trim(&self, s: &FheString) -> FheString {
+        self.trim_char(s, ASCII_WHITE_SPACE)
+    }
+
+    pub fn trim_encrypted(&self, s: &FheString, character: &FheAsciiChar) -> FheString {
+        self.trim_end_encrypted(&self.trim_start_encrypted(s, character), character)
+    }
+
+    pub fn trim_start_char(&self, s: &FheString, character: u8) -> FheString {
+        self.trim_start_clear_or_encrypted_char(s, &ClearOrEncryptedChar::Clear(character))
+    }
+
+    pub fn trim_start(&self, s: &FheString) -> FheString {
+        self.trim_start_char(s, ASCII_WHITE_SPACE)
+    }
+
+    pub fn trim_start_encrypted(&self, s: &FheString, encrypted_char: &FheAsciiChar) -> FheString {
+        self.trim_start_clear_or_encrypted_char(
+            s,
+            &ClearOrEncryptedChar::Encrypted(encrypted_char.clone()),
+        )
+    }
+
+    pub fn trim_start_clear_or_encrypted_char(
         &self,
         s: &FheString,
         character: &ClearOrEncryptedChar,
-	padding: Padding,
     ) -> FheString {
         let mut continue_triming = self.create_true();
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
@@ -79,13 +130,13 @@ impl StringServerKey {
         for c in s.content.iter() {
             self.integer_key.bitand_assign_parallelized(
                 &mut continue_triming,
-		& match padding {
-		    Padding::InitialAndFinal => self.integer_key.bitor_parallelized(
-			&self.eq_clear_or_encrypted_char(c, character),
-			&self.eq_clear_or_encrypted_char(c, &ClearOrEncryptedChar::Clear(b'0')),
-		    ),
-		    _ => self.eq_clear_or_encrypted_char(c, character),
-		}
+                &match s.padding {
+                    Padding::InitialAndFinal => self.integer_key.bitor_parallelized(
+                        &self.eq_clear_or_encrypted_char(c, character),
+                        &self.eq_clear_or_encrypted_char(c, &ClearOrEncryptedChar::Clear(b'0')),
+                    ),
+                    _ => self.eq_clear_or_encrypted_char(c, character),
+                },
             );
             self.add_assign_radix_length(&mut result_length, &continue_triming);
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
@@ -101,19 +152,6 @@ impl StringServerKey {
             length: result_length,
         }
     }
-
-
-    pub fn trim_start_clear_char_no_padding(&self, s: &FheString, clear_char: u8) -> FheString {
-        self.trim_start_no_padding(s, &ClearOrEncryptedChar::Clear(clear_char))
-    }
-
-    pub fn trim_start_encrypted_char_no_padding(
-        &self,
-        s: &FheString,
-        encrypted_char: &FheAsciiChar,
-    ) -> FheString {
-        self.trim_start_no_padding(s, &ClearOrEncryptedChar::Encrypted(encrypted_char.clone()))
-    }
 }
 
 #[cfg(test)]
@@ -128,23 +166,61 @@ mod tests {
     }
 
     #[test]
-    fn test_trim_start_clear_char_no_padding() {
+    fn test_trim_start_char() {
         let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
-        let trimed_encrypted_str = KEYS
-            .1
-            .trim_start_clear_char_no_padding(&encrypted_str, b'a');
+        let trimed_encrypted_str = KEYS.1.trim_start_char(&encrypted_str, b'a');
         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
         assert_eq!(&decrypted_str, "b");
     }
 
     #[test]
-    fn test_trim_start_encrypted_char_no_padding() {
+    fn test_trim_end_char() {
         let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
-        let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'a'));
-        let trimed_encrypted_str = KEYS
-            .1
-            .trim_start_encrypted_char_no_padding(&encrypted_str, &encrypted_char);
+        let trimed_encrypted_str = KEYS.1.trim_end_char(&encrypted_str, b'b');
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "a");
+    }
+
+    #[test]
+    fn test_trim_char() {
+        let encrypted_str = encrypt_str(&KEYS.0, "aba").unwrap();
+        let trimed_encrypted_str = KEYS.1.trim_char(&encrypted_str, b'a');
         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
         assert_eq!(&decrypted_str, "b");
+    }
+
+    #[test]
+    fn test_trim() {
+        let encrypted_str = encrypt_str(&KEYS.0, " b ").unwrap();
+        let trimed_encrypted_str = KEYS.1.trim(&encrypted_str);
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "b");
+    }    
+
+    #[test]
+    fn test_trim_start_encrypted() {
+        let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
+        let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'a'));
+        let trimed_encrypted_str = KEYS.1.trim_start_encrypted(&encrypted_str, &encrypted_char);
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "b");
+    }
+
+    #[test]
+    fn test_trim_end_encrypted() {
+        let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
+        let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'b'));
+        let trimed_encrypted_str = KEYS.1.trim_end_encrypted(&encrypted_str, &encrypted_char);
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "a");
+    }
+
+    #[test]
+    fn test_trim_encrypted() {
+        let encrypted_str = encrypt_str(&KEYS.0, "bab").unwrap();
+        let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'b'));
+        let trimed_encrypted_str = KEYS.1.trim_encrypted(&encrypted_str, &encrypted_char);
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "a");
     }
 }
