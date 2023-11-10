@@ -1,4 +1,4 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -45,7 +45,11 @@ impl StringServerKey {
         *length = self.add_radix_length(&length, &encrypted_int);
     }
 
-    pub fn trim_start_clear_char_no_padding(&self, s: &FheString, character: u8) -> FheString {
+    pub fn trim_start_no_padding(
+        &self,
+        s: &FheString,
+        character: ClearOrEncrypted<u8, &FheAsciiChar>,
+    ) -> FheString {
         let mut continue_triming = self.create_true();
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         let mut result_length: FheStrLength = s.length.clone();
@@ -53,7 +57,14 @@ impl StringServerKey {
         for c in s.content.iter() {
             self.integer_key.bitand_assign_parallelized(
                 &mut continue_triming,
-                &self.integer_key.scalar_eq_parallelized(&c.0, character),
+                &match character {
+                    ClearOrEncrypted::Clear(clear_char) => {
+                        self.integer_key.scalar_eq_parallelized(&c.0, clear_char)
+                    }
+                    ClearOrEncrypted::Encrypted(ref encrypted_char) => {
+                        self.integer_key.eq_parallelized(&c.0, &encrypted_char.0)
+                    }
+                },
             );
             self.add_assign_radix_length(&mut result_length, &continue_triming);
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
@@ -70,33 +81,16 @@ impl StringServerKey {
         }
     }
 
+    pub fn trim_start_clear_char_no_padding(&self, s: &FheString, clear_char: u8) -> FheString {
+        self.trim_start_no_padding(s, ClearOrEncrypted::Clear(clear_char))
+    }
+
     pub fn trim_start_encrypted_char_no_padding(
         &self,
         s: &FheString,
         encrypted_char: &FheAsciiChar,
     ) -> FheString {
-        let mut continue_triming = self.create_true();
-        let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
-        let mut result_length: FheStrLength = s.length.clone();
-
-        for c in s.content.iter() {
-            self.integer_key.bitand_assign_parallelized(
-                &mut continue_triming,
-                &self.integer_key.eq_parallelized(&c.0, &encrypted_char.0),
-            );
-            self.add_assign_radix_length(&mut result_length, &continue_triming);
-            result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
-                &continue_triming,
-                &self.integer_key.create_trivial_zero_radix(4),
-                &c.0,
-            )))
-        }
-
-        FheString {
-            content: result_content,
-            padding: Padding::InitialAndFinal,
-            length: result_length,
-        }
+        self.trim_start_no_padding(s, ClearOrEncrypted::Encrypted(encrypted_char))
     }
 }
 
