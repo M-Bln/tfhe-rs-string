@@ -45,10 +45,32 @@ impl StringServerKey {
         *length = self.add_radix_length(&length, &encrypted_int);
     }
 
+    pub fn eq_clear_or_encrypted_char(&self, c: &FheAsciiChar, character: &ClearOrEncryptedChar) -> RadixCiphertext {
+	match character {
+            ClearOrEncryptedChar::Clear(clear_char) => {
+                self.integer_key.scalar_eq_parallelized(&c.0, *clear_char)
+            }
+            ClearOrEncryptedChar::Encrypted(ref encrypted_char) => {
+                self.integer_key.eq_parallelized(&c.0, &encrypted_char.0)
+            }
+        }
+    }
+
+
     pub fn trim_start_no_padding(
         &self,
         s: &FheString,
         character: &ClearOrEncryptedChar,
+    ) -> FheString {
+	self.trim_start_with_padding(s, character, Padding::None)
+    }
+
+    
+    pub fn trim_start_with_padding (
+        &self,
+        s: &FheString,
+        character: &ClearOrEncryptedChar,
+	padding: Padding,
     ) -> FheString {
         let mut continue_triming = self.create_true();
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
@@ -57,14 +79,13 @@ impl StringServerKey {
         for c in s.content.iter() {
             self.integer_key.bitand_assign_parallelized(
                 &mut continue_triming,
-                &match character {
-                    ClearOrEncryptedChar::Clear(clear_char) => {
-                        self.integer_key.scalar_eq_parallelized(&c.0, *clear_char)
-                    }
-                    ClearOrEncryptedChar::Encrypted(ref encrypted_char) => {
-                        self.integer_key.eq_parallelized(&c.0, &encrypted_char.0)
-                    }
-                },
+		& match padding {
+		    Padding::InitialAndFinal => self.integer_key.bitor_parallelized(
+			&self.eq_clear_or_encrypted_char(c, character),
+			&self.eq_clear_or_encrypted_char(c, &ClearOrEncryptedChar::Clear(b'0')),
+		    ),
+		    _ => self.eq_clear_or_encrypted_char(c, character),
+		}
             );
             self.add_assign_radix_length(&mut result_length, &continue_triming);
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
@@ -80,6 +101,7 @@ impl StringServerKey {
             length: result_length,
         }
     }
+
 
     pub fn trim_start_clear_char_no_padding(&self, s: &FheString, clear_char: u8) -> FheString {
         self.trim_start_no_padding(s, &ClearOrEncryptedChar::Clear(clear_char))
