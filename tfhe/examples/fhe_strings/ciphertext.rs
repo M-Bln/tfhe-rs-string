@@ -19,11 +19,14 @@ pub enum ClearOrEncrypted<T, U> {
     Encrypted(U),
 }
 
-#[derive(Clone)]
-pub enum FheStrLength {
-    Clear(usize),
-    Crypted(RadixCiphertext),
-}
+pub type FheStrLength = ClearOrEncrypted<usize, RadixCiphertext>;
+pub type ClearOrEncryptedChar = ClearOrEncrypted<u8, FheAsciiChar>;
+
+// #[derive(Clone)]
+// pub enum FheStrLength {
+//     Clear(usize),
+//     Crypted(RadixCiphertext),
+// }
 
 pub struct FheString {
     pub content: Vec<FheAsciiChar>,

@@ -1,4 +1,4 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -12,7 +12,7 @@ impl StringServerKey {
 
     pub fn add_scalar_length(&self, length: &FheStrLength, scalar: u8) -> FheStrLength {
         match length {
-            FheStrLength::Crypted(encrypted_len) => FheStrLength::Crypted(
+            FheStrLength::Encrypted(encrypted_len) => FheStrLength::Encrypted(
                 self.integer_key
                     .scalar_add_parallelized(&encrypted_len, scalar),
             ),
@@ -26,11 +26,11 @@ impl StringServerKey {
         encrypted_int: &RadixCiphertext,
     ) -> FheStrLength {
         match length {
-            FheStrLength::Crypted(encrypted_len) => FheStrLength::Crypted(
+            FheStrLength::Encrypted(encrypted_len) => FheStrLength::Encrypted(
                 self.integer_key
                     .add_parallelized(&encrypted_len, &encrypted_int),
             ),
-            FheStrLength::Clear(len) => FheStrLength::Crypted(
+            FheStrLength::Clear(len) => FheStrLength::Encrypted(
                 self.integer_key
                     .scalar_add_parallelized(&encrypted_int, *len as u64),
             ),
@@ -48,7 +48,7 @@ impl StringServerKey {
     pub fn trim_start_no_padding(
         &self,
         s: &FheString,
-        character: ClearOrEncrypted<u8, &FheAsciiChar>,
+        character: &ClearOrEncryptedChar,
     ) -> FheString {
         let mut continue_triming = self.create_true();
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
@@ -58,10 +58,10 @@ impl StringServerKey {
             self.integer_key.bitand_assign_parallelized(
                 &mut continue_triming,
                 &match character {
-                    ClearOrEncrypted::Clear(clear_char) => {
-                        self.integer_key.scalar_eq_parallelized(&c.0, clear_char)
+                    ClearOrEncryptedChar::Clear(clear_char) => {
+                        self.integer_key.scalar_eq_parallelized(&c.0, *clear_char)
                     }
-                    ClearOrEncrypted::Encrypted(ref encrypted_char) => {
+                    ClearOrEncryptedChar::Encrypted(ref encrypted_char) => {
                         self.integer_key.eq_parallelized(&c.0, &encrypted_char.0)
                     }
                 },
@@ -82,7 +82,7 @@ impl StringServerKey {
     }
 
     pub fn trim_start_clear_char_no_padding(&self, s: &FheString, clear_char: u8) -> FheString {
-        self.trim_start_no_padding(s, ClearOrEncrypted::Clear(clear_char))
+        self.trim_start_no_padding(s, &ClearOrEncryptedChar::Clear(clear_char))
     }
 
     pub fn trim_start_encrypted_char_no_padding(
@@ -90,7 +90,7 @@ impl StringServerKey {
         s: &FheString,
         encrypted_char: &FheAsciiChar,
     ) -> FheString {
-        self.trim_start_no_padding(s, ClearOrEncrypted::Encrypted(encrypted_char))
+        self.trim_start_no_padding(s, &ClearOrEncryptedChar::Encrypted(encrypted_char.clone()))
     }
 }
 
