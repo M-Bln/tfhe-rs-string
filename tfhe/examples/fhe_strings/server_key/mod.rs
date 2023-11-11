@@ -1,5 +1,6 @@
 mod change_case;
 mod is_empty;
+mod trim;
 
 use tfhe::integer::ServerKey;
 

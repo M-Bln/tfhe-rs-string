@@ -13,7 +13,7 @@ impl StringServerKey {
         match &s.length {
             FheStrLength::Clear(0) => FheBool::Clear(true),
             FheStrLength::Clear(_) => FheBool::Clear(false),
-            FheStrLength::Crypted(length) => {
+            FheStrLength::Encrypted(length) => {
                 FheBool::Crypted(self.integer_key.scalar_eq_parallelized(&length, 0))
             }
         }

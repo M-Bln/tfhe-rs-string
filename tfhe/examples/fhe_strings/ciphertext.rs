@@ -3,20 +3,31 @@ use std::string::FromUtf8Error;
 use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey};
 use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
+#[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);
 
 #[derive(Copy, Clone)]
 pub enum Padding {
     None,
     Final,
+    Initial,
     InitialAndFinal,
 }
 
 #[derive(Clone)]
-pub enum FheStrLength {
-    Clear(usize),
-    Crypted(RadixCiphertext),
+pub enum ClearOrEncrypted<T, U> {
+    Clear(T),
+    Encrypted(U),
 }
+
+pub type FheStrLength = ClearOrEncrypted<usize, RadixCiphertext>;
+pub type ClearOrEncryptedChar = ClearOrEncrypted<u8, FheAsciiChar>;
+
+// #[derive(Clone)]
+// pub enum FheStrLength {
+//     Clear(usize),
+//     Crypted(RadixCiphertext),
+// }
 
 pub struct FheString {
     pub content: Vec<FheAsciiChar>,
@@ -94,7 +105,7 @@ pub fn string_from_padded_utf8(utf8_src: &Vec<u8>) -> Result<String, FromUtf8Err
     let range_end = utf8_src[range_start..utf8_src.len()]
         .iter()
         .position(|&c| c == b'\0')
-        .unwrap_or(utf8_src.len()); // default to length if no trailing '\0'
+        .unwrap_or(utf8_src.len() - range_start); // default to length remaining if no trailing '\0'
     String::from_utf8(utf8_src[range_start..(range_end + range_start)].to_vec())
 }
 
@@ -176,7 +187,7 @@ mod tests {
 
     #[test]
     fn test_string_from_padded_utf8() {
-        let valid_utf8_src = vec![0, 0, 0, 0, 97, 98, 99, 100, 0, 0, 0, 0, 0, 0];
+        let valid_utf8_src = vec![0, 0, 0, 0, 97, 98, 99, 100];
         let s = string_from_padded_utf8(&valid_utf8_src).unwrap();
         assert!(s.eq("abcd"));
 
