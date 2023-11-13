@@ -10,14 +10,8 @@ impl StringServerKey {
             .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), 1)
     }
 
-    pub fn add_scalar_length(&self, length: &FheStrLength, scalar: u8) -> FheStrLength {
-        match length {
-            FheStrLength::Encrypted(encrypted_len) => FheStrLength::Encrypted(
-                self.integer_key
-                    .scalar_add_parallelized(&encrypted_len, scalar),
-            ),
-            FheStrLength::Clear(len) => FheStrLength::Clear(scalar as usize + len),
-        }
+    pub fn create_zero(&self) -> RadixCiphertext {
+        self.integer_key.create_trivial_zero_radix(4)
     }
 
     pub fn add_radix_length(
@@ -102,15 +96,6 @@ impl StringServerKey {
     pub fn trim_encrypted(&self, s: &FheString, character: &FheAsciiChar) -> FheString {
         self.trim_end_encrypted(&self.trim_start_encrypted(s, character), character)
     }
-
-    // pub fn trim_start_no_padding(
-    //     &self,
-    //     s: &FheString,
-    //     character: &ClearOrEncryptedChar,
-    // ) -> FheString {
-    // 	self.trim_start_with_padding(s, character, Padding::None)
-    // }
-
     pub fn trim_start_char(&self, s: &FheString, character: u8) -> FheString {
         self.trim_start_clear_or_encrypted_char(s, &ClearOrEncryptedChar::Clear(character))
     }
@@ -160,18 +145,6 @@ impl StringServerKey {
             length: result_length,
         }
     }
-
-    // pub fn trim_start_clear_char_no_padding(&self, s: &FheString, clear_char: u8) -> FheString {
-    //     self.trim_start_no_padding(s, &ClearOrEncryptedChar::Clear(clear_char))
-    // }
-
-    // pub fn trim_start_encrypted_char_no_padding(
-    //     &self,
-    //     s: &FheString,
-    //     encrypted_char: &FheAsciiChar,
-    // ) -> FheString {
-    //     self.trim_start_no_padding(s, &ClearOrEncryptedChar::Encrypted(encrypted_char.clone()))
-    // }
 }
 
 #[cfg(test)]
@@ -202,24 +175,21 @@ mod tests {
         assert_eq!(&decrypted_str, "b");
     }
 
-    // #[test]
-    // fn test_trim_start_clear_char_no_padding() {
-    //     let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
-    //     let trimed_encrypted_str = KEYS
-    //         .1
-    //         .trim_start_clear_or_encrypted(&encrypted_str, b'a');
-    //     let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
-    //     assert_eq!(&decrypted_str, "b");
-    // }
+    #[test]
+    fn test_trim_end_encrypted() {
+        let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
+        let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'b'));
+        let trimed_encrypted_str = KEYS.1.trim_end_encrypted(&encrypted_str, &encrypted_char);
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "a");
+    }
 
-    // #[test]
-    // fn test_trim_start_encrypted_char_no_padding() {
-    //     let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
-    //     let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'a'));
-    //     let trimed_encrypted_str = KEYS
-    //         .1
-    //         .trim_start_encrypted_char_no_padding(&encrypted_str, &encrypted_char);
-    //     let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
-    //     assert_eq!(&decrypted_str, "b");
-    // }
+    #[test]
+    fn test_trim_encrypted() {
+        let encrypted_str = encrypt_str(&KEYS.0, "bab").unwrap();
+        let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'b'));
+        let trimed_encrypted_str = KEYS.1.trim_encrypted(&encrypted_str, &encrypted_char);
+        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
+        assert_eq!(&decrypted_str, "a");
+    }
 }
