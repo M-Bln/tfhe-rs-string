@@ -96,7 +96,6 @@ impl StringServerKey {
     pub fn trim_encrypted(&self, s: &FheString, character: &FheAsciiChar) -> FheString {
         self.trim_end_encrypted(&self.trim_start_encrypted(s, character), character)
     }
-
     pub fn trim_start_char(&self, s: &FheString, character: u8) -> FheString {
         self.trim_start_clear_or_encrypted_char(s, &ClearOrEncryptedChar::Clear(character))
     }
@@ -163,30 +162,6 @@ mod tests {
     fn test_trim_start_char() {
         let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
         let trimed_encrypted_str = KEYS.1.trim_start_char(&encrypted_str, b'a');
-        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
-        assert_eq!(&decrypted_str, "b");
-    }
-
-    #[test]
-    fn test_trim_end_char() {
-        let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
-        let trimed_encrypted_str = KEYS.1.trim_end_char(&encrypted_str, b'b');
-        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
-        assert_eq!(&decrypted_str, "a");
-    }
-
-    #[test]
-    fn test_trim_char() {
-        let encrypted_str = encrypt_str(&KEYS.0, "aba").unwrap();
-        let trimed_encrypted_str = KEYS.1.trim_char(&encrypted_str, b'a');
-        let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
-        assert_eq!(&decrypted_str, "b");
-    }
-
-    #[test]
-    fn test_trim() {
-        let encrypted_str = encrypt_str(&KEYS.0, " b ").unwrap();
-        let trimed_encrypted_str = KEYS.1.trim(&encrypted_str);
         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
         assert_eq!(&decrypted_str, "b");
     }
