@@ -10,14 +10,8 @@ impl StringServerKey {
             .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), 1)
     }
 
-    pub fn add_scalar_length(&self, length: &FheStrLength, scalar: u8) -> FheStrLength {
-        match length {
-            FheStrLength::Encrypted(encrypted_len) => FheStrLength::Encrypted(
-                self.integer_key
-                    .scalar_add_parallelized(&encrypted_len, scalar),
-            ),
-            FheStrLength::Clear(len) => FheStrLength::Clear(scalar as usize + len),
-        }
+    pub fn create_zero(&self) -> RadixCiphertext {
+        self.integer_key.create_trivial_zero_radix(4)
     }
 
     pub fn add_radix_length(
@@ -195,7 +189,7 @@ mod tests {
         let trimed_encrypted_str = KEYS.1.trim(&encrypted_str);
         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
         assert_eq!(&decrypted_str, "b");
-    }    
+    }
 
     #[test]
     fn test_trim_start_encrypted() {
