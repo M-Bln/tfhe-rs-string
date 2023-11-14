@@ -78,7 +78,7 @@ impl StringServerKey {
                     &result,
                     &self
                         .integer_key
-                        .scalar_eq_parallelized(&s1.content[s2.content.len()].0, 0),
+                        .scalar_eq_parallelized(&s2.content[s1.content.len()].0, 0),
                 ),
             };
         }
