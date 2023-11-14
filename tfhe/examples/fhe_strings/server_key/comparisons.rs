@@ -47,11 +47,11 @@ impl StringServerKey {
     /// Return the first element encrypting a non null character in content,
     /// replace it in content by an encryption of the null character.
     /// If all character are null, return an encryption of the null character.
-    pub fn pop_first_non_zero_char(&self, content: &mut Vec<FheAsciiChar>) -> FheAsciiChar {
+    pub fn pop_first_non_zero_char(&self, content_slice : &mut[FheAsciiChar]) -> FheAsciiChar {
         let mut previous_is_padding_zero = self.create_true();
         let mut result = self.create_zero();
 
-        for c in content.iter_mut() {
+        for c in content_slice {
             let current_is_zero = self.integer_key.scalar_eq_parallelized(&c.0, 0);
 
             let first_non_null = self.integer_key.bitand_parallelized(
@@ -75,6 +75,17 @@ impl StringServerKey {
                 .bitand_assign_parallelized(&mut previous_is_padding_zero, &current_is_zero);
         }
         FheAsciiChar(result)
+    }
+
+    pub fn remove_initial_padding(&self, s : &mut FheString) {
+    	let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
+	let mut prev_content_slice = &mut s.content.clone()[..];
+	for _ in 1..s.content.len() {
+	    result_content.push(self.pop_first_non_zero_char(prev_content_slice));
+	    prev_content_slice=&mut prev_content_slice[1..];
+	}
+	s.padding = Padding::Final;
+	s.content = result_content;
     }
 }
 
@@ -100,10 +111,27 @@ mod tests {
             FheStrLength::Clear(1),
         )
         .unwrap();
-        let poped_char = KEYS.1.pop_first_non_zero_char(&mut encrypted_str.content);
+        let poped_char = KEYS.1.pop_first_non_zero_char(&mut encrypted_str.content[..]);
         let decrypted_poped_char = KEYS.0.decrypt::<u8>(&poped_char.0);
         assert_eq!(decrypted_poped_char, 97);
         let decrypted_string = decrypt_fhe_string(&KEYS.0, &encrypted_str).unwrap();
         assert_eq!(decrypted_string, "b");
+    }
+
+    #[test]
+    fn test_remove_initial_padding() {
+	let mut encrypted_str = encrypt_ascii_vec(
+            &KEYS.0,
+            &vec![0, 97],
+            Padding::InitialAndFinal,
+            FheStrLength::Clear(1),
+        ).unwrap();
+	KEYS.1.remove_initial_padding(&mut encrypted_str);
+	let decrypted_char = KEYS.0.decrypt::<u8>(&encrypted_str.content[0].0);
+	assert_eq!(decrypted_char, 97);
+	assert_eq!(encrypted_str.padding, Padding::Final);
+
+	let decrypted_string = decrypt_fhe_string(&KEYS.0, &encrypted_str).unwrap();
+        assert_eq!(decrypted_string, "a");
     }
 }
