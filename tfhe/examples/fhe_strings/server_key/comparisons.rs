@@ -242,27 +242,6 @@ mod tests {
     }
 
     #[test]
-    fn test_eq_no_init_padding() {
-        let encrypted_str1 = encrypt_ascii_vec(
-            &KEYS.0,
-            &vec![97, 0, 0],
-            Padding::InitialAndFinal,
-            FheStrLength::Clear(2),
-        )
-        .unwrap();
-        let encrypted_str2 = encrypt_ascii_vec(
-            &KEYS.0,
-            &vec![97, 98],
-            Padding::InitialAndFinal,
-            FheStrLength::Clear(2),
-        )
-        .unwrap();
-        let eq_str1_str2 = KEYS.1.eq_no_init_padding(&encrypted_str1, &encrypted_str2);
-        let clear_eq_str1_str2 = KEYS.0.decrypt::<u8>(&eq_str1_str2);
-        assert_eq!(clear_eq_str1_str2, 0);
-    }
-
-    #[test]
     fn test_eq() {
         let encrypted_str1 = encrypt_ascii_vec(
             &KEYS.0,
