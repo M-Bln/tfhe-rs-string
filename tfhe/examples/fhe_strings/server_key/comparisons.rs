@@ -30,6 +30,37 @@ impl StringServerKey {
         }
     }
 
+    /// Check if s1 encrypts a string which has the string encrypted by `prefix` as a prefix. Return
+    /// an encrypted value of 1 for true and an encrypted value of 0 for false.
+    pub fn starts_with_encrypted(&self, s: &FheString, prefix: &FheString) -> RadixCiphertext {
+        // If the prefix is longer than the encrypted string, return false
+        match (&s.length, &prefix.length) {
+            (&FheStrLength::Clear(l), &FheStrLength::Clear(l_prefix)) if l_prefix > l => {
+                return self.create_zero()
+            }
+            (_, &FheStrLength::Clear(l_prefix)) if l_prefix > s.content.len() => {
+                return self.create_zero()
+            }
+            _ => (),
+        }
+
+        match (s.padding, prefix.padding) {
+            (Padding::None | Padding::Final, Padding::None | Padding::Final) => {
+                self.starts_with_encrypted_no_init_padding(s, prefix)
+            }
+            (Padding::None | Padding::Final, _) => {
+                self.starts_with_encrypted_no_init_padding(s, &self.remove_initial_padding(prefix))
+            }
+            (_, Padding::None | Padding::Final) => {
+                self.starts_with_encrypted_no_init_padding(&self.remove_initial_padding(s), prefix)
+            }
+            _ => self.starts_with_encrypted_no_init_padding(
+                &self.remove_initial_padding(s),
+                &self.remove_initial_padding(prefix),
+            ),
+        }
+    }
+
     /// Check if s1 encrypt the string s2, for s1 an FheString and s2 a clear &str.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn eq_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
@@ -40,6 +71,20 @@ impl StringServerKey {
         return match s1.padding {
             Padding::None | Padding::Final => self.eq_clear_no_init_padding(s1, s2),
             _ => self.eq_clear_no_init_padding(&self.remove_initial_padding(s1), s2),
+        };
+    }
+
+    /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. Return an
+    /// encrypted value of 1 for true and an encrypted value of 0 for false.
+    pub fn starts_with_clear(&self, s: &FheString, prefix: &str) -> RadixCiphertext {
+        match s.length {
+            FheStrLength::Clear(length) if prefix.len() > length => return self.create_zero(),
+            _ if prefix.len() > s.content.len() => return self.create_zero(),
+            _ => (),
+        }
+        return match s.padding {
+            Padding::None | Padding::Final => self.starts_with_clear_no_init_padding(s, prefix),
+            _ => self.starts_with_clear_no_init_padding(&self.remove_initial_padding(s), prefix),
         };
     }
 
@@ -75,6 +120,52 @@ impl StringServerKey {
         result
     }
 
+    /// Check if s1 encrypts a string which has the string encrypted by prefix as a prefix. The
+    /// function assumes that both s and prefix do not have initial padding zeros. Return an
+    /// encrypted value of 1 for true and an encrypted value of 0 for false.
+    pub fn starts_with_encrypted_no_init_padding(
+        &self,
+        s: &FheString,
+        prefix: &FheString,
+    ) -> RadixCiphertext {
+        // First the content are compared
+        let mut result = self.create_true();
+        for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
+            self.integer_key.bitand_assign_parallelized(
+                &mut result,
+                &match prefix.padding {
+                    Padding::None => self.compare_char(
+                        &s.content[n],
+                        &prefix.content[n],
+                        std::cmp::Ordering::Equal,
+                    ),
+                    _ => self.integer_key.bitor_parallelized(
+                        &self.compare_char(
+                            &s.content[n],
+                            &prefix.content[n],
+                            std::cmp::Ordering::Equal,
+                        ),
+                        &self
+                            .integer_key
+                            .scalar_eq_parallelized(&prefix.content[n].0, 0),
+                    ),
+                },
+            )
+        }
+
+        // If prefix content size is greater than s content size, check if the extra characters are
+        // padding zeros
+        if prefix.content.len() > s.content.len() {
+            return self.integer_key.bitand_parallelized(
+                &result,
+                &self
+                    .integer_key
+                    .scalar_eq_parallelized(&prefix.content[s.content.len()].0, 0),
+            );
+        }
+        result
+    }
+
     /// Check if s1 encrypt the string s2, for s1 an FheString with no initial padding zeros and s2
     /// a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
@@ -100,6 +191,29 @@ impl StringServerKey {
                     .integer_key
                     .scalar_eq_parallelized(&s1.content[s2.len()].0, 0),
             );
+        }
+        result
+    }
+
+    /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. The function
+    /// assumes that both s and prefix do not have initial padding zeros. Return an encrypted value
+    /// of 1 for true and an encrypted value of 0 for false.
+    pub fn starts_with_clear_no_init_padding(
+        &self,
+        s: &FheString,
+        prefix: &str,
+    ) -> RadixCiphertext {
+        // First the content are compared
+        let mut result = self.create_true();
+        for n in 0..std::cmp::min(s.content.len(), prefix.len()) {
+            self.integer_key.bitand_assign_parallelized(
+                &mut result,
+                &self.compare_clear_char(
+                    &s.content[n],
+                    prefix.as_bytes()[n],
+                    std::cmp::Ordering::Equal,
+                ),
+            )
         }
         result
     }
@@ -613,5 +727,61 @@ mod tests {
         assert_eq!(clear_eq_str1_str2, 1);
         assert_eq!(clear_eq_str1_str3, 0);
         assert_eq!(clear_eq_str1_str4, 0);
+    }
+
+    #[test]
+    fn test_starts_with_encrypted() {
+        let encrypted_str = encrypt_ascii_vec(
+            &KEYS.0,
+            &vec![0, 98, 99],
+            Padding::InitialAndFinal,
+            FheStrLength::Clear(2),
+        )
+        .unwrap();
+        let encrypted_prefix = encrypt_ascii_vec(
+            &KEYS.0,
+            &vec![98],
+            Padding::InitialAndFinal,
+            FheStrLength::Clear(2),
+        )
+        .unwrap();
+
+        let starts_with_result = KEYS
+            .1
+            .starts_with_encrypted(&encrypted_str, &encrypted_prefix);
+        let clear_result = KEYS.0.decrypt::<u8>(&starts_with_result);
+
+        assert_eq!(clear_result, 1);
+    }
+
+    #[test]
+    fn test_starts_with_clear() {
+        let encrypted_str = encrypt_ascii_vec(
+            &KEYS.0,
+            &vec![98, 99],
+            Padding::InitialAndFinal,
+            FheStrLength::Clear(2),
+        )
+        .unwrap();
+
+        let mut starts_with_result = KEYS.1.starts_with_clear(&encrypted_str, "b");
+        let clear_result = KEYS.0.decrypt::<u8>(&starts_with_result);
+        assert_eq!(clear_result, 1);
+
+        starts_with_result = KEYS.1.starts_with_clear(&encrypted_str, "");
+        let clear_result = KEYS.0.decrypt::<u8>(&starts_with_result);
+        assert_eq!(clear_result, 1);
+
+        starts_with_result = KEYS.1.starts_with_clear(&encrypted_str, "bc");
+        let clear_result = KEYS.0.decrypt::<u8>(&starts_with_result);
+        assert_eq!(clear_result, 1);
+
+        starts_with_result = KEYS.1.starts_with_clear(&encrypted_str, "def");
+        let clear_result = KEYS.0.decrypt::<u8>(&starts_with_result);
+        assert_eq!(clear_result, 0);
+
+        starts_with_result = KEYS.1.starts_with_clear(&encrypted_str, "d");
+        let clear_result = KEYS.0.decrypt::<u8>(&starts_with_result);
+        assert_eq!(clear_result, 0);
     }
 }
