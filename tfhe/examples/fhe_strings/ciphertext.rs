@@ -1,8 +1,8 @@
 use crate::client_key::StringClientKey;
+use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::server_key::StringServerKey;
-use std::string::FromUtf8Error;
-use tfhe::integer::{gen_keys_radix, RadixCiphertext, RadixClientKey};
-use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use tfhe::integer::{RadixCiphertext, gen_keys_radix};
+
 
 #[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);
@@ -24,76 +24,13 @@ pub enum ClearOrEncrypted<T, U> {
 pub type FheStrLength = ClearOrEncrypted<usize, RadixCiphertext>;
 pub type ClearOrEncryptedChar = ClearOrEncrypted<u8, FheAsciiChar>;
 
-// #[derive(Clone)]
-// pub enum FheStrLength {
-//     Clear(usize),
-//     Crypted(RadixCiphertext),
-// }
-
 pub struct FheString {
     pub content: Vec<FheAsciiChar>,
     pub padding: Padding,
     pub length: FheStrLength,
 }
 
-#[derive(Debug)]
-pub enum ConversionError {
-    NonAsciiCharacters,
-}
 
-// pub fn encrypt_ascii_vec(
-//     client_key: &RadixClientKey,
-//     utf8_vec: &Vec<u8>,
-//     padding: Padding,
-//     length: FheStrLength,
-// ) -> Result<FheString, ConversionError> {
-//     if utf8_vec.iter().any(|c| !c.is_ascii()) {
-//         return Err(ConversionError::NonAsciiCharacters);
-//     }
-//     Ok(FheString {
-//         content: utf8_vec
-//             .iter()
-//             .map(|byte| FheAsciiChar(client_key.encrypt(*byte as u64)))
-//             .collect(),
-//         padding: padding,
-//         length: length,
-//     })
-// }
-
-// pub fn encrypt_str(client_key: &RadixClientKey, s: &str) -> Result<FheString, ConversionError> {
-//     encrypt_ascii_vec(
-//         client_key,
-//         &s.as_bytes().to_vec(),
-//         Padding::None,
-//         FheStrLength::Clear(s.len()),
-//     )
-// }
-
-// pub fn decrypt_fhe_ascii_vec(client_key: &RadixClientKey, s: &FheString) -> Vec<u8> {
-//     s.content
-//         .iter()
-//         .map(|crypted_char| client_key.decrypt::<u8>(&crypted_char.0))
-//         .collect::<Vec<u8>>()
-// }
-
-// pub fn decrypt_fhe_string(
-//     client_key: &RadixClientKey,
-//     s: &FheString,
-// ) -> Result<String, FromUtf8Error> {
-//     string_from_padded_utf8(&decrypt_fhe_ascii_vec(client_key, s))
-// }
-
-// pub fn gen_keys() -> (RadixClientKey, StringServerKey) {
-//     let num_block = 4;
-//     match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block) {
-//         (radix_client_key, server_key) => (
-//             radix_client_key,
-//             StringServerKey {
-//                 integer_key: server_key,
-//             },
-//         ),
-//     }
-// }
 
 pub fn gen_keys() -> (StringClientKey, StringServerKey) {
     let num_block = 4;
@@ -109,56 +46,30 @@ pub fn gen_keys() -> (StringClientKey, StringServerKey) {
     }
 }
 
-// /// Trim the initial and final '\0' bytes from a Vec<u8>
-// /// The resulting String starts directly after the last initial '\0'
-// /// if any, and ends just before the first '\0'.
-// pub fn string_from_padded_utf8(utf8_src: &Vec<u8>) -> Result<String, FromUtf8Error> {
-//     let range_start = utf8_src
-//         .iter()
-//         .position(|&c| c != b'\0')
-//         .unwrap_or(utf8_src.len()); // default to length if only `\0` are present
-//     let range_end = utf8_src[range_start..utf8_src.len()]
-//         .iter()
-//         .position(|&c| c == b'\0')
-//         .unwrap_or(utf8_src.len() - range_start); // default to length remaining if no trailing
-// '\0'     String::from_utf8(utf8_src[range_start..(range_end + range_start)].to_vec())
-// }
-
-// /// Produce a Vec<u8> from a str by adding padding_size trailing '\0'
-// pub fn null_padded_utf8_from_str(s: &str, padding_size: usize) -> Vec<u8> {
-//     let mut result: Vec<u8> = s.as_bytes().to_vec();
-//     result.append(&mut vec![0; padding_size]);
-//     result
-// }
-
 #[cfg(test)]
 mod tests {
     use crate::ciphertext::{gen_keys, FheStrLength, Padding};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
-    use tfhe::integer::{RadixClientKey, ServerKey};
+
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
+    	pub static ref CLIENT_KEY : &'static StringClientKey = &KEYS.0;
+        pub static ref SERVER_KEY : &'static StringServerKey = &KEYS.1;
     }
-    // lazy_static! {
-    //     pub static ref KEYS: (RadixClientKey, ServerKey) = match gen_keys() {
-    //         (client_key, string_sks) => (client_key, string_sks.integer_key),
-    //     };
-    // }
+
 
     #[test]
     fn test_encrypt_ascii_vec() {
-        assert!(KEYS
-            .0
+        assert!(CLIENT_KEY
             .encrypt_ascii_vec(
                 &vec![0, 0, 97, 98, 99, 100, 0],
                 Padding::InitialAndFinal,
                 FheStrLength::Clear(4)
             )
             .is_ok());
-        assert!(KEYS
-            .0
+        assert!(CLIENT_KEY
             .encrypt_ascii_vec(
                 &vec![0, 0, 0xc3, 0x28, 0, 0],
                 Padding::InitialAndFinal,
@@ -171,41 +82,34 @@ mod tests {
 
     #[test]
     fn test_decrypt_encrypt_ascii_vec() {
-        let encrypted_s = KEYS
-            .0
+        let encrypted_s = CLIENT_KEY
             .encrypt_ascii_vec(
                 &vec![0, 0, 97, 98, 99, 100, 0],
                 Padding::InitialAndFinal,
                 FheStrLength::Clear(4),
             )
             .unwrap();
-        let decrypted_s = KEYS.0.decrypt_fhe_ascii_vec(&encrypted_s);
+        let decrypted_s = CLIENT_KEY.decrypt_fhe_ascii_vec(&encrypted_s);
         println!("the decrypted vec is \"{:?}\"", decrypted_s);
         println!("it is expected to be \"[0,0,97,98,99,100,0]\"");
         assert_eq!(decrypted_s, vec![0, 0, 97, 98, 99, 100, 0]);
     }
 
-    //    use crate::ciphertext::encrypt_str;
-
     #[test]
     fn test_encrypt() {
-        assert!(KEYS.0.encrypt_str("Hello world!").is_ok())
+        assert!(CLIENT_KEY.encrypt_str("Hello world!").is_ok())
     }
-
-    //    use crate::ciphertext::decrypt_fhe_string;
 
     #[test]
     fn test_decrypt_encrypt() {
         let plain_text = "abc";
-        let encrypted_str = KEYS.0.encrypt_str(plain_text).unwrap();
-        let decrypted_str = KEYS.0.decrypt_string(&encrypted_str).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str(plain_text).unwrap();
+        let decrypted_str = CLIENT_KEY.decrypt_string(&encrypted_str).unwrap();
         println!(
             "the decrypted string is \"{}\", it is expected to be \"{}\"",
             decrypted_str, plain_text,
         )
     }
-
-    //use crate::ciphertext::string_from_padded_utf8;
 
     #[test]
     fn test_string_from_padded_utf8() {
@@ -216,8 +120,6 @@ mod tests {
         let invalid_utf8_src = vec![0, 0, 0xc3, 0x28, 0, 0];
         assert!(StringClientKey::string_from_padded_vec(&invalid_utf8_src).is_err());
     }
-
-    //    use crate::ciphertext::null_padded_utf8_from_str;
 
     #[test]
     fn test_null_padded_utf8_from_str() {

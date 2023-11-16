@@ -1,4 +1,4 @@
-use crate::ciphertext::{ConversionError, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use serde::{Deserialize, Serialize};
 use std::string::FromUtf8Error;
 use tfhe::integer::RadixClientKey;
@@ -12,6 +12,11 @@ impl From<RadixClientKey> for StringClientKey {
     fn from(integer_key: RadixClientKey) -> Self {
         Self { integer_key }
     }
+}
+
+#[derive(Debug)]
+pub enum ConversionError {
+    NonAsciiCharacters,
 }
 
 impl StringClientKey {
