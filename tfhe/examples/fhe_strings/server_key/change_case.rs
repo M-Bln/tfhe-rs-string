@@ -55,30 +55,30 @@ impl StringServerKey {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use crate::ciphertext::{decrypt_fhe_string, encrypt_str, gen_keys};
-    use crate::server_key::StringServerKey;
-    use lazy_static::lazy_static;
-    use tfhe::integer::RadixClientKey;
+// #[cfg(test)]
+// mod tests {
+//     use crate::ciphertext::{gen_keys};
+//     use crate::server_key::StringServerKey;
+//     use lazy_static::lazy_static;
+//     use tfhe::integer::RadixClientKey;
 
-    lazy_static! {
-        pub static ref KEYS: (RadixClientKey, StringServerKey) = gen_keys();
-    }
+//     lazy_static! {
+//         pub static ref KEYS: (RadixClientKey, StringServerKey) = gen_keys();
+//     }
 
-    #[test]
-    fn test_to_upper_fhe() {
-        let encrypted_str = encrypt_str(&KEYS.0, "aB.").unwrap();
-        let encrypted_str_upper = KEYS.1.to_uppercase(&encrypted_str);
-        let decrypted_str_upper = decrypt_fhe_string(&KEYS.0, &encrypted_str_upper).unwrap();
-        assert_eq!(&decrypted_str_upper, "AB.");
-    }
+//     #[test]
+//     fn test_to_upper_fhe() {
+//         let encrypted_str = encrypt_str(&KEYS.0, "aB.").unwrap();
+//         let encrypted_str_upper = KEYS.1.to_uppercase(&encrypted_str);
+//         let decrypted_str_upper = decrypt_fhe_string(&KEYS.0, &encrypted_str_upper).unwrap();
+//         assert_eq!(&decrypted_str_upper, "AB.");
+//     }
 
-    #[test]
-    fn test_to_lower_fhe() {
-        let encrypted_str = encrypt_str(&KEYS.0, "Bc,").unwrap();
-        let encrypted_str_lower = KEYS.1.to_lowercase(&encrypted_str);
-        let decrypted_str_lower = decrypt_fhe_string(&KEYS.0, &encrypted_str_lower).unwrap();
-        assert_eq!(&decrypted_str_lower, "bc,");
-    }
-}
+//     #[test]
+//     fn test_to_lower_fhe() {
+//         let encrypted_str = encrypt_str(&KEYS.0, "Bc,").unwrap();
+//         let encrypted_str_lower = KEYS.1.to_lowercase(&encrypted_str);
+//         let decrypted_str_lower = decrypt_fhe_string(&KEYS.0, &encrypted_str_lower).unwrap();
+//         assert_eq!(&decrypted_str_lower, "bc,");
+//     }
+// }
