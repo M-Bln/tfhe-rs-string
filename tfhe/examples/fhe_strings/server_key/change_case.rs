@@ -55,30 +55,32 @@ impl StringServerKey {
     }
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::ciphertext::{gen_keys};
-//     use crate::server_key::StringServerKey;
-//     use lazy_static::lazy_static;
-//     use tfhe::integer::RadixClientKey;
+#[cfg(test)]
+mod tests {
+    use crate::ciphertext::gen_keys;
+    use crate::client_key::StringClientKey;
+    use crate::server_key::StringServerKey;
+    use lazy_static::lazy_static;
 
-//     lazy_static! {
-//         pub static ref KEYS: (RadixClientKey, StringServerKey) = gen_keys();
-//     }
+    lazy_static! {
+        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
+        pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
+        pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
+    }
 
-//     #[test]
-//     fn test_to_upper_fhe() {
-//         let encrypted_str = encrypt_str(&KEYS.0, "aB.").unwrap();
-//         let encrypted_str_upper = KEYS.1.to_uppercase(&encrypted_str);
-//         let decrypted_str_upper = decrypt_fhe_string(&KEYS.0, &encrypted_str_upper).unwrap();
-//         assert_eq!(&decrypted_str_upper, "AB.");
-//     }
+    #[test]
+    fn test_to_upper_fhe() {
+        let encrypted_str = CLIENT_KEY.encrypt_str("aB.").unwrap();
+        let encrypted_str_upper = SERVER_KEY.to_uppercase(&encrypted_str);
+        let decrypted_str_upper = CLIENT_KEY.decrypt_string(&encrypted_str_upper).unwrap();
+        assert_eq!(&decrypted_str_upper, "AB.");
+    }
 
-//     #[test]
-//     fn test_to_lower_fhe() {
-//         let encrypted_str = encrypt_str(&KEYS.0, "Bc,").unwrap();
-//         let encrypted_str_lower = KEYS.1.to_lowercase(&encrypted_str);
-//         let decrypted_str_lower = decrypt_fhe_string(&KEYS.0, &encrypted_str_lower).unwrap();
-//         assert_eq!(&decrypted_str_lower, "bc,");
-//     }
-// }
+    #[test]
+    fn test_to_lower_fhe() {
+        let encrypted_str = CLIENT_KEY.encrypt_str("Bc,").unwrap();
+        let encrypted_str_lower = SERVER_KEY.to_lowercase(&encrypted_str);
+        let decrypted_str_lower = CLIENT_KEY.decrypt_string(&encrypted_str_lower).unwrap();
+        assert_eq!(&decrypted_str_lower, "bc,");
+    }
+}

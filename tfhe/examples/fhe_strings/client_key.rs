@@ -1,7 +1,7 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use serde::{Deserialize, Serialize};
 use std::string::FromUtf8Error;
-use tfhe::integer::RadixClientKey;
+use tfhe::integer::{RadixCiphertext, RadixClientKey};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StringClientKey {
@@ -77,6 +77,10 @@ impl StringClientKey {
 
     pub fn decrypt_ascii_char(&self, encrypted_char: &FheAsciiChar) -> u8 {
         self.integer_key.decrypt::<u8>(&encrypted_char.0)
+    }
+
+    pub fn decrypt_u8(&self, encrypted_int: &RadixCiphertext) -> u8 {
+        self.integer_key.decrypt::<u8>(&encrypted_int)
     }
 
     pub fn decrypt_fhe_ascii_vec(&self, s: &FheString) -> Vec<u8> {

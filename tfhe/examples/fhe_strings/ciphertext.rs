@@ -1,8 +1,7 @@
 use crate::client_key::StringClientKey;
-use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, gen_keys_radix};
-
+use tfhe::integer::{gen_keys_radix, RadixCiphertext};
+use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 
 #[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);
@@ -30,8 +29,6 @@ pub struct FheString {
     pub length: FheStrLength,
 }
 
-
-
 pub fn gen_keys() -> (StringClientKey, StringServerKey) {
     let num_block = 4;
     match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block) {
@@ -55,10 +52,9 @@ mod tests {
 
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
-    	pub static ref CLIENT_KEY : &'static StringClientKey = &KEYS.0;
-        pub static ref SERVER_KEY : &'static StringServerKey = &KEYS.1;
+        pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
+        pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
-
 
     #[test]
     fn test_encrypt_ascii_vec() {
