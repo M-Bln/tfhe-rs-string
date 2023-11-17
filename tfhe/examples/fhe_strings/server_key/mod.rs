@@ -1,6 +1,7 @@
 mod change_case;
 mod comparisons;
 mod contains;
+mod find;
 mod is_empty;
 mod trim;
 
