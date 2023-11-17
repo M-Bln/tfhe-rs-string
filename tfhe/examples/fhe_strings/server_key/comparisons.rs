@@ -217,7 +217,7 @@ impl StringServerKey {
         result
     }
 
-    /// Check if s1 encrypts a string which has the string encrypted by prefix as a prefix. The
+    /// Check if s encrypts a string which has the string encrypted by prefix as a prefix. The
     /// function assumes that both s and prefix do not have initial padding zeros. Return an
     /// encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn starts_with_encrypted_no_init_padding(
@@ -225,7 +225,7 @@ impl StringServerKey {
         s: &FheString,
         prefix: &FheString,
     ) -> RadixCiphertext {
-        // First the content are compared
+	// First the overlapping content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
             self.integer_key.bitand_assign_parallelized(
@@ -559,6 +559,14 @@ impl StringServerKey {
             std::cmp::Ordering::Less => self.integer_key.le_parallelized(&c1.0, &c2.0),
             std::cmp::Ordering::Greater => self.integer_key.ge_parallelized(&c1.0, &c2.0),
         }
+    }
+
+    pub fn eq_char(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> RadixCiphertext {
+	self.integer_key.eq_parallelized(&c1.0, &c2.0)
+    }
+
+    pub fn eq_clear_char(&self, c1: &FheAsciiChar, c2: u8) -> RadixCiphertext {
+	self.integer_key.scalar_eq_parallelized(&c1.0, c2)
     }
 
     /// Compare the encrypted character c1 and the clear char c2 with the operator `operator`.
