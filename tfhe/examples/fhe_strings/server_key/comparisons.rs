@@ -225,7 +225,7 @@ impl StringServerKey {
         s: &FheString,
         prefix: &FheString,
     ) -> RadixCiphertext {
-	// First the overlapping content are compared
+        // First the overlapping content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
             self.integer_key.bitand_assign_parallelized(
@@ -562,11 +562,11 @@ impl StringServerKey {
     }
 
     pub fn eq_char(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> RadixCiphertext {
-	self.integer_key.eq_parallelized(&c1.0, &c2.0)
+        self.integer_key.eq_parallelized(&c1.0, &c2.0)
     }
 
     pub fn eq_clear_char(&self, c1: &FheAsciiChar, c2: u8) -> RadixCiphertext {
-	self.integer_key.scalar_eq_parallelized(&c1.0, c2)
+        self.integer_key.scalar_eq_parallelized(&c1.0, c2)
     }
 
     /// Compare the encrypted character c1 and the clear char c2 with the operator `operator`.

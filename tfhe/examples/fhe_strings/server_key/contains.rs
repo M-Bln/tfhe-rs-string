@@ -4,18 +4,42 @@ use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     pub fn contains_char(&self, s: &FheString, encrypted_char: &FheAsciiChar) -> RadixCiphertext {
-	match s.length {
-	    FheStrLength::Clear(length) if length == 0 => {return self.create_zero()},
-	    _ => ()
-	}
-	let mut result: RadixCiphertext = self.create_zero();
-	for c in s.content.iter() {
-	    let c_match: RadixCiphertext = self.eq_char(&c, encrypted_char);
-	    self.integer_key.bitor_assign_parallelized(&mut result, &c_match);
-	}
-	result
+        match s.length {
+            FheStrLength::Clear(length) if length == 0 => return self.create_zero(),
+            _ => (),
+        }
+        let mut result: RadixCiphertext = self.create_zero();
+        for c in s.content.iter() {
+            let c_match: RadixCiphertext = self.eq_char(&c, encrypted_char);
+            self.integer_key
+                .bitor_assign_parallelized(&mut result, &c_match);
+        }
+        result
     }
 
+    pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
+        match pattern.padding {
+            Padding::Final | Padding::None => self.contains_unpadded_string(&s, &pattern),
+            _ => self.contains_unpadded_string(&s, &self.remove_initial_padding(s)),
+        }
+    }
+
+    pub fn contains_unpadded_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
+        match (s.content.len(), pattern.content.len()) {
+            (0, 0) => {
+                return self.create_true();
+            }
+            (0, pattern_lenght) => return self.eq_clear_char(&pattern.content[0], 0),
+            _ => (),
+        }
+        let mut result = self.create_zero();
+        for n in 0..s.content.len() {
+            let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
+            self.integer_key
+                .bitor_assign_parallelized(&mut result, &current_match);
+        }
+        result
+    }
 
     /// Check if s encrypts a string which has the string encrypted by prefix as a prefix. The
     /// function assumes that both s and prefix do not have initial padding zeros. Return an
@@ -31,17 +55,11 @@ impl StringServerKey {
             self.integer_key.bitand_assign_parallelized(
                 &mut result,
                 &match prefix.padding {
-                    Padding::None => self.compare_char(
-                        &s[n],
-                        &prefix.content[n],
-                        std::cmp::Ordering::Equal,
-                    ),
+                    Padding::None => {
+                        self.compare_char(&s[n], &prefix.content[n], std::cmp::Ordering::Equal)
+                    }
                     _ => self.integer_key.bitor_parallelized(
-                        &self.compare_char(
-                            &s[n],
-                            &prefix.content[n],
-                            std::cmp::Ordering::Equal,
-                        ),
+                        &self.compare_char(&s[n], &prefix.content[n], std::cmp::Ordering::Equal),
                         &self
                             .integer_key
                             .scalar_eq_parallelized(&prefix.content[n].0, 0),
@@ -49,7 +67,7 @@ impl StringServerKey {
                 },
             )
         }
-	// If prefix content size is greater than s content size, check if the extra characters are
+        // If prefix content size is greater than s content size, check if the extra characters are
         // padding zeros
         if prefix.content.len() > s.len() {
             return self.integer_key.bitand_parallelized(
@@ -65,7 +83,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys};
+    use crate::ciphertext::gen_keys;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
@@ -75,7 +93,7 @@ mod tests {
         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
-    
+
     // #[test]
     // fn test_eq_char() {
     // 	let encrypted_char1 = CLIENT_KEY.encrypt_ascii_char(100);
@@ -85,7 +103,7 @@ mod tests {
     // 	let eq13 = SERVER_KEY.eq_char(&encrypted_char1, &encrypted_char3);
     // 	assert_eq!(CLIENT_KEY.decrypt_u8(&eq12),1);
     // 	assert_eq!(CLIENT_KEY.decrypt_u8(&eq13),0);
-	
+
     // }
 
     // #[test]
@@ -99,14 +117,43 @@ mod tests {
     // 	assert_eq!(CLIENT_KEY.decrypt_u8(&result2),0);
     // }
 
+    // #[test]
+    // fn test_starts_with_encrypted_vec() {
+    // 	let encrypted_vec = CLIENT_KEY.encrypt_str("cde").unwrap().content;
+    // 	let encrypted_prefix = CLIENT_KEY.encrypt_str_padding("cd",2).unwrap();
+    // 	let encrypted_prefix2 = CLIENT_KEY.encrypt_str("ce").unwrap();
+    // 	let result = SERVER_KEY.starts_with_encrypted_vec(&encrypted_vec, &encrypted_prefix);
+    // 	let result2 = SERVER_KEY.starts_with_encrypted_vec(&encrypted_vec, &encrypted_prefix2);
+    // 	assert_eq!(CLIENT_KEY.decrypt_u8(&result),1);
+    // 	assert_eq!(CLIENT_KEY.decrypt_u8(&result2),0);
+    // }
+
     #[test]
-    fn test_starts_with_encrypted_vec() {
-	let encrypted_vec = CLIENT_KEY.encrypt_str("cde").unwrap().content;
-	let encrypted_prefix = CLIENT_KEY.encrypt_str_padding("cd",2).unwrap();
-	let encrypted_prefix2 = CLIENT_KEY.encrypt_str("ce").unwrap();
-	let result = SERVER_KEY.starts_with_encrypted_vec(&encrypted_vec, &encrypted_prefix);
-	let result2 = SERVER_KEY.starts_with_encrypted_vec(&encrypted_vec, &encrypted_prefix2);
-	assert_eq!(CLIENT_KEY.decrypt_u8(&result),1);
-	assert_eq!(CLIENT_KEY.decrypt_u8(&result2),0);
+    fn test_contains_string() {
+        let encrypted_str = CLIENT_KEY.encrypt_str("cdea").unwrap();
+        let encrypted_str2 = CLIENT_KEY.encrypt_str("").unwrap();
+        let encrypted_str3 = CLIENT_KEY.encrypt_str_padding("", 2).unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("de", 1).unwrap();
+        let encrypted_pattern2 = CLIENT_KEY.encrypt_str_padding("df", 1).unwrap();
+        let encrypted_pattern3 = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
+        let encrypted_pattern4 = CLIENT_KEY.encrypt_str("").unwrap();
+        let result = SERVER_KEY.contains_string(&encrypted_str, &encrypted_pattern);
+        let result2 = SERVER_KEY.contains_string(&encrypted_str, &encrypted_pattern2);
+        let result3 = SERVER_KEY.contains_string(&encrypted_str, &encrypted_pattern3);
+        let result4 = SERVER_KEY.contains_string(&encrypted_str, &encrypted_pattern4);
+        let result5 = SERVER_KEY.contains_string(&encrypted_str2, &encrypted_pattern4);
+        let result6 = SERVER_KEY.contains_string(&encrypted_str2, &encrypted_pattern3);
+        let result7 = SERVER_KEY.contains_string(&encrypted_str3, &encrypted_pattern3);
+        let result8 = SERVER_KEY.contains_string(&encrypted_str3, &encrypted_pattern4);
+        let result9 = SERVER_KEY.contains_string(&encrypted_str3, &encrypted_pattern);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result2), 0);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result3), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result4), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result5), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result6), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result7), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result8), 1);
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result9), 0);
     }
 }
