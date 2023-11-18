@@ -23,6 +23,7 @@ pub enum ClearOrEncrypted<T, U> {
 pub type FheStrLength = ClearOrEncrypted<usize, RadixCiphertext>;
 pub type ClearOrEncryptedChar = ClearOrEncrypted<u8, FheAsciiChar>;
 
+#[derive(Clone)]
 pub struct FheString {
     pub content: Vec<FheAsciiChar>,
     pub padding: Padding,
