@@ -14,6 +14,11 @@ impl StringServerKey {
         self.integer_key.create_trivial_zero_radix(4)
     }
 
+    pub fn create_n(&self, n: u8) -> RadixCiphertext {
+        self.integer_key
+            .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), n)
+    }
+
     pub fn add_radix_length(
         &self,
         length: &FheStrLength,
