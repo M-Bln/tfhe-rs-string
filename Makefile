@@ -647,6 +647,12 @@ sha256_bool: install_rs_check_toolchain
 	--example sha256_bool \
 	--features=$(TARGET_ARCH_FEATURE),boolean
 
+.PHONY: fhe_strings # Run sha256_bool example
+fhe_strings: install_rs_check_toolchain
+	RUSTFLAGS="$(RUSTFLAGS)" cargo $(CARGO_RS_CHECK_TOOLCHAIN) run --profile $(CARGO_PROFILE) \
+	--example fhe_strings \
+	--features=$(TARGET_ARCH_FEATURE),integer
+
 .PHONY: pcc # pcc stands for pre commit checks
 pcc: no_tfhe_typo no_dbg_log check_fmt lint_doc clippy_all check_compile_tests
 
