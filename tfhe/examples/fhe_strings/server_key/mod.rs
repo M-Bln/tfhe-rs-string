@@ -3,6 +3,7 @@ mod comparisons;
 mod contains;
 mod find;
 mod is_empty;
+mod split;
 mod strip;
 mod trim;
 
