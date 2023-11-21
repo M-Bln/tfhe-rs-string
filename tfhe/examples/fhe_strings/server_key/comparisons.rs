@@ -228,7 +228,7 @@ impl StringServerKey {
         // First the overlapping content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.unchecked_bitand_assign_parallelized(
                 &mut result,
                 &match prefix.padding {
                     Padding::None => self.compare_char(
@@ -236,7 +236,7 @@ impl StringServerKey {
                         &prefix.content[n],
                         std::cmp::Ordering::Equal,
                     ),
-                    _ => self.integer_key.bitor_parallelized(
+                    _ => self.integer_key.unchecked_bitor_parallelized(
                         &self.compare_char(
                             &s.content[n],
                             &prefix.content[n],
