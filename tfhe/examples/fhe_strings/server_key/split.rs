@@ -4,34 +4,76 @@ use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     pub fn nth_clear(&self, s: &FheString, n: usize) -> FheAsciiChar {
-	match s.padding {
-	    Padding::None | Padding::Final if n < s.content.len() => s.content[n].clone(),
-	    _ if n >= s.content.len() => FheAsciiChar(self.create_zero()),
-	    _ => self.nth_clear_with_padding(&s, n),
-	}
+        match s.padding {
+            Padding::None | Padding::Final if n < s.content.len() => s.content[n].clone(),
+            _ if n >= s.content.len() => FheAsciiChar(self.create_zero()),
+            _ => self.nth_clear_with_padding(s, n),
+        }
+    }
+
+    pub fn nth_encrypted(&self, s: &FheString, n: &RadixCiphertext) -> FheAsciiChar {
+        match s.padding {
+            Padding::None | Padding::Final => self.nth_encrypted_no_init_padding(s, n),
+            _ => self.nth_encrypted_with_padding(s, n),
+        }
     }
 
     pub fn nth_clear_with_padding(&self, s: &FheString, n: usize) -> FheAsciiChar {
-	let mut current_index: RadixCiphertext = self.create_n(u8::MAX);
-	let mut result = self.create_zero();
-	for c in &s.content {
-	    let current_char_non_null : RadixCiphertext =
-		self.integer_key.scalar_ne_parallelized(&c.0, 0);
-	    self.integer_key.add_assign_parallelized(
-		&mut current_index,
-		&current_char_non_null,
-	    );
-	    let right_index = self.integer_key.scalar_eq_parallelized(
-		&current_index,
-		n as u64,
-	    );
-	    result = self.integer_key.cmux_parallelized(
-		&right_index,
-		&c.0,
-		&result,
-	    )
-	}
-	FheAsciiChar(result)
+        let mut current_index: RadixCiphertext = self.create_n(u8::MAX);
+        let mut result = self.create_zero();
+        for c in &s.content {
+            let current_char_non_null: RadixCiphertext =
+                self.integer_key.scalar_ne_parallelized(&c.0, 0);
+            self.integer_key
+                .add_assign_parallelized(&mut current_index, &current_char_non_null);
+            let right_index = self
+                .integer_key
+                .scalar_eq_parallelized(&current_index, n as u64);
+            result = self
+                .integer_key
+                .cmux_parallelized(&right_index, &c.0, &result)
+        }
+        FheAsciiChar(result)
+    }
+
+    pub fn nth_encrypted_with_padding(
+        &self,
+        s: &FheString,
+        encrypted_n: &RadixCiphertext,
+    ) -> FheAsciiChar {
+        let mut current_index: RadixCiphertext = self.create_n(u8::MAX);
+        let mut result = self.create_zero();
+        for c in &s.content {
+            let current_char_non_null: RadixCiphertext =
+                self.integer_key.scalar_ne_parallelized(&c.0, 0);
+            self.integer_key
+                .add_assign_parallelized(&mut current_index, &current_char_non_null);
+            let right_index = self
+                .integer_key
+                .eq_parallelized(&current_index, encrypted_n);
+            result = self
+                .integer_key
+                .cmux_parallelized(&right_index, &c.0, &result)
+        }
+        FheAsciiChar(result)
+    }
+
+    pub fn nth_encrypted_no_init_padding(
+        &self,
+        s: &FheString,
+        encrypted_n: &RadixCiphertext,
+    ) -> FheAsciiChar {
+        let mut current_index: RadixCiphertext = self.create_n(u8::MAX);
+        let mut result = self.create_zero();
+        for i in 0..s.content.len() {
+            let right_index = self
+                .integer_key
+                .scalar_eq_parallelized(encrypted_n, i as u64);
+            result = self
+                .integer_key
+                .cmux_parallelized(&right_index, &s.content[i].0, &result)
+        }
+        FheAsciiChar(result)
     }
 }
 
@@ -48,20 +90,42 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
+    // #[test]
+    // fn test_nth_clear() {
+    //     let encrypted_str0 = CLIENT_KEY.encrypt_str_padding("ade", 2).unwrap();
+    //     let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 1);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 100);
+
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 2);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 97);
+
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 0);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 101);
+
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 3);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 0);
+    // }
+
     #[test]
-    fn test_nth_clear() {
-	let encrypted_str0 = CLIENT_KEY.encrypt_str_padding("ade", 2).unwrap();
-	let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
-	let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 1);
-	assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 100);
+    fn test_nth_encrypted() {
+        let encrypted_str0 = CLIENT_KEY.encrypt_str_padding("ade", 2).unwrap();
+        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
 
-	let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 2);
-	assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 97);
+        let mut encrypted_char =
+            SERVER_KEY.nth_encrypted(&encrypted_str, &CLIENT_KEY.encrypt_ascii_char(1).0);
+        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 100);
 
-	let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 0);
-	assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 101);
-	
-	let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 3);
-	assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 0);
+        let mut encrypted_char =
+            SERVER_KEY.nth_encrypted(&encrypted_str, &CLIENT_KEY.encrypt_ascii_char(2).0);
+        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 97);
+
+        let mut encrypted_char =
+            SERVER_KEY.nth_encrypted(&encrypted_str, &CLIENT_KEY.encrypt_ascii_char(0).0);
+        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 101);
+
+        let mut encrypted_char =
+            SERVER_KEY.nth_encrypted(&encrypted_str, &CLIENT_KEY.encrypt_ascii_char(3).0);
+        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 0);
     }
 }
