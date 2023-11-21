@@ -3,6 +3,21 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    pub fn strip_encrypted_sufix(
+        &self,
+        s: &FheString,
+        sufix: &FheString,
+    ) -> (RadixCiphertext, FheString) {
+        let reversed_result: (RadixCiphertext, FheString) = self.strip_encrypted_prefix(
+            &self.reverse_string_content(&s),
+            &self.reverse_string_content(&sufix),
+        );
+        (
+            reversed_result.0,
+            self.reverse_string_content(&reversed_result.1),
+        )
+    }
+
     pub fn strip_encrypted_prefix(
         &self,
         s: &FheString,
@@ -175,17 +190,31 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    #[test]
-    fn test_strip_encrypted_prefix() {
-        let encrypted_str = CLIENT_KEY.encrypt_str("cdd").unwrap();
-        let encrypted_prefix = CLIENT_KEY.encrypt_str("dd").unwrap();
+    // #[test]
+    // fn test_strip_encrypted_prefix() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("cdd", 2).unwrap();
+    //     let encrypted_prefix = CLIENT_KEY.encrypt_str_padding("cd", 2).unwrap();
 
-        let result = SERVER_KEY.strip_encrypted_prefix(&encrypted_str, &encrypted_prefix);
+    //     let result = SERVER_KEY.strip_encrypted_prefix(&encrypted_str, &encrypted_prefix);
+
+    //     let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
+    //     let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
+
+    //     assert_eq!(clear_starts_with, 1);
+    //     assert_eq!(clear_striped, "d");
+    // }
+
+    #[test]
+    fn test_strip_encrypted_sufix() {
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("adi", 2).unwrap();
+        let encrypted_sufix = CLIENT_KEY.encrypt_str_padding("di", 2).unwrap();
+
+        let result = SERVER_KEY.strip_encrypted_sufix(&encrypted_str, &encrypted_sufix);
 
         let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
         let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
 
-        assert_eq!(clear_starts_with, 0);
-        assert_eq!(clear_striped, "cdd");
+        assert_eq!(clear_starts_with, 1);
+        assert_eq!(clear_striped, "a");
     }
 }

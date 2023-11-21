@@ -129,10 +129,13 @@ impl StringServerKey {
             self.integer_key.bitand_assign_parallelized(
                 &mut continue_triming,
                 &match s.padding {
-                    Padding::InitialAndFinal => self.integer_key.bitor_parallelized(
-                        &self.eq_clear_or_encrypted_char(c, character),
-                        &self.eq_clear_or_encrypted_char(c, &ClearOrEncryptedChar::Clear(b'0')),
-                    ),
+                    Padding::InitialAndFinal | Padding::Initial => {
+                        self.integer_key.bitor_parallelized(
+                            &self.eq_clear_or_encrypted_char(c, character),
+                            &self
+                                .eq_clear_or_encrypted_char(c, &ClearOrEncryptedChar::Clear(b'\0')),
+                        )
+                    }
                     _ => self.eq_clear_or_encrypted_char(c, character),
                 },
             );
