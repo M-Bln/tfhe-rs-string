@@ -258,7 +258,7 @@ impl StringServerKey {
             _ => s.content.len(),
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let mut current_from = self.find_in_unpadded_string(s, pattern).1;
+        let mut current_from = self.find_unpadded_string(s, pattern).1;
         parts.push(
             self.substring_encrypted(s, &self.create_zero(), &current_from)
                 .1,
@@ -272,7 +272,7 @@ impl StringServerKey {
                 .scalar_add_assign_parallelized(&mut current_from, *clear_length as u64),
         }
         for n in 1..maximum_number_of_parts {
-            let current_next = self.find_from_in_unpadded_string(s, pattern, &current_from);
+            let current_next = self.find_from(s, pattern, &current_from);
             parts.push(
                 self.substring_encrypted(s, &current_from, &current_next.1)
                     .1,
@@ -282,7 +282,7 @@ impl StringServerKey {
         FheSplit { parts: parts }
     }
 
-    pub fn find_from_in_unpadded_string(
+    pub fn find_from(
         &self,
         s: &FheString,
         pattern: &FheString,
@@ -295,20 +295,6 @@ impl StringServerKey {
             _ => (),
         }
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
-
-        // let mut current_match = self.integer_key.bitand_parallelized(
-        //     &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-        //     &self.integer_key.scalar_le_parallelized(from, n as u64),
-        // );
-        // let mut increment_index = self.integer_key.bitand_parallelized(
-        //     &self.integer_key.scalar_eq_parallelized(&found, 0),
-        //     &self.integer_key.scalar_ge_parallelized(&s.content[n].0, 1),
-        // );
-        // self.integer_key
-        //     .add_assign_parallelized(&mut index, &increment_index);
-        // self.integer_key
-        //     .bitor_assign_parallelized(&mut found, &current_match);
-
         for n in 0..s.content.len() {
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
@@ -317,14 +303,31 @@ impl StringServerKey {
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
 
-            let increment_index = self.integer_key.bitand_parallelized(
-                &self.integer_key.scalar_eq_parallelized(&found, 0),
-                &self.integer_key.scalar_ge_parallelized(&s.content[n].0, 1),
-            );
+            // let increment_index = self.integer_key.bitand_parallelized(
+            //     &self.integer_key.scalar_eq_parallelized(&found, 0),
+            //     &self.integer_key.scalar_ge_parallelized(&s.content[n].0, 1),
+            // );
+            let increment_index = self.increment_index(s, n, &found);
             self.integer_key
                 .add_assign_parallelized(&mut index, &increment_index);
         }
         (found, index)
+    }
+    pub fn increment_index(
+        &self,
+        s: &FheString,
+        content_index: usize,
+        found: &RadixCiphertext,
+    ) -> RadixCiphertext {
+        match s.padding {
+            Padding::None | Padding::Final => self.integer_key.scalar_eq_parallelized(&found, 0),
+            _ => self.integer_key.bitand_parallelized(
+                &self.integer_key.scalar_eq_parallelized(&found, 0),
+                &self
+                    .integer_key
+                    .scalar_ge_parallelized(&s.content[content_index].0, 1),
+            ),
+        }
     }
 }
 
@@ -410,14 +413,14 @@ mod tests {
     // }
 
     // #[test]
-    // fn test_find_from_in_unpadded_string() {
+    // fn test_find_from() {
     //     let encrypted_str = CLIENT_KEY.encrypt_str("aac").unwrap();
     //     //        let encrypted_str2 = CLIENT_KEY.encrypt_str_padding("ac", 2).unwrap();
     //     //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
 
     //     let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
 
-    //     let result = SERVER_KEY.find_from_in_unpadded_string(
+    //     let result = SERVER_KEY.find_from(
     //         &encrypted_str,
     //         &encrypted_pattern,
     //         &SERVER_KEY.create_n(1),
@@ -440,12 +443,12 @@ mod tests {
 
     #[test]
     fn test_split_encrypted() {
-        let encrypted_str0 = CLIENT_KEY.encrypt_str("bacdba").unwrap();
+        let encrypted_str0 = CLIENT_KEY.encrypt_str("ba").unwrap();
         let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
         //        let encrypted_str2 = CLIENT_KEY.encrypt_str_padding("ac", 2).unwrap();
         //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
 
-        let encrypted_pattern = CLIENT_KEY.encrypt_str("ab").unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
 
         let result = SERVER_KEY.split_encrypted(&encrypted_str, &encrypted_pattern);
         //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
@@ -453,7 +456,6 @@ mod tests {
         let clear_result = (
             CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
             CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
-            CLIENT_KEY.decrypt_string(&result.parts[2]).unwrap(),
         );
 
         // let clear_result2 = (
@@ -461,10 +463,7 @@ mod tests {
         //     CLIENT_KEY.decrypt_u8(&result2.1),
         // );
 
-        assert_eq!(
-            clear_result,
-            (String::from(""), String::from("dc"), String::from(""))
-        );
+        assert_eq!(clear_result, (String::from(""), String::from("b")));
         //   assert_eq!(clear_result2, (1, 0));
     }
 }
