@@ -17,6 +17,7 @@ impl From<RadixClientKey> for StringClientKey {
 #[derive(Debug)]
 pub enum ConversionError {
     NonAsciiCharacters,
+    OutOfRange,
 }
 
 impl StringClientKey {

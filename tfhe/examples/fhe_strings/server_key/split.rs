@@ -1,6 +1,9 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::client_key::ConversionError;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
+
+type ResultFheString = (RadixCiphertext, FheString);
 
 impl StringServerKey {
     pub fn nth_clear(&self, s: &FheString, n: usize) -> FheAsciiChar {
@@ -18,10 +21,72 @@ impl StringServerKey {
         }
     }
 
-    pub fn substring_clear(&self, s: &FheString, start: usize, end: usize) -> FheString {
+    pub fn substring_clear(
+        &self,
+        s: &FheString,
+        start: usize,
+        end: usize,
+    ) -> Result<ResultFheString, ConversionError> {
+        // Check if range is trivially wider than string.
+        if end < start || end > s.content.len() {
+            return Err(ConversionError::OutOfRange);
+        };
+
+        let mut range_is_included = self.create_true();
+
+        // Compare range to string length
+        match &s.length {
+            ClearOrEncrypted::Clear(length) if end > *length => {
+                return Err(ConversionError::OutOfRange)
+            }
+            ClearOrEncrypted::Encrypted(encrypted_length) => {
+                range_is_included = self
+                    .integer_key
+                    .scalar_ge_parallelized(&encrypted_length, end as u64);
+            }
+            _ => (),
+        }
+
         match s.padding {
-            Padding::None | Padding::Final => self.substring_clear_no_init_padding(s, start, end),
-            _ => self.substring_clear_no_init_padding(&self.remove_initial_padding(s), start, end),
+            Padding::None | Padding::Final => Ok((
+                range_is_included,
+                self.substring_clear_no_init_padding(s, start, end),
+            )),
+            _ => Ok((
+                range_is_included,
+                self.substring_clear_no_init_padding(&self.remove_initial_padding(s), start, end),
+            )),
+        }
+    }
+
+    pub fn substring_encrypted(
+        &self,
+        s: &FheString,
+        start: &RadixCiphertext,
+        end: &RadixCiphertext,
+    ) -> ResultFheString {
+        let range_is_included = match &s.length {
+            ClearOrEncrypted::Clear(length) => {
+                self.integer_key.scalar_le_parallelized(end, *length as u64)
+            }
+            ClearOrEncrypted::Encrypted(encrypted_length) => {
+                self.integer_key.le_parallelized(end, encrypted_length)
+            }
+        };
+
+        match s.padding {
+            Padding::None | Padding::Final => (
+                range_is_included,
+                self.substring_encrypted_no_init_padding(s, start, end),
+            ),
+            _ => (
+                range_is_included,
+                self.substring_encrypted_no_init_padding(
+                    &self.remove_initial_padding(s),
+                    start,
+                    end,
+                ),
+            ),
         }
     }
 
@@ -95,6 +160,55 @@ impl StringServerKey {
             _ => Padding::Final,
         };
         let length = self.length_of_slice(&s.length, start, end);
+        FheString {
+            content: content,
+            padding: padding,
+            length: length,
+        }
+    }
+
+    pub fn substring_encrypted_no_init_padding(
+        &self,
+        s: &FheString,
+        start: &RadixCiphertext,
+        end: &RadixCiphertext,
+    ) -> FheString {
+        let mut content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
+        for n in 0..s.content.len() {
+            let in_slice: RadixCiphertext = self.integer_key.bitand_parallelized(
+                &self.integer_key.scalar_le_parallelized(start, n as u64),
+                &self.integer_key.scalar_ge_parallelized(end, n as i64 - 1),
+            );
+            let new_char_content: RadixCiphertext =
+                self.integer_key
+                    .cmux_parallelized(&in_slice, &s.content[n].0, &self.create_zero());
+            content.push(FheAsciiChar(new_char_content));
+        }
+        let padding = match s.padding {
+            Padding::None => Padding::None,
+            _ => Padding::Final,
+        };
+        let new_start = match &s.length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => {
+                self.integer_key.min_parallelized(start, encrypted_length)
+            }
+            ClearOrEncrypted::Clear(length) => self
+                .integer_key
+                .scalar_min_parallelized(start, *length as u64),
+        };
+        let new_end = match &s.length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => {
+                self.integer_key.min_parallelized(end, encrypted_length)
+            }
+            ClearOrEncrypted::Clear(length) => self
+                .integer_key
+                .scalar_min_parallelized(end, *length as u64),
+        };
+        let length =
+            ClearOrEncrypted::Encrypted(self.integer_key.scalar_max_parallelized(
+                &self.integer_key.sub_parallelized(&new_end, &new_start),
+                0,
+            ));
         FheString {
             content: content,
             padding: padding,
@@ -189,11 +303,30 @@ mod tests {
 
     #[test]
     fn test_substring_clear() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("adef", 2).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("ad", 2).unwrap();
         //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+        let result = SERVER_KEY.substring_clear(&encrypted_str, 2, 4).unwrap();
 
-        let encrypted_substr = SERVER_KEY.substring_clear(&encrypted_str, 1, 5);
+        let encrypted_substr = result.1;
+        let encrypted_flag = result.0;
 
-        assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "def");
+        assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "");
+        assert_eq!(CLIENT_KEY.decrypt_u8(&encrypted_flag), 0);
+    }
+
+    #[test]
+    fn test_substring_encrypted() {
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("ad", 2).unwrap();
+        //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+        let encrypted_start = SERVER_KEY.create_n(1);
+        let encrypted_end = SERVER_KEY.create_n(2);
+        let result =
+            SERVER_KEY.substring_encrypted(&encrypted_str, &encrypted_start, &encrypted_end);
+
+        let encrypted_substr = result.1;
+        let encrypted_flag = result.0;
+
+        assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "d");
+        assert_eq!(CLIENT_KEY.decrypt_u8(&encrypted_flag), 1);
     }
 }
