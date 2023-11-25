@@ -56,7 +56,7 @@ impl StringServerKey {
     pub fn contains_unpadded_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return self.create_true(),
-            (0, pattern_lenght) => return self.eq_clear_char(&pattern.content[0], 0),
+            (0, _) => return self.eq_clear_char(&pattern.content[0], 0),
             _ => (),
         }
         let mut result = self.create_zero();
