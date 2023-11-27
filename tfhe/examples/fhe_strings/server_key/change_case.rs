@@ -92,7 +92,7 @@ mod tests {
 
     #[test]
     fn test_to_lower_fhe() {
-        let encrypted_str = CLIENT_KEY.encrypt_str("BCD").unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("BCD", 2).unwrap();
         let encrypted_str_lower = SERVER_KEY.to_lowercase(&encrypted_str);
         let decrypted_str_lower = CLIENT_KEY.decrypt_string(&encrypted_str_lower).unwrap();
         assert_eq!(&decrypted_str_lower, "bcd");

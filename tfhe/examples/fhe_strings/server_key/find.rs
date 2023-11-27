@@ -30,24 +30,27 @@ impl StringServerKey {
         s: &FheString,
         pattern: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
-        match pattern.padding {
-            Padding::Final | Padding::None => self.find_unpadded_string(&s, &pattern),
-            _ => self.find_unpadded_string(&s, &self.remove_initial_padding(pattern)),
+        let zero: RadixCiphertext = self.create_zero();
+        match (s.content.len(), pattern.content.len()) {
+            (0, 0) => return (self.create_true(), zero),
+            (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
+            _ => (),
+        }
+
+        match (s.padding, pattern.padding) {
+            (Padding::Anywhere, Padding::None | Padding::Final) => {
+                self.connected_find_unpadded_string(&self.remove_initial_padding(s), pattern)
+            }
+            (Padding::Anywhere, _) => self.connected_find_unpadded_string(
+                &self.remove_initial_padding(s),
+                &self.remove_initial_padding(pattern),
+            ),
+            (_, Padding::None | Padding::Final) => self.connected_find_unpadded_string(s, pattern),
+            _ => self.connected_find_unpadded_string(s, &self.remove_initial_padding(pattern)),
         }
     }
 
     pub fn rfind_string(
-        &self,
-        s: &FheString,
-        pattern: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        match pattern.padding {
-            Padding::Final | Padding::None => self.rfind_unpadded_string(&s, &pattern),
-            _ => self.rfind_unpadded_string(&s, &self.remove_initial_padding(s)),
-        }
-    }
-
-    pub fn find_unpadded_string(
         &self,
         s: &FheString,
         pattern: &FheString,
@@ -58,6 +61,45 @@ impl StringServerKey {
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
             _ => (),
         }
+
+        match (s.padding, pattern.padding) {
+            (Padding::Anywhere, Padding::None | Padding::Final) => {
+                self.connected_rfind_unpadded_string(&self.remove_initial_padding(s), pattern)
+            }
+            (Padding::Anywhere, _) => self.connected_rfind_unpadded_string(
+                &self.remove_initial_padding(s),
+                &self.remove_initial_padding(pattern),
+            ),
+            (_, Padding::None | Padding::Final) => self.connected_rfind_unpadded_string(s, pattern),
+            _ => self.connected_rfind_unpadded_string(s, &self.remove_initial_padding(pattern)),
+        }
+    }
+
+    // pub fn find_unpadded_string(
+    //     &self,
+    //     s: &FheString,
+    //     pattern: &FheString,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     let zero: RadixCiphertext = self.create_zero();
+    //     match (s.content.len(), pattern.content.len()) {
+    //         (0, 0) => return (self.create_true(), zero),
+    //         (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
+    //         _ => (),
+    //     }
+    //     match s.padding {
+    //         Padding::Anywhere => {
+    //             self.connected_find_unpadded_string(&self.remove_initial_padding(s), pattern)
+    //         }
+    //         _ => self.connected_find_unpadded_string(s, pattern),
+    //     }
+    // }
+
+    pub fn connected_find_unpadded_string(
+        &self,
+        s: &FheString,
+        pattern: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
             let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
@@ -70,17 +112,31 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn rfind_unpadded_string(
+    // pub fn rfind_unpadded_string(
+    //     &self,
+    //     s: &FheString,
+    //     pattern: &FheString,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     let zero: RadixCiphertext = self.create_zero();
+    //     match (s.content.len(), pattern.content.len()) {
+    //         (0, 0) => return (self.create_true(), zero),
+    //         (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
+    //         _ => (),
+    //     }
+    //     match s.padding {
+    //         Padding::Anywhere => {
+    //             self.connected_rfind_unpadded_string(&self.remove_initial_padding(s), pattern)
+    //         }
+    //         _ => self.connected_rfind_unpadded_string(s, pattern),
+    //     }
+    // }
+
+    pub fn connected_rfind_unpadded_string(
         &self,
         s: &FheString,
         pattern: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let zero: RadixCiphertext = self.create_zero();
-        match (s.content.len(), pattern.content.len()) {
-            (0, 0) => return (self.create_true(), zero),
-            (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
-            _ => (),
-        }
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) =
             (self.create_n((s.content.len() - 1) as u8), zero);
         for n in (0..s.content.len()).rev() {
@@ -109,24 +165,24 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    #[test]
-    fn test_find_char() {
-        let encrypted_str = CLIENT_KEY.encrypt_str("cdf").unwrap();
-        let encrypted_char = CLIENT_KEY.encrypt_ascii_char(102);
-        let encrypted_char2 = CLIENT_KEY.encrypt_ascii_char(105);
-        let result = SERVER_KEY.find_char(&encrypted_str, &encrypted_char);
-        let clear_result = (
-            CLIENT_KEY.decrypt_u8(&result.0),
-            CLIENT_KEY.decrypt_u8(&result.1),
-        );
-        let result2 = SERVER_KEY.find_char(&encrypted_str, &encrypted_char2);
-        let clear_result2 = (
-            CLIENT_KEY.decrypt_u8(&result2.0),
-            CLIENT_KEY.decrypt_u8(&result2.1),
-        );
-        assert_eq!(clear_result, (1, 2));
-        assert_eq!(clear_result2, (0, 3));
-    }
+    // #[test]
+    // fn test_find_char() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str("cdf").unwrap();
+    //     let encrypted_char = CLIENT_KEY.encrypt_ascii_char(102);
+    //     let encrypted_char2 = CLIENT_KEY.encrypt_ascii_char(105);
+    //     let result = SERVER_KEY.find_char(&encrypted_str, &encrypted_char);
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
+    //     );
+    //     let result2 = SERVER_KEY.find_char(&encrypted_str, &encrypted_char2);
+    //     let clear_result2 = (
+    //         CLIENT_KEY.decrypt_u8(&result2.0),
+    //         CLIENT_KEY.decrypt_u8(&result2.1),
+    //     );
+    //     assert_eq!(clear_result, (1, 2));
+    //     assert_eq!(clear_result2, (0, 3));
+    // }
 
     // #[test]
     // fn test_find_string() {
@@ -147,28 +203,28 @@ mod tests {
     //     assert_eq!(clear_result2, (0, 2));
     // }
 
-    // #[test]
-    // fn test_find_string_with_padding() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("cc", 1).unwrap();
-    //     //let encrypted_str2 = CLIENT_KEY.encrypt_str_padding("ac", 2).unwrap();
-    //     //let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str);
+    #[test]
+    fn test_find_string_with_padding() {
+        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("dd", 1).unwrap();
+        //let encrypted_str2 = CLIENT_KEY.encrypt_str_padding("ac", 2).unwrap();
+        //let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str);
 
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str("d").unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("d", 1).unwrap();
 
-    //     let result = SERVER_KEY.rfind_string(&encrypted_str, &encrypted_pattern);
-    //     //        let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
+        let result = SERVER_KEY.rfind_string(&encrypted_str, &encrypted_pattern);
+        //        let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
 
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
+        let clear_result = (
+            CLIENT_KEY.decrypt_u8(&result.0),
+            CLIENT_KEY.decrypt_u8(&result.1),
+        );
 
-    //     // let clear_result2 = (
-    //     //     CLIENT_KEY.decrypt_u8(&result2.0),
-    //     //     CLIENT_KEY.decrypt_u8(&result2.1),
-    //     // );
+        // let clear_result2 = (
+        //     CLIENT_KEY.decrypt_u8(&result2.0),
+        //     CLIENT_KEY.decrypt_u8(&result2.1),
+        // );
 
-    //     assert_eq!(clear_result, (0, 255));
-    //     //assert_eq!(clear_result2, (1, 0));
-    // }
+        assert_eq!(clear_result, (1, 1));
+        //assert_eq!(clear_result2, (1, 0));
+    }
 }

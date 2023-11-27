@@ -63,10 +63,9 @@ impl StringServerKey {
         FheString {
             content: s.content.clone().into_iter().rev().collect(),
             padding: match s.padding {
-                Padding::None => Padding::None,
                 Padding::Final => Padding::Initial,
                 Padding::Initial => Padding::Final,
-                Padding::InitialAndFinal => Padding::InitialAndFinal,
+                padding => padding,
             },
             length: s.length.clone(),
         }
@@ -159,16 +158,19 @@ impl StringServerKey {
 // mod tests {
 //     use crate::ciphertext::{gen_keys, FheAsciiChar};
 //     use crate::server_key::StringServerKey;
+//     use crate::client_key::StringClientKey;
 //     use lazy_static::lazy_static;
 //     use tfhe::integer::RadixClientKey;
 
 //     lazy_static! {
-//         pub static ref KEYS: (RadixClientKey, StringServerKey) = gen_keys();
+//         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
+//         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
+//         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
 //     }
 
 //     #[test]
 //     fn test_trim_start_char() {
-//         let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
+//         let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ab",2).unwrap();
 //         let trimed_encrypted_str = KEYS.1.trim_start_char(&encrypted_str, b'a');
 //         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
 //         assert_eq!(&decrypted_str, "b");
@@ -176,7 +178,7 @@ impl StringServerKey {
 
 //     #[test]
 //     fn test_trim_start_encrypted() {
-//         let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
+//         let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ab",2).unwrap();
 //         let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'a'));
 //         let trimed_encrypted_str = KEYS.1.trim_start_encrypted(&encrypted_str, &encrypted_char);
 //         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
@@ -185,7 +187,7 @@ impl StringServerKey {
 
 //     #[test]
 //     fn test_trim_end_encrypted() {
-//         let encrypted_str = encrypt_str(&KEYS.0, "ab").unwrap();
+//         let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ab",2).unwrap();
 //         let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'b'));
 //         let trimed_encrypted_str = KEYS.1.trim_end_encrypted(&encrypted_str, &encrypted_char);
 //         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
@@ -194,7 +196,7 @@ impl StringServerKey {
 
 //     #[test]
 //     fn test_trim_encrypted() {
-//         let encrypted_str = encrypt_str(&KEYS.0, "bab").unwrap();
+//         let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("bab",2).unwrap();
 //         let encrypted_char = FheAsciiChar(KEYS.0.encrypt(b'b'));
 //         let trimed_encrypted_str = KEYS.1.trim_encrypted(&encrypted_str, &encrypted_char);
 //         let decrypted_str = decrypt_fhe_string(&KEYS.0, &trimed_encrypted_str).unwrap();
