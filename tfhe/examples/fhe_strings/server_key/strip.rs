@@ -190,24 +190,24 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    // #[test]
-    // fn test_strip_encrypted_prefix() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("cdd", 2).unwrap();
-    //     let encrypted_prefix = CLIENT_KEY.encrypt_str_padding("cd", 2).unwrap();
+    #[test]
+    fn test_strip_encrypted_prefix() {
+        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("cdd", 2).unwrap();
+        let encrypted_prefix = CLIENT_KEY.encrypt_str_random_padding("cd", 2).unwrap();
 
-    //     let result = SERVER_KEY.strip_encrypted_prefix(&encrypted_str, &encrypted_prefix);
+        let result = SERVER_KEY.strip_encrypted_prefix(&encrypted_str, &encrypted_prefix);
 
-    //     let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
-    //     let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
+        let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
+        let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
 
-    //     assert_eq!(clear_starts_with, 1);
-    //     assert_eq!(clear_striped, "d");
-    // }
+        assert_eq!(clear_starts_with, 1);
+        assert_eq!(clear_striped, "d");
+    }
 
     #[test]
     fn test_strip_encrypted_sufix() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("adi", 2).unwrap();
-        let encrypted_sufix = CLIENT_KEY.encrypt_str_padding("di", 2).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("adi", 2).unwrap();
+        let encrypted_sufix = CLIENT_KEY.encrypt_str_random_padding("di", 2).unwrap();
 
         let result = SERVER_KEY.strip_encrypted_sufix(&encrypted_str, &encrypted_sufix);
 

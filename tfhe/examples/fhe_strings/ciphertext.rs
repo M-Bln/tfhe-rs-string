@@ -12,6 +12,7 @@ pub enum Padding {
     Final,
     Initial,
     InitialAndFinal,
+    Anywhere,
 }
 
 #[derive(Clone)]
@@ -111,11 +112,11 @@ mod tests {
     #[test]
     fn test_string_from_padded_utf8() {
         let valid_utf8_src = vec![0, 0, 0, 0, 97, 98, 99, 100];
-        let s = StringClientKey::string_from_padded_vec(&valid_utf8_src).unwrap();
+        let s = StringClientKey::string_from_padded_vec(valid_utf8_src).unwrap();
         assert!(s.eq("abcd"));
 
         let invalid_utf8_src = vec![0, 0, 0xc3, 0x28, 0, 0];
-        assert!(StringClientKey::string_from_padded_vec(&invalid_utf8_src).is_err());
+        assert!(StringClientKey::string_from_padded_vec(invalid_utf8_src).is_err());
     }
 
     #[test]
