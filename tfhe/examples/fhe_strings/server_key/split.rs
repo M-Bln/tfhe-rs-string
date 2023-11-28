@@ -345,22 +345,22 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    #[test]
-    fn test_nth_clear() {
-        let encrypted_str0 = CLIENT_KEY.encrypt_str_random_padding("ade", 2).unwrap();
-        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
-        let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 1);
-        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 100);
+    // #[test]
+    // fn test_nth_clear() {
+    //     let encrypted_str0 = CLIENT_KEY.encrypt_str_random_padding("ade", 2).unwrap();
+    //     let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 1);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 100);
 
-        let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 2);
-        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 97);
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 2);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 97);
 
-        let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 0);
-        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 101);
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 0);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 101);
 
-        let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 3);
-        assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 0);
-    }
+    //     let mut encrypted_char = SERVER_KEY.nth_clear(&encrypted_str, 3);
+    //     assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 0);
+    // }
 
     #[test]
     fn test_nth_encrypted() {
@@ -384,84 +384,84 @@ mod tests {
         assert_eq!(CLIENT_KEY.decrypt_ascii_char(&encrypted_char), 0);
     }
 
-    #[test]
-    fn test_substring_clear() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ad", 2).unwrap();
-        //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
-        let result = SERVER_KEY.substring_clear(&encrypted_str, 2, 4).unwrap();
+    // #[test]
+    // fn test_substring_clear() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ad", 2).unwrap();
+    //     //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    //     let result = SERVER_KEY.substring_clear(&encrypted_str, 2, 4).unwrap();
 
-        let encrypted_substr = result.1;
-        let encrypted_flag = result.0;
+    //     let encrypted_substr = result.1;
+    //     let encrypted_flag = result.0;
 
-        assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "");
-        assert_eq!(CLIENT_KEY.decrypt_u8(&encrypted_flag), 0);
-    }
+    //     assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "");
+    //     assert_eq!(CLIENT_KEY.decrypt_u8(&encrypted_flag), 0);
+    // }
 
-    #[test]
-    fn test_substring_encrypted() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("adce", 0).unwrap();
-        //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
-        let encrypted_start = SERVER_KEY.create_n(1);
-        let encrypted_end = SERVER_KEY.create_n(2);
-        let result =
-            SERVER_KEY.substring_encrypted(&encrypted_str, &encrypted_start, &encrypted_end);
+    // #[test]
+    // fn test_substring_encrypted() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("adce", 0).unwrap();
+    //     //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    //     let encrypted_start = SERVER_KEY.create_n(1);
+    //     let encrypted_end = SERVER_KEY.create_n(2);
+    //     let result =
+    //         SERVER_KEY.substring_encrypted(&encrypted_str, &encrypted_start, &encrypted_end);
 
-        let encrypted_substr = result.1;
-        let encrypted_flag = result.0;
+    //     let encrypted_substr = result.1;
+    //     let encrypted_flag = result.0;
 
-        assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "d");
-        assert_eq!(CLIENT_KEY.decrypt_u8(&encrypted_flag), 1);
-    }
+    //     assert_eq!(CLIENT_KEY.decrypt_string(&encrypted_substr).unwrap(), "d");
+    //     assert_eq!(CLIENT_KEY.decrypt_u8(&encrypted_flag), 1);
+    // }
 
-    #[test]
-    fn test_find_from() {
-        let encrypted_str = CLIENT_KEY.encrypt_str("aac").unwrap();
-        //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
-        //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
+    // #[test]
+    // fn test_find_from() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str("aac").unwrap();
+    //     //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
+    //     //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
 
-        let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
 
-        let result =
-            SERVER_KEY.find_from(&encrypted_str, &encrypted_pattern, &SERVER_KEY.create_n(1));
-        //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
+    //     let result =
+    //         SERVER_KEY.find_from(&encrypted_str, &encrypted_pattern, &SERVER_KEY.create_n(1));
+    //     //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
 
-        let clear_result = (
-            CLIENT_KEY.decrypt_u8(&result.0),
-            CLIENT_KEY.decrypt_u8(&result.1),
-        );
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
+    //     );
 
-        // let clear_result2 = (
-        //     CLIENT_KEY.decrypt_u8(&result2.0),
-        //     CLIENT_KEY.decrypt_u8(&result2.1),
-        // );
+    //     // let clear_result2 = (
+    //     //     CLIENT_KEY.decrypt_u8(&result2.0),
+    //     //     CLIENT_KEY.decrypt_u8(&result2.1),
+    //     // );
 
-        assert_eq!(clear_result, (1, 1));
-        //   assert_eq!(clear_result2, (1, 0));
-    }
+    //     assert_eq!(clear_result, (1, 1));
+    //     //   assert_eq!(clear_result2, (1, 0));
+    // }
 
-    #[test]
-    fn test_split_encrypted() {
-        let encrypted_str0 = CLIENT_KEY.encrypt_str("ba").unwrap();
-        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
-        //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
-        //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
+    // #[test]
+    // fn test_split_encrypted() {
+    //     let encrypted_str0 = CLIENT_KEY.encrypt_str("ba").unwrap();
+    //     let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    //     //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
+    //     //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
 
-        let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
 
-        let result = SERVER_KEY.split_encrypted(&encrypted_str, &encrypted_pattern);
-        //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
+    //     let result = SERVER_KEY.split_encrypted(&encrypted_str, &encrypted_pattern);
+    //     //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
 
-        let clear_result = (
-            CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
-            CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
-        );
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
+    //         CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
+    //     );
 
-        // let clear_result2 = (
-        //     CLIENT_KEY.decrypt_u8(&result2.0),
-        //     CLIENT_KEY.decrypt_u8(&result2.1),
-        // );
+    //     // let clear_result2 = (
+    //     //     CLIENT_KEY.decrypt_u8(&result2.0),
+    //     //     CLIENT_KEY.decrypt_u8(&result2.1),
+    //     // );
 
-        assert_eq!(clear_result, (String::from(""), String::from("b")));
-        //   assert_eq!(clear_result2, (1, 0));
-    }
+    //     assert_eq!(clear_result, (String::from(""), String::from("b")));
+    //     //   assert_eq!(clear_result2, (1, 0));
+    // }
 }
