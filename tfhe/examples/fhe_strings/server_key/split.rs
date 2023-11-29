@@ -7,6 +7,7 @@ type ResultFheString = (RadixCiphertext, FheString);
 
 pub struct FheSplit {
     pub parts: Vec<FheString>,
+    //pub founds: Vec<RadixCiphertext>,
     pub number_parts: RadixCiphertext,
     pub current_index: usize,
 }
@@ -242,32 +243,6 @@ impl StringServerKey {
             result_content.push(FheAsciiChar(new_char_content));
         }
 
-        // // The intersection of `s` and the range `start`-`end` starts either at `start` or at
-        // `s.length`. let new_start = match &s.length {
-        //     ClearOrEncrypted::Encrypted(encrypted_length) => {
-        //         self.integer_key.min_parallelized(start, encrypted_length)
-        //     }
-        //     ClearOrEncrypted::Clear(length) => self
-        //         .integer_key
-        //         .scalar_min_parallelized(start, *length as u64),
-        // };
-
-        // // The intersection of `s` and the range `start`-`end` ends either at `end` or at
-        // `s.length`. let new_end = match &s.length {
-        //     ClearOrEncrypted::Encrypted(encrypted_length) => {
-        //         self.integer_key.min_parallelized(end, encrypted_length)
-        //     }
-        //     ClearOrEncrypted::Clear(length) => self
-        //         .integer_key
-        //         .scalar_min_parallelized(end, *length as u64),
-        // };
-
-        // // Compute the length of the resulting string, intersection of `s` and of the range
-        // `start`-`end`. let length =
-        //     ClearOrEncrypted::Encrypted(self.integer_key.scalar_max_parallelized(
-        //         &self.integer_key.sub_parallelized(&new_end, &new_start),
-        //         0,
-        //     ));
         FheString {
             content: result_content,
             padding: s.padding,
@@ -349,49 +324,118 @@ impl StringServerKey {
             ),
         )
     }
-    
+
+    // pub fn split_encrypted_final_padding(&self, s: &FheString, pattern: &FheString) -> FheSplit {
+    // 	// Compute the maximum number of parts of the result.
+    //     let maximum_number_of_parts = match &s.length {
+    //         ClearOrEncrypted::Clear(length) => *length + 1,
+    //         _ => s.content.len() +1,
+    //     };
+    //     let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+
+    // 	// `current_from` holds the index of the start of the remaining of the string still needing
+    // processing. It is first initialized to the first index of the first occurence of the pattern
+    // if any, to the length of s otherwise.     let mut current_from =
+    // self.connected_find_unpadded_string(s, pattern).1;
+
+    // 	// The first part before the first occurence of the pattern is pushed to `parts`
+    //     parts.push(
+    //         self.substring_encrypted(s, &self.create_zero(), &current_from)
+    //             .1,
+    //     );
+
+    // 	// `current_from` is then incremented by the length of the pattern and now points to the
+    // remaining of the string after the first pattern.     match &pattern.length {
+    //         ClearOrEncrypted::Encrypted(encrypted_length) => self
+    //             .integer_key
+    //             .add_assign_parallelized(&mut current_from, encrypted_length),
+    //         ClearOrEncrypted::Clear(clear_length) => self
+    //             .integer_key
+    //             .scalar_add_assign_parallelized(&mut current_from, *clear_length as u64),
+    //     }
+    //     for _ in 1..maximum_number_of_parts {
+    //         let current_next = self.find_from_final_padding(s, pattern, &current_from);
+    //         parts.push(
+    //             self.substring_encrypted(s, &current_from, &current_next.1)
+    //                 .1,
+    //         );
+    //         current_from = current_next.1;
+    //     }
+    //     FheSplit {
+    // 	    parts: parts,
+    // 	    number_parts: self.create_zero(),
+    // 	    current_index: 0,
+    // 	}
+    // }
+
     pub fn split_encrypted_final_padding(&self, s: &FheString, pattern: &FheString) -> FheSplit {
-	// Compute the maximum number of parts of the result.
+        // Compute the maximum number of parts of the result.
         let maximum_number_of_parts = match &s.length {
             ClearOrEncrypted::Clear(length) => *length + 1,
-            _ => s.content.len() +1,
+            _ => s.content.len() + 1,
         };
+
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
 
-	// `current_from` holds the index of the start of the remaining of the string still needing processing. It is first initialized to the first index of the first occurence of the pattern if any, to the length of s otherwise.
-        let mut current_from = self.connected_find_unpadded_string(s, pattern).1;
+        let zero = self.create_zero();
 
-	// The first part before the first occurence of the pattern is pushed to `parts`
-        parts.push(
-            self.substring_encrypted(s, &self.create_zero(), &current_from)
-                .1,
-        );
-	
-	// `current_from` is then incremented by the length of the pattern and now points to the remaining of the string after the first pattern. 
-        match &pattern.length {
-            ClearOrEncrypted::Encrypted(encrypted_length) => self
-                .integer_key
-                .add_assign_parallelized(&mut current_from, encrypted_length),
-            ClearOrEncrypted::Clear(clear_length) => self
-                .integer_key
-                .scalar_add_assign_parallelized(&mut current_from, *clear_length as u64),
-        }
-        for _ in 1..maximum_number_of_parts {
-            let current_next = self.find_from(s, pattern, &current_from);
-            parts.push(
-                self.substring_encrypted(s, &current_from, &current_next.1)
-                    .1,
-            );
-            current_from = current_next.1;
+        // The result has at least 1 part.
+        let mut number_parts = self.create_n(1);
+
+        // `start_part` holds the index of the beginning of the current part.
+        let mut start_part = zero.clone();
+
+        let mut found = zero.clone();
+
+        // // `end_part` holds the index of the end of the current part, i.e. the first index of the
+        // next occurence of the pattern. `found` encrypts a boolean `1` if the pattern was found,
+        // `0` otherwise. let (mut end_part, mut found) = self.find_from_final_padding(s, pattern,
+        // &start_part);
+
+        // // Push the first part
+        // parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+
+        // start_part = match &pattern.length {
+        //     ClearOrEncrypted::Encrypted(encrypted_length) => self
+        //         .integer_key
+        //         .add_parallelized(&end_part, encrypted_length),
+        //     ClearOrEncrypted::Clear(clear_length) => self
+        //         .integer_key
+        //         .scalar_add_parallelized(&end_part, *clear_length as u64),
+        //     };
+
+        for n in 0..maximum_number_of_parts {
+            if n >= 1 {
+                self.integer_key
+                    .add_assign_parallelized(&mut number_parts, &found);
+            }
+            let end_part: RadixCiphertext;
+            (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
+
+            // Push the current part, i.e. the substring between `start_part` and `end_part`.
+            parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+
+            // `start_part` is set to point to the remaining of the string after the current
+            // pattern.
+            start_part = match &pattern.length {
+                ClearOrEncrypted::Encrypted(encrypted_length) => self
+                    .integer_key
+                    .add_parallelized(&end_part, encrypted_length),
+                ClearOrEncrypted::Clear(clear_length) => self
+                    .integer_key
+                    .scalar_add_parallelized(&end_part, *clear_length as u64),
+            };
         }
         FheSplit {
-	    parts: parts,
-	    number_parts: self.create_zero(),
-	    current_index: 0,
-	}
+            parts: parts,
+            number_parts: number_parts,
+            //    founds: Vec::with_capacity(9),
+            current_index: 0,
+        }
     }
 
-    pub fn find_from(
+    //Should be called with `pattern.padding` either `Padding::None` or `Padding::Final`.
+    pub fn find_from_final_padding(
         &self,
         s: &FheString,
         pattern: &FheString,
@@ -411,17 +455,13 @@ impl StringServerKey {
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
-
-            // let increment_index = self.integer_key.bitand_parallelized(
-            //     &self.integer_key.scalar_eq_parallelized(&found, 0),
-            //     &self.integer_key.scalar_ge_parallelized(&s.content[n].0, 1),
-            // );
             let increment_index = self.increment_index(s, n, &found);
             self.integer_key
                 .add_assign_parallelized(&mut index, &increment_index);
         }
         (found, index)
     }
+
     pub fn increment_index(
         &self,
         s: &FheString,
@@ -436,6 +476,132 @@ impl StringServerKey {
                     .integer_key
                     .scalar_ne_parallelized(&s.content[content_index].0, 0),
             ),
+        }
+    }
+
+    pub fn padding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
+    where
+        F: Fn(&FheString, &FheString) -> FheSplit,
+    {
+        match (s1.padding, s2.padding) {
+            (Padding::None | Padding::Final, Padding::None | Padding::Final) => f(s1, s2),
+            (Padding::None | Padding::Final, _) => f(s1, &self.remove_initial_padding(s2)),
+            (_, Padding::None | Padding::Final) => f(&self.remove_initial_padding(s1), s2),
+            _ => f(
+                &self.remove_initial_padding(s1),
+                &self.remove_initial_padding(s2),
+            ),
+        }
+    }
+
+    pub fn split_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
+        match &pattern.length {
+            ClearOrEncrypted::Clear(0) => {
+                self.padding_pair_dispatch(s, pattern, |s1, s2| self.split_empty_pattern(s1, s2))
+            }
+            ClearOrEncrypted::Clear(_) => self.padding_pair_dispatch(s, pattern, |s1, s2| {
+                self.split_encrypted_final_padding(s1, s2)
+            }),
+            _ => self.padding_pair_dispatch(s, pattern, |s1, s2| {
+                self.split_encrypted_final_padding_allow_empty_pattern(s1, s2)
+            }),
+        }
+    }
+
+    pub fn split_empty_pattern(&self, s: &FheString, empty_pattern: &FheString) -> FheSplit {
+        let max_number_parts = s.content.len() + 2;
+        let mut parts: Vec<FheString> = Vec::with_capacity(max_number_parts);
+        let number_parts: RadixCiphertext = match &s.length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => self
+                .integer_key
+                .scalar_add_parallelized(encrypted_length, 2),
+            ClearOrEncrypted::Clear(clear_length) => self.create_n((*clear_length + 2) as u8),
+        };
+        let empty_string = FheString {
+            padding: Padding::None,
+            length: ClearOrEncrypted::Clear(0),
+            content: Vec::new(),
+        };
+        parts.push(empty_string.clone());
+        for c in &s.content {
+            let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
+            parts.push(FheString {
+                padding: Padding::Final,
+                length: ClearOrEncrypted::Encrypted(current_char_non_null),
+                content: vec![c.clone()],
+            })
+        }
+        parts.push(empty_string);
+        FheSplit {
+            parts: parts,
+            number_parts: number_parts,
+            current_index: 0,
+        }
+    }
+
+    pub fn split_encrypted_final_padding_allow_empty_pattern(
+        &self,
+        s: &FheString,
+        pattern: &FheString,
+    ) -> FheSplit {
+        // Compute the maximum number of parts of the result.
+        let maximum_number_of_parts = match &s.length {
+            ClearOrEncrypted::Clear(length) => *length + 2,
+            _ => s.content.len() + 2,
+        };
+        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+        let zero = self.create_zero();
+        let mut number_parts = self.create_n(1); // The result has at least 1 part.
+
+        // `start_part` holds the index of the beginning of the current part.
+        let mut start_part = zero.clone();
+        let empty_pattern = self.is_empty_encrypted(&pattern);
+
+        for n in 0..maximum_number_of_parts {
+            let found: RadixCiphertext;
+            let end_part: RadixCiphertext;
+            if n >= 1 {
+                // When the patern is empty, the search must start at `start_part` plus 1.
+                (found, end_part) = self.find_from_final_padding(
+                    s,
+                    pattern,
+                    &self
+                        .integer_key
+                        .add_parallelized(&start_part, &empty_pattern),
+                );
+            } else {
+                (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
+            }
+
+            // Increment `number_parts` if the pattern is found.
+            self.integer_key
+                .add_assign_parallelized(&mut number_parts, &found);
+
+            parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+            start_part = self.add_length_to_radix(&end_part, &pattern.length);
+        }
+        // Count the final empty string when the pattern is empty
+        self.integer_key
+            .add_assign_parallelized(&mut number_parts, &empty_pattern);
+        FheSplit {
+            parts: parts,
+            number_parts: number_parts,
+            current_index: 0,
+        }
+    }
+
+    pub fn add_length_to_radix(
+        &self,
+        end_part: &RadixCiphertext,
+        pattern_length: &FheStrLength,
+    ) -> RadixCiphertext {
+        match pattern_length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => self
+                .integer_key
+                .add_parallelized(end_part, encrypted_length),
+            ClearOrEncrypted::Clear(clear_length) => self
+                .integer_key
+                .scalar_add_parallelized(end_part, *clear_length as u64),
         }
     }
 }
@@ -522,19 +688,20 @@ mod tests {
     // }
 
     // #[test]
-    // fn test_find_from() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str("aac").unwrap();
-    //     //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
+    // fn test_find_from_final_padding() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str("a").unwrap();
+    //     //      let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
     //     //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
 
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
 
     //     let result =
-    //         SERVER_KEY.find_from(&encrypted_str, &encrypted_pattern, &SERVER_KEY.create_n(1));
-    //     //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
+    //         SERVER_KEY.find_from_final_padding(&encrypted_str, &encrypted_pattern,
+    // &SERVER_KEY.create_n(1));     //let result2 = SERVER_KEY.find_string(&encrypted_str3,
+    // &encrypted_pattern);
 
     //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
     //         CLIENT_KEY.decrypt_u8(&result.1),
     //     );
 
@@ -547,29 +714,95 @@ mod tests {
     //     //   assert_eq!(clear_result2, (1, 0));
     // }
 
+    // #[test]
+    // fn test_split_encrypted() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str("abcab").unwrap();
+    //     //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    //     //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
+    //     //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
+
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("ab", 1).unwrap();
+
+    //     let result = SERVER_KEY
+    //         .split_encrypted_final_padding_allow_empty_pattern(&encrypted_str,
+    // &encrypted_pattern);     //let result2 = SERVER_KEY.find_string(&encrypted_str3,
+    // &encrypted_pattern);
+
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
+    //         CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
+    //         CLIENT_KEY.decrypt_string(&result.parts[2]).unwrap(),
+    //         //            CLIENT_KEY.decrypt_string(&result.parts[3]).unwrap(),
+    //     );
+
+    //     // 	let clear_found = (
+    //     //             CLIENT_KEY.decrypt_u8(&result.founds[0]),
+    //     //             CLIENT_KEY.decrypt_u8(&result.founds[1]),
+    //     //             CLIENT_KEY.decrypt_u8(&result.founds[2]),
+    //     // 	    //CLIENT_KEY.decrypt_u8(&result.founds[3]),
+    //     // //            CLIENT_KEY.decrypt_string(&result.parts[3]).unwrap(),
+    //     //         );
+
+    //     // let clear_result2 = (
+    //     //     CLIENT_KEY.decrypt_u8(&result2.0),
+    //     //     CLIENT_KEY.decrypt_u8(&result2.1),
+    //     // );
+
+    //     //assert_eq!(clear_found, (1, 1, 1));
+
+    //     assert_eq!(
+    //         clear_result,
+    //         (
+    //             String::from(""),
+    //             String::from("c"),
+    //             //              String::from("b"),
+    //             String::from("")
+    //         )
+    //     );
+    //     assert_eq!(CLIENT_KEY.decrypt_u8(&result.number_parts), 3);
+    //     //   assert_eq!(clear_result2, (1, 0));
+    // }
+
     #[test]
-    fn test_split_encrypted() {
-        let encrypted_str0 = CLIENT_KEY.encrypt_str("ba").unwrap();
-        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
+    fn test_split_encrypted2() {
+        let encrypted_str = CLIENT_KEY.encrypt_str("a").unwrap();
+        //        let encrypted_str = SERVER_KEY.reverse_string_content(&encrypted_str0);
         //        let encrypted_str2 = CLIENT_KEY.encrypt_str_random_padding("ac", 2).unwrap();
         //      let encrypted_str3 = SERVER_KEY.reverse_string_content(&encrypted_str2);
 
-        let encrypted_pattern = CLIENT_KEY.encrypt_str("a").unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("", 0).unwrap();
 
-        let result = SERVER_KEY.split_encrypted_final_padding(&encrypted_str, &encrypted_pattern);
+        let result = SERVER_KEY
+            .split_encrypted_final_padding_allow_empty_pattern(&encrypted_str, &encrypted_pattern);
         //let result2 = SERVER_KEY.find_string(&encrypted_str3, &encrypted_pattern);
 
         let clear_result = (
             CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
             CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
+            CLIENT_KEY.decrypt_string(&result.parts[2]).unwrap(),
+            //            CLIENT_KEY.decrypt_string(&result.parts[3]).unwrap(),
         );
+
+        // 	let clear_found = (
+        //             CLIENT_KEY.decrypt_u8(&result.founds[0]),
+        //             CLIENT_KEY.decrypt_u8(&result.founds[1]),
+        //             CLIENT_KEY.decrypt_u8(&result.founds[2]),
+        // 	    //CLIENT_KEY.decrypt_u8(&result.founds[3]),
+        // //            CLIENT_KEY.decrypt_string(&result.parts[3]).unwrap(),
+        //         );
 
         // let clear_result2 = (
         //     CLIENT_KEY.decrypt_u8(&result2.0),
         //     CLIENT_KEY.decrypt_u8(&result2.1),
         // );
 
-        assert_eq!(clear_result, (String::from(""), String::from("b")));
+        //assert_eq!(clear_found, (1, 1, 1));
+
+        assert_eq!(
+            clear_result,
+            (String::from(""), String::from("a"), String::from(""),)
+        );
+        assert_eq!(CLIENT_KEY.decrypt_u8(&result.number_parts), 3);
         //   assert_eq!(clear_result2, (1, 0));
     }
 }
