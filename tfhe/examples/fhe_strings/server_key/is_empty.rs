@@ -1,4 +1,4 @@
-use crate::ciphertext::{FheStrLength, FheString};
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -16,6 +16,16 @@ impl StringServerKey {
             FheStrLength::Encrypted(length) => {
                 FheBool::Encrypted(self.integer_key.scalar_eq_parallelized(&length, 0))
             }
+        }
+    }
+
+    pub fn is_empty_encrypted(&self, s: &FheString) -> RadixCiphertext {
+        match &s.length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => {
+                self.integer_key.scalar_eq_parallelized(encrypted_length, 0)
+            }
+            ClearOrEncrypted::Clear(0) => self.create_n(1),
+            _ => self.create_zero(),
         }
     }
 }
