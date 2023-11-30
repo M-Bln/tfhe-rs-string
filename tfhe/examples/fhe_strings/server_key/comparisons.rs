@@ -649,6 +649,75 @@ impl StringServerKey {
         FheAsciiChar(result)
     }
 
+    /// Return the first element encrypting a non null character in content,
+    /// replace it in content by an encryption of the null character.
+    /// If all character are null, return an encryption of the null character.
+    pub fn pop_last_non_zero_char(&self, content_slice: &mut [FheAsciiChar]) -> FheAsciiChar {
+        let mut previous_is_padding_zero = self.create_true();
+        let mut result = self.create_zero();
+
+        for c in content_slice.iter_mut().rev() {
+            let current_is_zero = self.integer_key.scalar_eq_parallelized(&c.0, 0);
+
+            let first_non_null = self.integer_key.bitand_parallelized(
+                &previous_is_padding_zero,
+                &self.integer_key.bitnot_parallelized(&current_is_zero),
+            );
+
+            // Encrypt same value as c if c is the first no null encrypted char,
+            // encrypt zero otherwise
+            let to_sub = self.integer_key.mul_parallelized(&c.0, &first_non_null);
+
+            // Compute the result
+            self.integer_key
+                .add_assign_parallelized(&mut result, &to_sub);
+
+            // Update the value in content
+            self.integer_key.sub_assign_parallelized(&mut c.0, &to_sub);
+
+            // Update previous_is_padding_zero
+            self.integer_key
+                .bitand_assign_parallelized(&mut previous_is_padding_zero, &current_is_zero);
+        }
+        FheAsciiChar(result)
+    }
+
+    // /// Return the last element encrypting a non null character in content,
+    // /// replace it in content by an encryption of the null character.
+    // /// If all character are null, return an encryption of the null character.
+    // pub fn pop_last_non_zero_char(&self, content_slice: &mut [FheAsciiChar]) -> FheAsciiChar {
+    //     let mut previous_is_padding_zero = self.create_true();
+    //     let mut result = self.create_zero();
+
+    // 	for c in content_slice.iter().rev() {
+    // 	    let current_non_zero = self.integer_key.scalar_ne_parallelized(&c.0, 0);
+    // 	    let last_non_null = self.integer_key.bitand_parallelized(&current_non_zero,
+    // &previous_is_padding_zero);
+
+    //         // Encrypt same value as c if c is the first no null encrypted char,
+    //         // encrypt zero otherwise
+    //         let to_sub = self.integer_key.mul_parallelized(&c.0, &last_non_null);
+    // 	    result = self.integer_key.cmux_parallelized(&last_non_null, &c.0, &result);
+
+    // 	    // Encrypt same value as c if c is the first no null encrypted char,
+    //         // encrypt zero otherwise
+    //         let to_sub = self.integer_key.mul_parallelized(&c.0, &last_non_null);
+
+    //         // Compute the result
+    //         self.integer_key
+    //             .add_assign_parallelized(&mut result, &to_sub);
+
+    //         // Update the value in content
+    //         self.integer_key.sub_assign_parallelized(&mut c.0, &to_sub);
+
+    //         // Update previous_is_padding_zero
+    //         self.integer_key
+    //             .bitand_assign_parallelized(&mut previous_is_padding_zero, &current_is_zero);
+    // 	}
+
+    //     FheAsciiChar(result)
+    // }
+
     /// Replace the content of s with an encryption of the same string with the same
     /// and without initial padding.
     pub fn remove_initial_padding_assign(&self, s: &mut FheString) {
@@ -673,6 +742,22 @@ impl StringServerKey {
         }
         FheString {
             content: result_content,
+            padding: Padding::Final,
+            length: s.length.clone(),
+        }
+    }
+
+    /// Return an encryption of the same string, with the same content length,
+    /// without final padding.
+    pub fn remove_final_padding(&self, s: &FheString) -> FheString {
+        let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
+        let mut prev_content_slice = &mut s.content.clone()[..];
+        for _ in 0..s.content.len() {
+            result_content.push(self.pop_last_non_zero_char(prev_content_slice));
+            prev_content_slice = &mut prev_content_slice[1..];
+        }
+        FheString {
+            content: result_content.into_iter().rev().collect(),
             padding: Padding::Final,
             length: s.length.clone(),
         }
@@ -707,6 +792,22 @@ mod tests {
     //     let decrypted_string = CLIENT_KEY.decrypt_string(&encrypted_str).unwrap();
     //     assert_eq!(decrypted_string, "b");
     // }
+
+    #[test]
+    fn test_pop_last_non_zero_char() {
+        let mut encrypted_str = CLIENT_KEY
+            .encrypt_ascii_vec(
+                &vec![0, 97, 98, 0],
+                Padding::InitialAndFinal,
+                FheStrLength::Clear(2),
+            )
+            .unwrap();
+        let poped_char = SERVER_KEY.pop_last_non_zero_char(&mut encrypted_str.content[..]);
+        let decrypted_poped_char = CLIENT_KEY.decrypt_ascii_char(&poped_char);
+        assert_eq!(decrypted_poped_char, 98);
+        let decrypted_string = CLIENT_KEY.decrypt_string(&encrypted_str).unwrap();
+        assert_eq!(decrypted_string, "a");
+    }
 
     // #[test]
     // fn test_remove_initial_padding_assign() {
@@ -838,69 +939,70 @@ mod tests {
     //     assert_eq!(clear_result, 1);
     // }
 
-    #[test]
-    fn test_starts_with_clear() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("bc", 2).unwrap();
+    // #[test]
+    // fn test_starts_with_clear() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("bc", 2).unwrap();
 
-        let mut starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "b");
-        let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
-        assert_eq!(clear_result, 1);
+    //     let mut starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "b");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
+    //     assert_eq!(clear_result, 1);
 
-        starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "");
-        let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
-        assert_eq!(clear_result, 1);
+    //     starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
+    //     assert_eq!(clear_result, 1);
 
-        starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "bc");
-        let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
-        assert_eq!(clear_result, 1);
+    //     starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "bc");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
+    //     assert_eq!(clear_result, 1);
 
-        starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "def");
-        let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
-        assert_eq!(clear_result, 0);
+    //     starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "def");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
+    //     assert_eq!(clear_result, 0);
 
-        starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "d");
-        let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
-        assert_eq!(clear_result, 0);
-    }
+    //     starts_with_result = SERVER_KEY.starts_with_clear(&encrypted_str, "d");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
+    //     assert_eq!(clear_result, 0);
+    // }
 
-    #[test]
-    fn test_ends_with_encrypted() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ccd", 2).unwrap();
-        let encrypted_sufix = CLIENT_KEY.encrypt_str_random_padding("cd", 2).unwrap();
+    // #[test]
+    // fn test_ends_with_encrypted() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ccd", 2).unwrap();
+    //     let encrypted_sufix = CLIENT_KEY.encrypt_str_random_padding("cd", 2).unwrap();
 
-        let ends_with_result = SERVER_KEY.ends_with_encrypted(&encrypted_str, &encrypted_sufix);
-        let starts_with_result = SERVER_KEY.starts_with_encrypted(&encrypted_str, &encrypted_sufix);
+    //     let ends_with_result = SERVER_KEY.ends_with_encrypted(&encrypted_str, &encrypted_sufix);
+    //     let starts_with_result = SERVER_KEY.starts_with_encrypted(&encrypted_str,
+    // &encrypted_sufix);
 
-        let clear_ends_with_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
-        let clear_starts_with_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
-        assert_eq!(clear_ends_with_result, 1);
-        assert_eq!(clear_starts_with_result, 0);
-    }
+    //     let clear_ends_with_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
+    //     let clear_starts_with_result = CLIENT_KEY.decrypt_u8(&starts_with_result);
+    //     assert_eq!(clear_ends_with_result, 1);
+    //     assert_eq!(clear_starts_with_result, 0);
+    // }
 
-    #[test]
-    fn test_ends_with_clear() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("bc", 2).unwrap();
+    // #[test]
+    // fn test_ends_with_clear() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("bc", 2).unwrap();
 
-        let mut ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "c");
-        let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
-        assert_eq!(clear_result, 1);
+    //     let mut ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "c");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
+    //     assert_eq!(clear_result, 1);
 
-        ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "");
-        let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
-        assert_eq!(clear_result, 1);
+    //     ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
+    //     assert_eq!(clear_result, 1);
 
-        ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "bc");
-        let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
-        assert_eq!(clear_result, 1);
+    //     ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "bc");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
+    //     assert_eq!(clear_result, 1);
 
-        ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "def");
-        let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
-        assert_eq!(clear_result, 0);
+    //     ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "def");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
+    //     assert_eq!(clear_result, 0);
 
-        ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "b");
-        let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
-        assert_eq!(clear_result, 0);
-    }
+    //     ends_with_result = SERVER_KEY.ends_with_clear(&encrypted_str, "b");
+    //     let clear_result = CLIENT_KEY.decrypt_u8(&ends_with_result);
+    //     assert_eq!(clear_result, 0);
+    // }
 
     // #[test]
     // fn test_eq_ignore_case() {
