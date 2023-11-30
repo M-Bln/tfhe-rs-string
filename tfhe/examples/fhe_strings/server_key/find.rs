@@ -171,7 +171,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn rfind_from_init_padding(
+    pub fn rfind_from_final_padding(
         &self,
         s: &FheString,
         pattern: &FheString,
@@ -181,13 +181,13 @@ impl StringServerKey {
         let mut index = self.initial_index_rfind(&s.length);
         let mut found = zero;
         for n in (0..s.content.len()).rev() {
+            let increment_index = self.increment_index(s, n, &found);
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
                 &self.integer_key.scalar_gt_parallelized(to, n as u64),
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
-            let increment_index = self.increment_index(s, n, &found);
 
             self.integer_key
                 .sub_assign_parallelized(&mut index, &increment_index);
@@ -195,7 +195,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn rfind_from_init_padding_allow_empty_pattern(
+    pub fn rfind_from_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
         pattern: &FheString,
@@ -218,13 +218,14 @@ impl StringServerKey {
         );
 
         for n in (0..s.content.len()).rev() {
+            let increment_index = self.increment_index(s, n, &found);
+
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
                 &self.integer_key.scalar_gt_parallelized(to, n as u64),
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
-            let increment_index = self.increment_index(s, n, &found);
 
             self.integer_key
                 .sub_assign_parallelized(&mut index, &increment_index);
@@ -315,12 +316,12 @@ mod tests {
     // }
 
     #[test]
-    fn test_rfind_from_init_padding() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("abc", 0).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("", 0).unwrap();
-        let encrypted_index = SERVER_KEY.create_n(3);
+    fn test_rfind_from_final_padding() {
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 1).unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 1).unwrap();
+        let encrypted_index = SERVER_KEY.create_n(2);
 
-        let result = SERVER_KEY.rfind_from_init_padding_allow_empty_pattern(
+        let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
             &encrypted_str,
             &encrypted_pattern,
             &encrypted_index,
@@ -331,11 +332,11 @@ mod tests {
             CLIENT_KEY.decrypt_u8(&result.1),
         );
 
-        assert_eq!(clear_result, (1, 3));
+        assert_eq!(clear_result, (1, 0));
     }
 
     // #[test]
-    // fn test_rfind_from_init_padding2() {
+    // fn test_rfind_from_final_padding2() {
     //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ddda", 0).unwrap();
     //     let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("d", 1).unwrap();
 

@@ -463,7 +463,7 @@ impl StringServerKey {
     }
 
     // //Should be called with `s.padding` either `Padding::None` or `Padding::Initial`.
-    // pub fn rfind_from_init_padding_allow_empty_pattern(
+    // pub fn rfind_from_final_padding_allow_empty_pattern(
     //     &self,
     //     s: &FheString,
     //     pattern: &FheString,
@@ -491,12 +491,22 @@ impl StringServerKey {
     //     (found, index)
     // }
 
-    pub fn initial_index_rfind(&self, length: &FheStrLength) -> RadixCiphertext {
+    pub fn initial_index_rfind_allow_empty_pattern(
+        &self,
+        length: &FheStrLength,
+    ) -> RadixCiphertext {
         match length {
             ClearOrEncrypted::Clear(clear_length) => self.create_n((*clear_length - 1) as u8),
             ClearOrEncrypted::Encrypted(encrypted_length) => self
                 .integer_key
                 .scalar_sub_parallelized(encrypted_length, 1),
+        }
+    }
+
+    pub fn initial_index_rfind(&self, length: &FheStrLength) -> RadixCiphertext {
+        match length {
+            ClearOrEncrypted::Clear(clear_length) => self.create_n(*clear_length as u8),
+            ClearOrEncrypted::Encrypted(encrypted_length) => encrypted_length.clone(),
         }
     }
 
@@ -564,12 +574,12 @@ impl StringServerKey {
     // pub fn rsplit_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
     //     match &pattern.length {
     //         ClearOrEncrypted::Clear(0) => {
-    //             self.rpadding_pair_dispatch(s, pattern, |s1, s2| self.rsplit_empty_pattern(s1,
+    //             self.padding_pair_dispatch(s, pattern, |s1, s2| self.rsplit_empty_pattern(s1,
     // s2))         }
-    //         ClearOrEncrypted::Clear(_) => self.rpadding_pair_dispatch(s, pattern, |s1, s2| {
+    //         ClearOrEncrypted::Clear(_) => self.padding_pair_dispatch(s, pattern, |s1, s2| {
     //             self.rsplit_encrypted_initial_padding(s1, s2)
     //         }),
-    //         _ => self.rpadding_pair_dispatch(s, pattern, |s1, s2| {
+    //         _ => selfrpadding_pair_dispatch(s, pattern, |s1, s2| {
     //             self.rsplit_encrypted_initial_padding_allow_empty_pattern(s1, s2)
     //         }),
     //     }
@@ -678,11 +688,11 @@ impl StringServerKey {
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `end_part` holds the index of the end of the current part.
-        let mut end_part = self.create_n(maximum_number_of_parts as u8);
+        let mut end_part = self.initial_index_rfind(&s.length);
 
         for n in (0..maximum_number_of_parts).rev() {
             let (found, start_pattern) =
-                self.rfind_from_init_padding_allow_empty_pattern(s, pattern, &end_part);
+                self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
@@ -727,14 +737,14 @@ impl StringServerKey {
             let start_pattern: RadixCiphertext;
             if n >= 1 {
                 // When the patern is empty, the search must start at `start_part` plus 1.
-                (found, start_pattern) = self.rfind_from_init_padding_allow_empty_pattern(
+                (found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(
                     s,
                     pattern,
                     &self.integer_key.sub_parallelized(&end_part, &empty_pattern),
                 );
             } else {
                 (found, start_pattern) =
-                    self.rfind_from_init_padding_allow_empty_pattern(s, pattern, &end_part);
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
             }
 
             // Increment `number_parts` if the pattern is found.
@@ -831,7 +841,7 @@ impl StringServerKey {
             let end_part: RadixCiphertext;
             if n >= 1 {
                 // When the patern is empty, the search must start at `start_part` minus 1.
-                (found, end_part) = self.rfind_from_init_padding_allow_empty_pattern(
+                (found, end_part) = self.rfind_from_final_padding_allow_empty_pattern(
                     s,
                     pattern,
                     &self
@@ -840,7 +850,7 @@ impl StringServerKey {
                 );
             } else {
                 (found, end_part) =
-                    self.rfind_from_init_padding_allow_empty_pattern(s, pattern, &start_part);
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &start_part);
             }
 
             // Increment `number_parts` if the pattern is found.
@@ -973,11 +983,11 @@ mod tests {
     // }
 
     #[test]
-    fn test_rfind_from_init_padding_allow_empty_pattern() {
+    fn test_rfind_from_final_padding_allow_empty_pattern() {
         let encrypted_str = CLIENT_KEY.encrypt_str("ba").unwrap();
         let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("c", 0).unwrap();
 
-        let result = SERVER_KEY.rfind_from_init_padding_allow_empty_pattern(
+        let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
             &encrypted_str,
             &encrypted_pattern,
             &SERVER_KEY.create_n(3),
