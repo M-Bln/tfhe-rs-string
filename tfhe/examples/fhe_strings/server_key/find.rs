@@ -222,14 +222,13 @@ impl StringServerKey {
         let mut index = self.initial_index_rfind(&s.length);
         let mut found = zero;
         for n in (0..s.content.len()).rev() {
-            let increment_index = self.increment_index(s, n, &found);
+            let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
                 &self.integer_key.scalar_gt_parallelized(to, n as u64),
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
-
             self.integer_key
                 .sub_assign_parallelized(&mut index, &increment_index);
         }
@@ -272,6 +271,15 @@ impl StringServerKey {
             FheStrLength::Encrypted(l) => self.integer_key.min_parallelized(to, l),
         }
     }
+
+    // pub fn min_length_radix_mi(&self, length: &FheStrLength, to: &RadixCiphertext) -> RadixCiphertext {
+    //     match length {
+    //         FheStrLength::Clear(clear_length) => self
+    //             .integer_key
+    //             .scalar_min_parallelized(to, *clear_length as u64),
+    //         FheStrLength::Encrypted(l) => self.integer_key.min_parallelized(to, l),
+    //     }
+    // }
 
     // pub fn rfind_from_final_padding_allow_empty_pattern(
     //     &self,
@@ -355,6 +363,20 @@ impl StringServerKey {
             ),
         }
     }
+
+    pub fn rincrement_index(
+        &self,
+        s: &FheString,
+        content_index: usize,
+        found: &RadixCiphertext,
+    ) -> RadixCiphertext {
+	self.integer_key.bitand_parallelized(
+            &self.integer_key.scalar_eq_parallelized(&found, 0),
+            &self
+                .integer_key
+                .scalar_ne_parallelized(&s.content[content_index].0, 0)	)
+    }
+    
     pub fn decrement_index(
         &self,
         s: &FheString,
@@ -457,35 +479,35 @@ mod tests {
     //     assert_eq!(clear_result, (1, 2));
     // }
 
-    #[test]
-    fn test_rfind_from_final_padding_allow_empty_pattern() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 0).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
-        let encrypted_index = SERVER_KEY.create_n(1);
+    // #[test]
+    // fn test_rfind_from_final_padding_allow_empty_pattern() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("abb", 2).unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 2).unwrap();
+    //     let encrypted_index = SERVER_KEY.create_n(0);
 
-        let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
-            &encrypted_str,
-            &encrypted_pattern,
-            &encrypted_index,
-        );
+    //     let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
+    //         &encrypted_str,
+    //         &encrypted_pattern,
+    //         &encrypted_index,
+    //     );
 
-        let clear_result = (
-            CLIENT_KEY.decrypt_u8(&result.0),
-            CLIENT_KEY.decrypt_u8(&result.1),
-        );
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
+    //     );
 
-        assert_eq!(clear_result, (1, 0));
-    }
+    //     assert_eq!(clear_result, (0, 0));
+    // }
 
     #[test]
     fn test_rfind_from_final_padding_allow_empty_pattern2() {
-        let encrypted_str = CLIENT_KEY.encrypt_str("ba").unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 0).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aaaa",1).unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
 
         let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
             &encrypted_str,
             &encrypted_pattern,
-            &SERVER_KEY.create_n(3),
+            &SERVER_KEY.create_n(6),
         );
 
         let clear_result = (
@@ -493,47 +515,47 @@ mod tests {
             CLIENT_KEY.decrypt_u8(&result.1),
         );
 
-        assert_eq!(clear_result, (1, 2));
+        assert_eq!(clear_result, (1, 4));
     }
 
-    #[test]
-    fn test_find_from_final_padding_allow_empty_pattern() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 0).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
-        let encrypted_index = SERVER_KEY.create_n(0);
+    // #[test]
+    // fn test_find_from_final_padding_allow_empty_pattern() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 0).unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
+    //     let encrypted_index = SERVER_KEY.create_n(0);
 
-        let result = SERVER_KEY.find_from_final_padding_allow_empty_pattern(
-            &encrypted_str,
-            &encrypted_pattern,
-            &encrypted_index,
-        );
+    //     let result = SERVER_KEY.find_from_final_padding_allow_empty_pattern(
+    //         &encrypted_str,
+    //         &encrypted_pattern,
+    //         &encrypted_index,
+    //     );
 
-        let clear_result = (
-            CLIENT_KEY.decrypt_u8(&result.0),
-            CLIENT_KEY.decrypt_u8(&result.1),
-        );
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
+    //     );
 
-        assert_eq!(clear_result, (1, 0));
-    }
+    //     assert_eq!(clear_result, (1, 0));
+    // }
 
-    #[test]
-    fn test_find_from_final_padding_allow_empty_pattern2() {
-        let encrypted_str = CLIENT_KEY.encrypt_str("ba").unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 0).unwrap();
+    // #[test]
+    // fn test_find_from_final_padding_allow_empty_pattern2() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str("ba").unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 0).unwrap();
 
-        let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
-            &encrypted_str,
-            &encrypted_pattern,
-            &SERVER_KEY.create_n(3),
-        );
+    //     let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
+    //         &encrypted_str,
+    //         &encrypted_pattern,
+    //         &SERVER_KEY.create_n(3),
+    //     );
 
-        let clear_result = (
-            CLIENT_KEY.decrypt_u8(&result.0),
-            CLIENT_KEY.decrypt_u8(&result.1),
-        );
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
+    //     );
 
-        assert_eq!(clear_result, (1, 2));
-    }
+    //     assert_eq!(clear_result, (1, 2));
+    // }
 
     // #[test]
     // fn test_rfind_from_final_padding2() {

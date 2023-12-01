@@ -207,12 +207,21 @@ impl StringServerKey {
         let mut found = zero.clone();
 
         // `end_part` holds the index of the end of the current part.
-        let mut end_part = self.length_to_radix_plus_one(&s.length);
-
+        let mut end_part = self.length_to_radix(&s.length);
+	let empty_pattern = self.is_empty_encrypted(&pattern);
+	
         for n in (0..maximum_number_of_parts).rev() {
             let start_pattern: RadixCiphertext;
-            (found, start_pattern) =
-                self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
+	    if n < maximum_number_of_parts -1 {
+		(found, start_pattern) =
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern,
+		    &self.integer_key.scalar_sub_parallelized(&end_part, &empty_pattern));
+	    } else {
+		(found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(s, pattern,
+											   &end_part
+		);
+	    }
+
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
@@ -230,9 +239,12 @@ impl StringServerKey {
                 .cmux_parallelized(&found, &start_pattern, &zero);
         }
 
-        // // Correct number of parts if the pattern is empty
-        // self.integer_key.sub_assign_parallelized(&mut number_parts,
-        // &self.is_empty_encrypted(pattern));
+        // Count parts when the pattern is empty
+        number_parts = self.integer_key.cmux_parallelized(
+            &empty_pattern,
+            &self.add_length_scalar(&s.length, 2),
+            &number_parts,
+        );
 
         FheSplit {
             parts: parts,
