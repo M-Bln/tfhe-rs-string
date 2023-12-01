@@ -207,21 +207,21 @@ impl StringServerKey {
         let mut found = zero.clone();
 
         // `end_part` holds the index of the end of the current part.
-        let mut end_part = self.length_to_radix(&s.length);
-	let empty_pattern = self.is_empty_encrypted(&pattern);
-	
+        let mut end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
+        let empty_pattern = self.is_empty_encrypted(&pattern);
+
         for n in (0..maximum_number_of_parts).rev() {
             let start_pattern: RadixCiphertext;
-	    if n < maximum_number_of_parts -1 {
-		(found, start_pattern) =
-                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern,
-		    &self.integer_key.scalar_sub_parallelized(&end_part, &empty_pattern));
-	    } else {
-		(found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(s, pattern,
-											   &end_part
-		);
-	    }
-
+            if n < maximum_number_of_parts - 1 {
+                (found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(
+                    s,
+                    pattern,
+                    &self.integer_key.sub_parallelized(&end_part, &empty_pattern),
+                );
+            } else {
+                (found, start_pattern) =
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
+            }
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key

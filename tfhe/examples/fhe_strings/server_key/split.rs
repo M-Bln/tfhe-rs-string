@@ -340,13 +340,13 @@ mod tests {
         let encrypted_pattern = client_key.encrypt_str_padding(pattern, 1).unwrap();
         let fhe_rsplit = server_key.rsplit_encrypted(&encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
-        //assert_eq!(clear_len, std_rsplit.len() as u8);
-        // let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(4 as usize)]
-        //     .iter()
-        //     .map(|s| client_key.decrypt_string(s).unwrap())
-        //     .collect();
-        let clear_rsplit: Vec<String> = fhe_rsplit.parts[..6].iter().map(|s|
-        client_key.decrypt_string(s).unwrap()).collect();
+        assert_eq!(clear_len, std_rsplit.len() as u8);
+        let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| client_key.decrypt_string(s).unwrap())
+            .collect();
+        // let clear_rsplit: Vec<String> = fhe_rsplit.parts[..6].iter().map(|s|
+        // client_key.decrypt_string(s).unwrap()).collect();
         assert_eq!(clear_rsplit, std_rsplit);
     }
 
@@ -365,7 +365,6 @@ mod tests {
         test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acb", "");
     }
 
-    
     // #[test]
     // fn test_nth_clear() {
     //     let encrypted_str0 = CLIENT_KEY.encrypt_str_random_padding("ade", 0).unwrap();

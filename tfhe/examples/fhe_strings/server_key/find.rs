@@ -272,8 +272,8 @@ impl StringServerKey {
         }
     }
 
-    // pub fn min_length_radix_mi(&self, length: &FheStrLength, to: &RadixCiphertext) -> RadixCiphertext {
-    //     match length {
+    // pub fn min_length_radix_mi(&self, length: &FheStrLength, to: &RadixCiphertext) ->
+    // RadixCiphertext {     match length {
     //         FheStrLength::Clear(clear_length) => self
     //             .integer_key
     //             .scalar_min_parallelized(to, *clear_length as u64),
@@ -370,13 +370,14 @@ impl StringServerKey {
         content_index: usize,
         found: &RadixCiphertext,
     ) -> RadixCiphertext {
-	self.integer_key.bitand_parallelized(
+        self.integer_key.bitand_parallelized(
             &self.integer_key.scalar_eq_parallelized(&found, 0),
             &self
                 .integer_key
-                .scalar_ne_parallelized(&s.content[content_index].0, 0)	)
+                .scalar_ne_parallelized(&s.content[content_index].0, 0),
+        )
     }
-    
+
     pub fn decrement_index(
         &self,
         s: &FheString,
@@ -501,7 +502,7 @@ mod tests {
 
     #[test]
     fn test_rfind_from_final_padding_allow_empty_pattern2() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aaaa",1).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aaaa", 1).unwrap();
         let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
 
         let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
