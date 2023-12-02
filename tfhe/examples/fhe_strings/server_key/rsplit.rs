@@ -344,10 +344,10 @@ mod tests {
         assert_eq!(clear_rsplit, std_rsplit);
     }
 
-    // #[test]
-    // fn test_test_rsplit() {
-    //     test_rsplit(&CLIENT_KEY, &SERVER_KEY,  "acbccbcbcbc", "cbc");
-    // }
+    #[test]
+    fn test_test_rsplit() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acbccbcbcbc", "cbc");
+    }
 
     #[test]
     fn test_test_rsplit2() {

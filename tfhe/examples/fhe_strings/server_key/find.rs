@@ -225,7 +225,7 @@ impl StringServerKey {
             let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-                &self.integer_key.scalar_gt_parallelized(from, n as u64),
+                &self.integer_key.scalar_ge_parallelized(from, n as u64),
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
@@ -269,7 +269,7 @@ impl StringServerKey {
             let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-                &self.integer_key.scalar_gt_parallelized(from, n as u64),
+                &self.integer_key.scalar_ge_parallelized(from, n as u64),
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
