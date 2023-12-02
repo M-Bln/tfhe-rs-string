@@ -1,3 +1,4 @@
+mod accessors;
 mod add;
 mod change_case;
 mod comparisons;
@@ -5,8 +6,10 @@ mod contains;
 mod find;
 mod is_empty;
 mod repeat;
+mod rsplit;
 mod split;
 mod strip;
+mod substring;
 mod trim;
 
 use tfhe::integer::ServerKey;

@@ -1,7 +1,13 @@
 use crate::client_key::StringClientKey;
 use crate::server_key::StringServerKey;
 use tfhe::integer::{gen_keys_radix, RadixCiphertext};
-use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+use tfhe::shortint::prelude::{
+    DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
+    StandardDev, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+};
+use tfhe::shortint::{
+    CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MessageModulus,
+};
 
 #[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);
@@ -29,6 +35,36 @@ pub struct FheString {
     pub content: Vec<FheAsciiChar>,
     pub padding: Padding,
     pub length: FheStrLength,
+}
+
+pub const PARAM_MESSAGE_2_CARRY_2_TEST: ClassicPBSParameters = ClassicPBSParameters {
+    lwe_dimension: LweDimension(2),
+    glwe_dimension: GlweDimension(1),
+    polynomial_size: PolynomialSize(2048),
+    lwe_modular_std_dev: StandardDev(0.000007069849454709433),
+    glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
+    pbs_base_log: DecompositionBaseLog(23),
+    pbs_level: DecompositionLevelCount(1),
+    ks_level: DecompositionLevelCount(5),
+    ks_base_log: DecompositionBaseLog(3),
+    message_modulus: MessageModulus(4),
+    carry_modulus: CarryModulus(4),
+    ciphertext_modulus: CiphertextModulus::new_native(),
+    encryption_key_choice: EncryptionKeyChoice::Big,
+};
+
+pub fn gen_keys_test() -> (StringClientKey, StringServerKey) {
+    let num_block = 4;
+    match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_TEST, num_block) {
+        (radix_client_key, server_key) => (
+            StringClientKey {
+                integer_key: radix_client_key,
+            },
+            StringServerKey {
+                integer_key: server_key,
+            },
+        ),
+    }
 }
 
 pub fn gen_keys() -> (StringClientKey, StringServerKey) {
