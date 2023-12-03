@@ -312,10 +312,10 @@ impl StringServerKey {
             ClearOrEncrypted::Clear(clear_length) => self.integer_key.cmux_parallelized(
                 &self
                     .integer_key
-                    .scalar_ge_parallelized(end_part, (*clear_length - 1) as u64),
+                    .scalar_ge_parallelized(end_part, *clear_length as u64),
                 &self
                     .integer_key
-                    .scalar_sub_parallelized(end_part, (*clear_length - 1) as u64),
+                    .scalar_sub_parallelized(end_part, *clear_length as u64),
                 &self.create_zero(),
             ),
         }

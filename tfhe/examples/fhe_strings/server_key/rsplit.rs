@@ -330,8 +330,8 @@ mod tests {
         pattern: &str,
     ) {
         let std_rsplit: Vec<String> = s.rsplit(pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_padding(s, 3).unwrap();
-        let encrypted_pattern = client_key.encrypt_str_padding(pattern, 2).unwrap();
+        let encrypted_s = client_key.encrypt_str_padding(s, 0).unwrap();
+        let encrypted_pattern = client_key.encrypt_str_padding(pattern, 0).unwrap();
         let fhe_rsplit = server_key.rsplit_encrypted(&encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
         //assert_eq!(clear_len, std_rsplit.len() as u8);
