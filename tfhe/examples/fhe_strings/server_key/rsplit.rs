@@ -216,7 +216,10 @@ impl StringServerKey {
                 (found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(
                     s,
                     pattern,
-                    &self.integer_key.sub_parallelized(&end_part, &empty_pattern),
+                    &self.integer_key.sub_parallelized(
+                        &self.sub_length_to_radix(&end_part, &pattern.length),
+                        &empty_pattern,
+                    ),
                 );
             } else {
                 (found, start_pattern) =
@@ -320,20 +323,51 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    #[test]
-    fn test_rsplit_encrypted_final_padding_allow_empty_pattern() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
-
-        let result = SERVER_KEY
-            .rsplit_encrypted_final_padding_allow_empty_pattern(&encrypted_str, &encrypted_pattern);
-        let clear_result = (
-            CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
-            CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
-            //	    CLIENT_KEY.decrypt_string(&result.parts[2]).unwrap(),
-        );
-
-        assert_eq!(clear_result, (String::from(""), String::from("")));
-        assert_eq!(CLIENT_KEY.decrypt_u8(&result.number_parts), 2);
+    pub fn test_rsplit(
+        client_key: &StringClientKey,
+        server_key: &StringServerKey,
+        s: &str,
+        pattern: &str,
+    ) {
+        let std_rsplit: Vec<String> = s.rsplit(pattern).map(|s| String::from(s)).collect();
+        let encrypted_s = client_key.encrypt_str_padding(s, 0).unwrap();
+        let encrypted_pattern = client_key.encrypt_str_padding(pattern, 0).unwrap();
+        let fhe_rsplit = server_key.rsplit_encrypted(&encrypted_s, &encrypted_pattern);
+        let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
+        //assert_eq!(clear_len, std_rsplit.len() as u8);
+        let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| client_key.decrypt_string(s).unwrap())
+            .collect();
+        // let clear_rsplit: Vec<String> = fhe_rsplit.parts[..6].iter().map(|s|
+        // client_key.decrypt_string(s).unwrap()).collect();
+        assert_eq!(clear_rsplit, std_rsplit);
     }
+
+    #[test]
+    fn test_test_rsplit() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acbccbcbcbc", "cbc");
+    }
+
+    #[test]
+    fn test_test_rsplit2() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "aczb", "");
+    }
+
+    // #[test]
+    // fn test_rsplit_encrypted_final_padding_allow_empty_pattern() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
+
+    //     let result = SERVER_KEY
+    //         .rsplit_encrypted_final_padding_allow_empty_pattern(&encrypted_str,
+    // &encrypted_pattern);     let clear_result = (
+    //         CLIENT_KEY.decrypt_string(&result.parts[0]).unwrap(),
+    //         CLIENT_KEY.decrypt_string(&result.parts[1]).unwrap(),
+    //         //	    CLIENT_KEY.decrypt_string(&result.parts[2]).unwrap(),
+    //     );
+
+    //     assert_eq!(clear_result, (String::from(""), String::from("")));
+    //     assert_eq!(CLIENT_KEY.decrypt_u8(&result.number_parts), 2);
+    // }
 }

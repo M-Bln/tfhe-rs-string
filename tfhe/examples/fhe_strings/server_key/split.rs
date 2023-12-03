@@ -295,6 +295,31 @@ impl StringServerKey {
                 .scalar_add_parallelized(end_part, *clear_length as u64),
         }
     }
+
+    pub fn sub_length_to_radix(
+        &self,
+        end_part: &RadixCiphertext,
+        pattern_length: &FheStrLength,
+    ) -> RadixCiphertext {
+        match pattern_length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => self.integer_key.cmux_parallelized(
+                &self.integer_key.ge_parallelized(end_part, encrypted_length),
+                &self
+                    .integer_key
+                    .sub_parallelized(end_part, encrypted_length),
+                &self.create_zero(),
+            ),
+            ClearOrEncrypted::Clear(clear_length) => self.integer_key.cmux_parallelized(
+                &self
+                    .integer_key
+                    .scalar_ge_parallelized(end_part, *clear_length as u64),
+                &self
+                    .integer_key
+                    .scalar_sub_parallelized(end_part, *clear_length as u64),
+                &self.create_zero(),
+            ),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -329,41 +354,20 @@ mod tests {
         assert_eq!(clear_split, std_split);
     }
 
-    pub fn test_rsplit(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        let std_rsplit: Vec<String> = s.rsplit(pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_padding(s, 1).unwrap();
-        let encrypted_pattern = client_key.encrypt_str_padding(pattern, 1).unwrap();
-        let fhe_rsplit = server_key.rsplit_encrypted(&encrypted_s, &encrypted_pattern);
-        let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
-        assert_eq!(clear_len, std_rsplit.len() as u8);
-        let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        // let clear_rsplit: Vec<String> = fhe_rsplit.parts[..6].iter().map(|s|
-        // client_key.decrypt_string(s).unwrap()).collect();
-        assert_eq!(clear_rsplit, std_rsplit);
+    #[test]
+    fn test_test_split() {
+        test_split(&CLIENT_KEY, &SERVER_KEY, "cbcbcbccbca", "cbc");
     }
 
     // #[test]
-    // fn test_test_split() {
-    // 	test_split(&CLIENT_KEY, &SERVER_KEY, "acbcbb", "cb");
+    // fn test_test_rsplit() {
+    //     test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acb", "c");
     // }
 
-    #[test]
-    fn test_test_rsplit() {
-        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acb", "c");
-    }
-
-    #[test]
-    fn test_test_rsplit2() {
-        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acb", "");
-    }
+    // #[test]
+    // fn test_test_rsplit2() {
+    //     test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acb", "");
+    // }
 
     // #[test]
     // fn test_nth_clear() {
