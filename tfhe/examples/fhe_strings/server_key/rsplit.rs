@@ -5,10 +5,25 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    pub fn rpadding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
+    where
+        F: Fn(&FheString, &FheString) -> FheSplit,
+    {
+        match (s1.padding, s2.padding) {
+            (Padding::None | Padding::Initial, Padding::None | Padding::Initial) => f(s1, s2),
+            (Padding::None | Padding::Initial, _) => f(s1, &self.remove_final_padding(s2)),
+            (_, Padding::None | Padding::Initial) => f(&self.remove_final_padding(s1), s2),
+            _ => f(
+                &self.remove_final_padding(s1),
+                &self.remove_final_padding(s2),
+            ),
+        }
+    }
+
     pub fn rsplit_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
             ClearOrEncrypted::Clear(0) => {
-                self.padding_pair_dispatch(s, pattern, |s1, s2| self.rsplit_empty_pattern(s1, s2))
+                self.rpadding_pair_dispatch(s, pattern, |s1, s2| self.rsplit_empty_pattern(s1, s2))
             }
             ClearOrEncrypted::Clear(_) => self.padding_pair_dispatch(s, pattern, |s1, s2| {
                 self.rsplit_encrypted_final_padding_allow_empty_pattern(s1, s2)
@@ -49,6 +64,45 @@ impl StringServerKey {
             current_index: 0,
         }
     }
+
+    // pub fn rsplit_empty_pattern(&self, s: &FheString, _empty_pattern: &FheString) -> FheSplit {
+    //     let max_number_parts = s.content.len() + 2;
+    //     let mut parts: Vec<FheString> = Vec::with_capacity(max_number_parts);
+    //     let number_parts: RadixCiphertext = match &s.length {
+    //         ClearOrEncrypted::Encrypted(encrypted_length) => self
+    //             .integer_key
+    //             .scalar_add_parallelized(encrypted_length, 2),
+    //         ClearOrEncrypted::Clear(clear_length) => self.create_n((*clear_length + 2) as u8),
+    //     };
+    //     let empty_string = FheString {
+    //         padding: Padding::None,
+    //         length: ClearOrEncrypted::Clear(0),
+    //         content: Vec::new(),
+    //     };
+    //     parts.push(empty_string.clone());
+    // 	for n in (0..s.content.len()).rev(){
+    //         let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
+    //         parts.push(FheString {
+    //             padding: Padding::Final,
+    //             length: ClearOrEncrypted::Encrypted(current_char_non_null),
+    //             content: vec![c.clone()],
+    //         })
+    //     }
+    //     for c in s.content.iter().rev() {
+    //         let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
+    //         parts.push(FheString {
+    //             padding: Padding::Final,
+    //             length: ClearOrEncrypted::Encrypted(current_char_non_null),
+    //             content: vec![c.clone()],
+    //         })
+    //     }
+    //     parts.push(empty_string);
+    //     FheSplit {
+    //         parts: parts,
+    //         number_parts: number_parts,
+    //         current_index: 0,
+    //     }
+    // }
 
     // pub fn rsplit_encrypted_final_padding(
     //     &self,
@@ -330,8 +384,8 @@ mod tests {
         pattern: &str,
     ) {
         let std_rsplit: Vec<String> = s.rsplit(pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_padding(s, 1).unwrap();
-        let encrypted_pattern = client_key.encrypt_str_padding(pattern, 0).unwrap();
+        let encrypted_s = client_key.encrypt_str_padding(s, 2).unwrap();
+        let encrypted_pattern = client_key.encrypt_str_padding(pattern, 2).unwrap();
         let fhe_rsplit = server_key.rsplit_encrypted(&encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
         //assert_eq!(clear_len, std_rsplit.len() as u8);
@@ -344,10 +398,10 @@ mod tests {
         assert_eq!(clear_rsplit, std_rsplit);
     }
 
-    // #[test]
-    // fn test_test_rsplit() {
-    //     test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acbccbcbcbc", "cbc");
-    // }
+    #[test]
+    fn test_test_rsplit() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acbccbcbcbc", "cbc");
+    }
 
     #[test]
     fn test_test_rsplit2() {

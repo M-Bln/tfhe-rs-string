@@ -752,9 +752,9 @@ impl StringServerKey {
     pub fn remove_final_padding(&self, s: &FheString) -> FheString {
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         let mut prev_content_slice = &mut s.content.clone()[..];
-        for _ in 0..s.content.len() {
+        for i in 0..s.content.len() {
             result_content.push(self.pop_last_non_zero_char(prev_content_slice));
-            prev_content_slice = &mut prev_content_slice[1..];
+            prev_content_slice = &mut prev_content_slice[..(s.content.len() - i)];
         }
         FheString {
             content: result_content.into_iter().rev().collect(),

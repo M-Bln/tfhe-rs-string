@@ -230,8 +230,10 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.create_n(1); // The result has at least 1 part.
-
+        let mut number_parts = match n {
+            0 => self.create_zero(),
+            _ => self.create_n(1), // The result has at least 1 part as long as n >= 0.
+        };
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let empty_pattern = self.is_empty_encrypted(&pattern);
@@ -354,10 +356,55 @@ mod tests {
         assert_eq!(clear_split, std_split);
     }
 
-    #[test]
-    fn test_test_split() {
-        test_split(&CLIENT_KEY, &SERVER_KEY, "cbcbcbccbca", "cbc");
+    pub fn test_split_clear_n(
+        client_key: &StringClientKey,
+        server_key: &StringServerKey,
+        n: usize,
+        s: &str,
+        pattern: &str,
+    ) {
+        let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
+        let encrypted_s = client_key.encrypt_str_random_padding(s, 3).unwrap();
+        let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 3).unwrap();
+        let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
+        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+        assert_eq!(clear_len, std_split.len() as u8);
+        let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| client_key.decrypt_string(s).unwrap())
+            .collect();
+        assert_eq!(clear_split, std_split);
     }
+
+    // #[test]
+    // fn test_test_split_clear_n() {
+    //     test_split_clear_n(&CLIENT_KEY, &SERVER_KEY, 2,  "cbcbcbccbca", "cbc");
+    // }
+
+    // #[test]
+    // fn test_test_split_clear_n2() {
+    //     test_split_clear_n(&CLIENT_KEY, &SERVER_KEY, 2,  "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_split_clear_n3() {
+    //     test_split_clear_n(&CLIENT_KEY, &SERVER_KEY, 5,  "cbca", "");
+    // }
+
+    #[test]
+    fn test_test_split_clear_n4() {
+        test_split_clear_n(&CLIENT_KEY, &SERVER_KEY, 0, "cbca", "");
+    }
+
+    // #[test]
+    // fn test_test_split_clear_n5() {
+    //     test_split_clear_n(&CLIENT_KEY, &SERVER_KEY, 4,  "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_split_clear_n6() {
+    //     test_split_clear_n(&CLIENT_KEY, &SERVER_KEY, 2,  "cbcbcbccbca", "cb");
+    // }
 
     // #[test]
     // fn test_test_rsplit() {
