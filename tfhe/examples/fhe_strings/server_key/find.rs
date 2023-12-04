@@ -203,7 +203,7 @@ impl StringServerKey {
         pattern: &FheString,
         from: &RadixCiphertext,
     ) -> (RadixCiphertext, RadixCiphertext) {
-        let from_greater_than_zero = self.integer_key.scalar_ge_parallelized(from, 0);
+        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (from_greater_than_zero, zero),
@@ -225,7 +225,7 @@ impl StringServerKey {
             let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.integer_key.bitand_parallelized(
                 &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-                &self.integer_key.scalar_ge_parallelized(from, n as u64),
+                &self.integer_key.scalar_gt_parallelized(from, n as u64),
             );
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
@@ -234,7 +234,7 @@ impl StringServerKey {
         }
         index = self.integer_key.cmux_parallelized(
             &self.is_empty_encrypted(pattern),
-            &self.min_length_radix(&s.length, from),
+            &self.min_length_radix(&s.length, &self.integer_key.scalar_sub_parallelized(from,1)),
             &index,
         );
         (found, index)
@@ -546,13 +546,13 @@ mod tests {
 
     #[test]
     fn test_rfind_from_final_padding_allow_empty_pattern2() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aaa", 2).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 0).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 2).unwrap();
+        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
 
         let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
             &encrypted_str,
             &encrypted_pattern,
-            &SERVER_KEY.create_n(2),
+            &SERVER_KEY.create_n(1),
         );
 
         let clear_result = (
@@ -560,7 +560,7 @@ mod tests {
             CLIENT_KEY.decrypt_u8(&result.1),
         );
 
-        assert_eq!(clear_result, (1, 2));
+        assert_eq!(clear_result, (1, 0));
     }
 
     // #[test]

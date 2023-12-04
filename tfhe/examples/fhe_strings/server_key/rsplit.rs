@@ -506,7 +506,7 @@ mod tests {
         let encrypted_pattern = client_key.encrypt_str_padding(pattern, 3).unwrap();
         let fhe_rsplit = server_key.rsplit_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
-        //  assert_eq!(clear_len, std_rsplit.len() as u8);
+        assert_eq!(clear_len, std_rsplit.len() as u8);
         let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(std_rsplit.len() as usize)]
             .iter()
             .map(|s| client_key.decrypt_string(s).unwrap())
@@ -538,7 +538,6 @@ mod tests {
     //         .collect();
     //     assert_eq!(clear_rsplit, std_rsplit);
     // }
-
     #[test]
     fn test_test_rsplit_clear_n2() {
         test_rsplit_clear_n(&CLIENT_KEY, &SERVER_KEY, 2, "cbca", "c");
