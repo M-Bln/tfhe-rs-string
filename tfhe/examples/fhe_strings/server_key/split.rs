@@ -397,6 +397,15 @@ impl StringServerKey {
         }
     }
 
+    pub fn sub_scalar_to_length(&self, length: &FheStrLength, n: u8) -> RadixCiphertext {
+        match length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => self
+                .integer_key
+                .scalar_sub_parallelized(encrypted_length, n),
+            ClearOrEncrypted::Clear(clear_length) => self.create_n(*clear_length as u8 - n),
+        }
+    }
+
     pub fn sub_length_to_radix(
         &self,
         end_part: &RadixCiphertext,

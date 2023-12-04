@@ -67,20 +67,29 @@ impl StringServerKey {
         let mut found = zero.clone();
 
         // `end_part` holds the index of the end of the current part.
-        let mut end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
+        let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
         let empty_pattern = self.is_empty_encrypted(&pattern);
+        let decrement_search_from = self.integer_key.cmux_parallelized(
+            &empty_pattern,
+            &zero.clone(),
+            &self.sub_scalar_to_length(&pattern.length, 1),
+        );
 
         for i in 0..maximum_number_of_parts_or_n {
             let start_pattern: RadixCiphertext;
-            if i >= 1 {
-                (found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(
-                    s,
-                    pattern,
-                    &self.integer_key.sub_parallelized(
-                        &self.sub_length_to_radix(&end_part, &pattern.length),
-                        &empty_pattern,
-                    ),
+
+            if i > 0 {
+                let search_from = self.integer_key.cmux_parallelized(
+                    &self
+                        .integer_key
+                        .ge_parallelized(&end_part, &decrement_search_from),
+                    &self
+                        .integer_key
+                        .sub_parallelized(&end_part, &decrement_search_from),
+                    &zero.clone(),
                 );
+                (found, start_pattern) =
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &search_from);
             } else {
                 (found, start_pattern) =
                     self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
@@ -506,12 +515,12 @@ mod tests {
         let encrypted_pattern = client_key.encrypt_str_padding(pattern, 3).unwrap();
         let fhe_rsplit = server_key.rsplit_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
-        assert_eq!(clear_len, std_rsplit.len() as u8);
         let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(std_rsplit.len() as usize)]
             .iter()
             .map(|s| client_key.decrypt_string(s).unwrap())
             .collect();
         assert_eq!(clear_rsplit, std_rsplit);
+        assert_eq!(clear_len, std_rsplit.len() as u8);
     }
 
     // pub fn test_rsplit_encrypted_n(
@@ -540,7 +549,7 @@ mod tests {
     // }
     #[test]
     fn test_test_rsplit_clear_n2() {
-        test_rsplit_clear_n(&CLIENT_KEY, &SERVER_KEY, 2, "cbca", "c");
+        test_rsplit_clear_n(&CLIENT_KEY, &SERVER_KEY, 5, "ccccc", "cc");
     }
 
     #[test]

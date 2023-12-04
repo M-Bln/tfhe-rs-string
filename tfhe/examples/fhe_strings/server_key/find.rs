@@ -234,7 +234,10 @@ impl StringServerKey {
         }
         index = self.integer_key.cmux_parallelized(
             &self.is_empty_encrypted(pattern),
-            &self.min_length_radix(&s.length, &self.integer_key.scalar_sub_parallelized(from,1)),
+            &self.min_length_radix(
+                &s.length,
+                &self.integer_key.scalar_sub_parallelized(from, 1),
+            ),
             &index,
         );
         (found, index)
