@@ -192,15 +192,9 @@ impl StringServerKey {
             ClearOrEncrypted::Clear(length) => *length + 2,
             _ => s.content.len() + 2,
         };
-        //let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.integer_key.scalar_gt_parallelized(n, 0);
-        // let mut number_parts = match n {
-        //     0 => self.create_zero(),
-        //     _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
-        // };
-
+        let mut number_parts = self.integer_key.scalar_gt_parallelized(n, 0); // The result has at least 1 part as long as n>0
         let mut found = zero.clone();
 
         // `end_part` holds the index of the end of the current part.
@@ -214,7 +208,6 @@ impl StringServerKey {
 
         for i in 0..maximum_number_of_parts {
             let start_pattern: RadixCiphertext;
-
             if i > 0 {
                 let search_from = self.integer_key.cmux_parallelized(
                     &self
@@ -470,20 +463,29 @@ impl StringServerKey {
         let mut found = zero.clone();
 
         // `end_part` holds the index of the end of the current part.
-        let mut end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
+        let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
         let empty_pattern = self.is_empty_encrypted(&pattern);
+        let decrement_search_from = self.integer_key.cmux_parallelized(
+            &empty_pattern,
+            &zero.clone(),
+            &self.sub_scalar_to_length(&pattern.length, 1),
+        );
 
-        for n in (0..maximum_number_of_parts).rev() {
+        for i in 0..maximum_number_of_parts {
             let start_pattern: RadixCiphertext;
-            if n < maximum_number_of_parts - 1 {
-                (found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(
-                    s,
-                    pattern,
-                    &self.integer_key.sub_parallelized(
-                        &self.sub_length_to_radix(&end_part, &pattern.length),
-                        &empty_pattern,
-                    ),
+            if i > 0 {
+                let search_from = self.integer_key.cmux_parallelized(
+                    &self
+                        .integer_key
+                        .ge_parallelized(&end_part, &decrement_search_from),
+                    &self
+                        .integer_key
+                        .sub_parallelized(&end_part, &decrement_search_from),
+                    &zero.clone(),
                 );
+
+                (found, start_pattern) =
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &search_from);
             } else {
                 (found, start_pattern) =
                     self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
@@ -597,14 +599,14 @@ mod tests {
         let encrypted_pattern = client_key.encrypt_str_padding(pattern, 2).unwrap();
         let fhe_rsplit = server_key.rsplit_encrypted(&encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
-        assert_eq!(clear_len, std_rsplit.len() as u8);
-        let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(clear_len as usize)]
+        let clear_rsplit: Vec<String> = fhe_rsplit.parts[..std_rsplit.len()]
             .iter()
             .map(|s| client_key.decrypt_string(s).unwrap())
             .collect();
         // let clear_rsplit: Vec<String> = fhe_rsplit.parts[..6].iter().map(|s|
         // client_key.decrypt_string(s).unwrap()).collect();
         assert_eq!(clear_rsplit, std_rsplit);
+        assert_eq!(clear_len, std_rsplit.len() as u8);
     }
 
     pub fn test_rsplit_clear_n(
@@ -635,7 +637,7 @@ mod tests {
         pattern: &str,
     ) {
         let std_rsplit: Vec<String> = s.rsplitn(n, pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_random_padding(s, 2).unwrap();
+        let encrypted_s = client_key.encrypt_str_random_padding(s, 0).unwrap();
         let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 2).unwrap();
         let encrypted_n = server_key.create_n(n as u8);
         let fhe_rsplit =
@@ -698,65 +700,70 @@ mod tests {
     //     test_rsplit_clear_n(&CLIENT_KEY, &SERVER_KEY, 7, "cbca", "");
     // }
 
-    #[test]
-    fn test_test_rsplit_encrypted_n2() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 5, "ccccc", "cc");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n3() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 5, "cbca", "c");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n4() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 0, "cbca", "c");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n5() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 3, "cbca", "c");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n6() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 0, "cbca", "");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n7() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 2, "cbca", "");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n8() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 4, "cbca", "");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n9() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 5, "cbca", "");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n10() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 6, "cbca", "");
-    }
-
-    #[test]
-    fn test_test_rsplit_encrypted_n11() {
-        test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 7, "cbca", "");
-    }
-
     // #[test]
-    // fn test_test_rsplit() {
-    //     test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acbccbcbcbc", "cbc");
+    // fn test_test_rsplit_encrypted_n2() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 5, "ccccc", "cc");
     // }
 
     // #[test]
-    // fn test_test_rsplit2() {
-    //     test_rsplit(&CLIENT_KEY, &SERVER_KEY, "aczb", "");
+    // fn test_test_rsplit_encrypted_n3() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 5, "cbca", "c");
     // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n4() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 0, "cbca", "c");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n5() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 3, "cbca", "c");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n6() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 0, "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n7() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 2, "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n8() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 4, "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n9() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 5, "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n10() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 6, "cbca", "");
+    // }
+
+    // #[test]
+    // fn test_test_rsplit_encrypted_n11() {
+    //     test_rsplit_encrypted_n(&CLIENT_KEY, &SERVER_KEY, 7, "cbca", "");
+    // }
+
+    #[test]
+    fn test_test_rsplit() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "acbccbcbcbc", "cbc");
+    }
+
+    #[test]
+    fn test_test_rsplit2() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "aczb", "");
+    }
+
+    #[test]
+    fn test_test_rsplit3() {
+        test_rsplit(&CLIENT_KEY, &SERVER_KEY, "aaaaa", "aa");
+    }
 
     // #[test]
     // fn test_rsplit_encrypted_final_padding_allow_empty_pattern() {
