@@ -218,12 +218,12 @@ impl StringServerKey {
         }
     }
 
-    pub fn add_length_scalar(&self, length: &FheStrLength, n: u64) -> RadixCiphertext {
+    pub fn add_length_scalar(&self, length: &FheStrLength, n: u8) -> RadixCiphertext {
         match length {
-            ClearOrEncrypted::Clear(clear_length) => self.create_n((*clear_length + 2) as u8),
+            ClearOrEncrypted::Clear(clear_length) => self.create_n(*clear_length as u8 + n),
             ClearOrEncrypted::Encrypted(encrypted_length) => self
                 .integer_key
-                .scalar_add_parallelized(encrypted_length, 2),
+                .scalar_add_parallelized(encrypted_length, n),
         }
     }
 
@@ -397,6 +397,16 @@ impl StringServerKey {
         }
     }
 
+    pub fn sub_scalar_to_length(&self, length: &FheStrLength, n: u8) -> RadixCiphertext {
+        match length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => self
+                .integer_key
+                .scalar_sub_parallelized(encrypted_length, n),
+            ClearOrEncrypted::Clear(clear_length) if *clear_length as u8 >=n => self.create_n(*clear_length as u8 - n),
+	    _ => self.create_zero(),
+        }
+    }
+
     pub fn sub_length_to_radix(
         &self,
         end_part: &RadixCiphertext,
@@ -465,6 +475,28 @@ mod tests {
         let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
         let encrypted_s = client_key.encrypt_str_random_padding(s, 3).unwrap();
         let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 3).unwrap();
+        let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
+        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+        assert_eq!(clear_len, std_split.len() as u8);
+        let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| client_key.decrypt_string(s).unwrap())
+            .collect();
+        assert_eq!(clear_split, std_split);
+    }
+
+    pub fn test_split_clear_n_padding(
+        client_key: &StringClientKey,
+        server_key: &StringServerKey,
+        n: usize,
+        s: &str,
+        pattern: &str,
+	string_padding: usize,
+	pattern_padding: usize,
+    ) {
+        let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
+        let encrypted_s = client_key.encrypt_str_random_padding(s, string_padding).unwrap();
+        let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, pattern_padding).unwrap();
         let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
         let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
         assert_eq!(clear_len, std_split.len() as u8);
