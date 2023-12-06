@@ -21,6 +21,20 @@ pub enum Padding {
     Anywhere,
 }
 
+impl PartialOrd for Padding {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (x, y) if x == y => Some(std::cmp::Ordering::Equal),
+            (Padding::None, _) | (_, Padding::Anywhere) => Some(std::cmp::Ordering::Less),
+            (Padding::Final, Padding::Initial) | (Padding::Initial, Padding::Final) => None,
+            (Padding::Final | Padding::Initial, Padding::InitialAndFinal) => {
+                Some(std::cmp::Ordering::Less)
+            }
+            _ => Some(std::cmp::Ordering::Greater),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub enum ClearOrEncrypted<T, U> {
     Clear(T),
@@ -35,6 +49,12 @@ pub struct FheString {
     pub content: Vec<FheAsciiChar>,
     pub padding: Padding,
     pub length: FheStrLength,
+}
+
+impl FheString {
+    pub fn len(&self) -> &FheStrLength {
+        &self.length
+    }
 }
 
 pub const PARAM_MESSAGE_2_CARRY_2_TEST: ClassicPBSParameters = ClassicPBSParameters {
