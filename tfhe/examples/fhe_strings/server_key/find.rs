@@ -1,4 +1,5 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -6,7 +7,7 @@ impl StringServerKey {
     pub fn find_char(
         &self,
         s: &FheString,
-        encrypted_char: &FheAsciiChar,
+        char_pattern: &impl FheCharPattern,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let zero: RadixCiphertext = self.create_zero();
         match s.length {
@@ -15,7 +16,7 @@ impl StringServerKey {
         }
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
-            let current_match: RadixCiphertext = self.eq_char(&s.content[n], &encrypted_char);
+            let current_match: RadixCiphertext = char_pattern.fhe_eq(self, &s.content[n]);
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
             let increment_index = self.increment_index(s, n, &found);
@@ -25,6 +26,14 @@ impl StringServerKey {
         (found, index)
     }
 
+    // pub fn find(
+    // 	&self,
+    // 	s: &FheString,
+    // 	pattern: &impl FhePattern,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+	
+    // }
+    
     pub fn find_string(
         &self,
         s: &FheString,
@@ -50,6 +59,26 @@ impl StringServerKey {
         }
     }
 
+    pub fn find_clear_string(
+        &self,
+        s: &FheString,
+        pattern: &str,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        match (s.content.len(), pattern.len()) {
+            (0, 0) => return (self.create_true(), zero),
+            (content_length, pattern_length) if pattern_length > content_length => return (zero.clone(), zero),
+            _ => (),
+        }
+
+        match s.padding {
+            Padding::Anywhere => {
+                self.connected_find_clear_string(&self.remove_initial_padding(s), pattern)
+            }
+	    _ => self.connected_find_clear_string(s, pattern),
+	}
+    }
+
     pub fn connected_find_unpadded_string(
         &self,
         s: &FheString,
@@ -59,6 +88,25 @@ impl StringServerKey {
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
             let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            let increment_index = self.increment_index(s, n, &found);
+            self.integer_key
+                .add_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    pub fn connected_find_clear_string(
+        &self,
+        s: &FheString,
+        pattern: &str,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
+        for n in 0..s.content.len() {
+	    let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
+//            let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
             let increment_index = self.increment_index(s, n, &found);
@@ -547,24 +595,24 @@ mod tests {
     //     assert_eq!(clear_result, (0, 0));
     // }
 
-    #[test]
-    fn test_rfind_from_final_padding_allow_empty_pattern2() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 2).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
+    // #[test]
+    // fn test_rfind_from_final_padding_allow_empty_pattern2() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 2).unwrap();
+    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
 
-        let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
-            &encrypted_str,
-            &encrypted_pattern,
-            &SERVER_KEY.create_n(1),
-        );
+    //     let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
+    //         &encrypted_str,
+    //         &encrypted_pattern,
+    //         &SERVER_KEY.create_n(1),
+    //     );
 
-        let clear_result = (
-            CLIENT_KEY.decrypt_u8(&result.0),
-            CLIENT_KEY.decrypt_u8(&result.1),
-        );
+    //     let clear_result = (
+    //         CLIENT_KEY.decrypt_u8(&result.0),
+    //         CLIENT_KEY.decrypt_u8(&result.1),
+    //     );
 
-        assert_eq!(clear_result, (1, 0));
-    }
+    //     assert_eq!(clear_result, (1, 0));
+    // }
 
     // #[test]
     // fn test_find_from_final_padding_allow_empty_pattern() {

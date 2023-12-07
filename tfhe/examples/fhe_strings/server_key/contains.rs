@@ -10,7 +10,7 @@ impl StringServerKey {
 
     pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
         match (s.padding, pattern.padding) {
-            (Padding::Anywhere, Padding::Final | Padding::None) => {
+            (Padding::Anywhere,  Padding::Final | Padding::None) => {
                 self.contains_unpadded_string(&self.remove_initial_padding(s), pattern)
             }
             (Padding::Anywhere, _) => self.contains_unpadded_string(
@@ -43,7 +43,7 @@ impl StringServerKey {
         let mut result = self.create_zero();
         for n in 0..s.content.len() {
             let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
-            //   let current_match = self.starts_with_vec_clear(&s.content[n..], pattern);
+            //let current_match = self.starts_with_vec_clear(&s.content[n..], pattern);
             self.integer_key
                 .bitor_assign_parallelized(&mut result, &current_match);
         }
@@ -58,7 +58,8 @@ impl StringServerKey {
         }
         let mut result = self.create_zero();
         for n in 0..s.content.len() {
-            let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
+            //let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
+	    let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
             self.integer_key
                 .bitor_assign_parallelized(&mut result, &current_match);
         }
@@ -141,19 +142,19 @@ mod tests {
         let encrypted_s = client_key
             .encrypt_str_random_padding(s, string_padding)
             .unwrap();
-        // let encrypted_pattern = client_key
-        //     .encrypt_str_random_padding(pattern, pattern_padding)
-        //     .unwrap();
-        // let fhe_contains_encrypted = server_key.contains(&encrypted_s, &encrypted_pattern);
-        // assert_eq!(
-        //    client_key.decrypt_u8(&fhe_contains_encrypted),
-        //    std_contains as u8
-        // );
-        let fhe_contains_clear = server_key.contains(&encrypted_s, &pattern);
-        // assert_eq!(
-        //    client_key.decrypt_u8(&fhe_contains_clear),
-        //    std_contains as u8
-        // );
+        let encrypted_pattern = client_key
+            .encrypt_str_random_padding(pattern, pattern_padding)
+            .unwrap();
+        let fhe_contains_encrypted = server_key.contains(&encrypted_s, &encrypted_pattern);
+        assert_eq!(
+           client_key.decrypt_u8(&fhe_contains_encrypted),
+           std_contains as u8
+        );
+       // let fhe_contains_clear = server_key.contains(&encrypted_s, &pattern);
+       //  assert_eq!(
+       //    client_key.decrypt_u8(&fhe_contains_clear),
+       //    std_contains as u8
+       //  );
     }
 
     pub fn test_contains_string(

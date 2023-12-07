@@ -49,6 +49,14 @@ impl FhePattern for &str {
     ) -> RadixCiphertext {
         server_key.contains_clear_string(haystack, self)
     }
+
+    fn find_in(
+	&self,
+	server_key: &StringServerKey,
+	haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+	server_key.find_clear_string(haystack, self)
+    }
 }
 
 impl FhePattern for FheString {
@@ -149,6 +157,14 @@ impl FhePattern for FheString {
         haystack: &FheString,
     ) -> RadixCiphertext {
         server_key.contains_string(haystack, self)
+    }
+
+    fn find_in(
+	&self,
+	server_key: &StringServerKey,
+	haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+	server_key.find_string(haystack, self)
     }
 }
 
