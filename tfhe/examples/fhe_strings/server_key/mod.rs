@@ -8,6 +8,7 @@ mod is_empty;
 mod repeat;
 mod rsplit;
 mod split;
+mod starts_with;
 mod strip;
 mod substring;
 mod trim;
