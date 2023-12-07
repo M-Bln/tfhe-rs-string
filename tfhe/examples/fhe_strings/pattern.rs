@@ -22,13 +22,13 @@ pub trait FhePattern {
     fn is_contained_in(
         &self,
         server_key: &StringServerKey,
-        haystack: &[FheAsciiChar],
+        haystack: &FheString,
     ) -> RadixCiphertext {
         let mut result = server_key.create_zero();
-        for i in 0..haystack.len() {
+        for i in 0..haystack.content.len() {
             server_key.integer_key.bitor_assign_parallelized(
                 &mut result,
-                &self.is_prefix_of_slice(server_key, &haystack[i..]),
+                &self.is_prefix_of_slice(server_key, &haystack.content[i..]),
             );
         }
         return result;

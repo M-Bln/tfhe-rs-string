@@ -41,6 +41,14 @@ impl FhePattern for &str {
             ),
         }
     }
+
+    fn is_contained_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        server_key.contains_clear_string(haystack, self)
+    }
 }
 
 impl FhePattern for FheString {
@@ -134,15 +142,19 @@ impl FhePattern for FheString {
             ),
         }
     }
+
+    fn is_contained_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        server_key.contains_string(haystack, self)
+    }
 }
 
 impl StringServerKey {
     fn starts_with(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
         pattern.is_prefix_of_string(self, s)
-    }
-
-    fn contains(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
-        pattern.is_contained_in(self, &s.content)
     }
 }
 
