@@ -31,9 +31,9 @@ impl StringServerKey {
     // 	s: &FheString,
     // 	pattern: &impl FhePattern,
     // ) -> (RadixCiphertext, RadixCiphertext) {
-	
+
     // }
-    
+
     pub fn find_string(
         &self,
         s: &FheString,
@@ -67,7 +67,9 @@ impl StringServerKey {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
-            (content_length, pattern_length) if pattern_length > content_length => return (zero.clone(), zero),
+            (content_length, pattern_length) if pattern_length > content_length => {
+                return (zero.clone(), zero)
+            }
             _ => (),
         }
 
@@ -75,8 +77,8 @@ impl StringServerKey {
             Padding::Anywhere => {
                 self.connected_find_clear_string(&self.remove_initial_padding(s), pattern)
             }
-	    _ => self.connected_find_clear_string(s, pattern),
-	}
+            _ => self.connected_find_clear_string(s, pattern),
+        }
     }
 
     pub fn connected_find_unpadded_string(
@@ -105,8 +107,9 @@ impl StringServerKey {
         let zero: RadixCiphertext = self.create_zero();
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
-	    let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
-//            let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
+            let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
+            //            let current_match = self.starts_with_encrypted_vec(&s.content[n..],
+            // pattern);
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
             let increment_index = self.increment_index(s, n, &found);
