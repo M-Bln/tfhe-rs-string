@@ -4,6 +4,14 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    pub fn find(
+        &self,
+        haystack: &FheString,
+        pattern: &impl FhePattern,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        pattern.find_in(self, haystack)
+    }
+
     pub fn find_char(
         &self,
         s: &FheString,
@@ -510,164 +518,184 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    // #[test]
-    // fn test_find_char() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str("cdf").unwrap();
-    //     let encrypted_char = CLIENT_KEY.encrypt_ascii_char(102);
-    //     let encrypted_char2 = CLIENT_KEY.encrypt_ascii_char(105);
-    //     let result = SERVER_KEY.find_char(&encrypted_str, &encrypted_char);
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
-    //     let result2 = SERVER_KEY.find_char(&encrypted_str, &encrypted_char2);
-    //     let clear_result2 = (
-    //         CLIENT_KEY.decrypt_u8(&result2.0),
-    //         CLIENT_KEY.decrypt_u8(&result2.1),
-    //     );
-    //     assert_eq!(clear_result, (1, 2));
-    //     assert_eq!(clear_result2, (0, 3));
-    // }
+    macro_rules! test_option_index_char_pattern {
+        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+            paste::item! {
 
-    // #[test]
-    // fn test_find_string() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str("cdf").unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("df", 1).unwrap();
-    //     let encrypted_pattern2 = CLIENT_KEY.encrypt_str("cf").unwrap();
-    //     let result = SERVER_KEY.find_string(&encrypted_str, &encrypted_pattern);
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
-    //     let result2 = SERVER_KEY.find_string(&encrypted_str, &encrypted_pattern2);
-    //     let clear_result2 = (
-    //         CLIENT_KEY.decrypt_u8(&result2.0),
-    //         CLIENT_KEY.decrypt_u8(&result2.1),
-    //     );
-    //     assert_eq!(clear_result, (1, 1));
-    //     assert_eq!(clear_result2, (0, 2));
-    // }
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
+		}
 
-    // #[test]
-    // fn test_rfind_string_with_padding() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("da", 1).unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("", 1).unwrap();
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    //     let result = SERVER_KEY.rfind_string(&encrypted_str, &encrypted_pattern);
+		}
 
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    //     assert_eq!(clear_result, (1, 2));
-    // }
+		}
 
-    // #[test]
-    // fn test_rfind_string_with_padding2() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ddda", 0).unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("d", 1).unwrap();
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    //     let result = SERVER_KEY.rfind_string(&encrypted_str, &encrypted_pattern);
+		}
+            }
+        };
+    }
 
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
+    macro_rules! test_option_index_string_pattern {
+        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+            paste::item! {
 
-    //     assert_eq!(clear_result, (1, 2));
-    // }
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    // #[test]
-    // fn test_rfind_from_final_padding_allow_empty_pattern() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("abb", 2).unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 2).unwrap();
-    //     let encrypted_index = SERVER_KEY.create_n(0);
+		}
 
-    //     let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
-    //         &encrypted_str,
-    //         &encrypted_pattern,
-    //         &encrypted_index,
-    //     );
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
+		}
 
-    //     assert_eq!(clear_result, (0, 0));
-    // }
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    // #[test]
-    // fn test_rfind_from_final_padding_allow_empty_pattern2() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 2).unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
+		}
 
-    //     let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
-    //         &encrypted_str,
-    //         &encrypted_pattern,
-    //         &SERVER_KEY.create_n(1),
-    //     );
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
+		}
 
-    //     assert_eq!(clear_result, (1, 0));
-    // }
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+		    match std_result {
+			Some(result) => {
+			    assert_eq!(result as u8, clear_fhe_result);
+			    assert_eq!(clear_found, 1);
+			},
+			None => assert_eq!(clear_found, 0)
+		    }
 
-    // #[test]
-    // fn test_find_from_final_padding_allow_empty_pattern() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_padding("aa", 0).unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("a", 0).unwrap();
-    //     let encrypted_index = SERVER_KEY.create_n(0);
+		}
+            }
+        };
+    }
 
-    //     let result = SERVER_KEY.find_from_final_padding_allow_empty_pattern(
-    //         &encrypted_str,
-    //         &encrypted_pattern,
-    //         &encrypted_index,
-    //     );
+    test_option_index_char_pattern!(find, "abc", 'a');
+    test_option_index_char_pattern!(find, "abc", 'b');
+    test_option_index_char_pattern!(find, "abc", 'c');
+    test_option_index_char_pattern!(find, "abc", 'd');
+    test_option_index_char_pattern!(find, "", 'b');
 
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
-
-    //     assert_eq!(clear_result, (1, 0));
-    // }
-
-    // #[test]
-    // fn test_find_from_final_padding_allow_empty_pattern2() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str("ba").unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_padding("", 0).unwrap();
-
-    //     let result = SERVER_KEY.rfind_from_final_padding_allow_empty_pattern(
-    //         &encrypted_str,
-    //         &encrypted_pattern,
-    //         &SERVER_KEY.create_n(3),
-    //     );
-
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
-
-    //     assert_eq!(clear_result, (1, 2));
-    // }
-
-    // #[test]
-    // fn test_rfind_from_final_padding2() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("ddda", 0).unwrap();
-    //     let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding("d", 1).unwrap();
-
-    //     let result = SERVER_KEY.rfind_string(&encrypted_str, &encrypted_pattern);
-
-    //     let clear_result = (
-    //         CLIENT_KEY.decrypt_u8(&result.0),
-    //         CLIENT_KEY.decrypt_u8(&result.1),
-    //     );
-
-    //     assert_eq!(clear_result, (1, 2));
-    // }
+    test_option_index_string_pattern!(find, "abc", "a");
+    test_option_index_string_pattern!(find, "abc", "b");
+    test_option_index_string_pattern!(find, "abc", "c");
+    test_option_index_string_pattern!(find, "abc", "ab");
+    test_option_index_string_pattern!(find, "abc", "bc");
+    test_option_index_string_pattern!(find, "abc", "abc");
+    test_option_index_string_pattern!(find, "abc", "abcd");
+    test_option_index_string_pattern!(find, "abc", "d");
+    test_option_index_string_pattern!(find, "abc", "dzzzs");
+    test_option_index_string_pattern!(find, "abc", "");
+    test_option_index_string_pattern!(find, "", "abc");
+    test_option_index_string_pattern!(find, "", "");
 }
