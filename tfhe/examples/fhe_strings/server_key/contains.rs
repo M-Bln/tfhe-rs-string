@@ -130,24 +130,110 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    macro_rules! test_string_method {
+    macro_rules! test_char_pattern {
         ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
             paste::item! {
-            #[test]
-            fn [<"test_" $method "_" $string_arg "_" $pattern_arg>]() {
-                let std_result = $string_arg.$method($pattern_arg);
 
-                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-                let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
-            assert_eq!(std_result as u8, clear_fhe_result);
-            }
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
             }
         };
     }
 
-    test_string_method!(contains, "abc", "b");
-    test_string_method!(contains, "abc", "d");
+    macro_rules! test_string_pattern {
+        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+            paste::item! {
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+            }
+        };
+    }
+
+    test_string_pattern!(contains, "abc", "b");
+    test_string_pattern!(contains, "abc", "d");
+    test_char_pattern!(contains, "abc", 'b');
+    test_char_pattern!(contains, "abc", 'd');
 
     pub fn test_contains_string_padding(
         client_key: &StringClientKey,
