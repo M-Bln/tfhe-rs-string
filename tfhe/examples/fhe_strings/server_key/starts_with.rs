@@ -51,11 +51,11 @@ impl FhePattern for &str {
     }
 
     fn find_in(
-	&self,
-	server_key: &StringServerKey,
-	haystack: &FheString,
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
-	server_key.find_clear_string(haystack, self)
+        server_key.find_clear_string(haystack, self)
     }
 }
 
@@ -89,7 +89,7 @@ impl FhePattern for FheString {
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
                     let match_or_end_needle = server_key.integer_key.bitor_parallelized(
                         &server_key.eq_char(&haystack[n], &self.content[n]),
-                        &server_key.eq_clear_char(&haystack[n], 0),
+                        &server_key.eq_clear_char(&self.content[n], 0),
                     );
                     server_key
                         .integer_key
@@ -160,11 +160,11 @@ impl FhePattern for FheString {
     }
 
     fn find_in(
-	&self,
-	server_key: &StringServerKey,
-	haystack: &FheString,
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
-	server_key.find_string(haystack, self)
+        server_key.find_string(haystack, self)
     }
 }
 

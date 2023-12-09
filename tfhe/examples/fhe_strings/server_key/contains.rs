@@ -10,7 +10,7 @@ impl StringServerKey {
 
     pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
         match (s.padding, pattern.padding) {
-            (Padding::Anywhere,  Padding::Final | Padding::None) => {
+            (Padding::Anywhere, Padding::Final | Padding::None) => {
                 self.contains_unpadded_string(&self.remove_initial_padding(s), pattern)
             }
             (Padding::Anywhere, _) => self.contains_unpadded_string(
@@ -58,8 +58,8 @@ impl StringServerKey {
         }
         let mut result = self.create_zero();
         for n in 0..s.content.len() {
-            //let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
-	    let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
+            let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
+            //let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
             self.integer_key
                 .bitor_assign_parallelized(&mut result, &current_match);
         }
@@ -130,173 +130,122 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    pub fn test_contains_string_padding(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-        string_padding: usize,
-        pattern_padding: usize,
-    ) {
-        let std_contains = s.contains(pattern);
-        let encrypted_s = client_key
-            .encrypt_str_random_padding(s, string_padding)
-            .unwrap();
-        let encrypted_pattern = client_key
-            .encrypt_str_random_padding(pattern, pattern_padding)
-            .unwrap();
-        let fhe_contains_encrypted = server_key.contains(&encrypted_s, &encrypted_pattern);
-        assert_eq!(
-           client_key.decrypt_u8(&fhe_contains_encrypted),
-           std_contains as u8
-        );
-       // let fhe_contains_clear = server_key.contains(&encrypted_s, &pattern);
-       //  assert_eq!(
-       //    client_key.decrypt_u8(&fhe_contains_clear),
-       //    std_contains as u8
-       //  );
+    macro_rules! test_char_pattern {
+        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+            paste::item! {
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+            }
+        };
     }
 
-    pub fn test_contains_string(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        test_contains_string_padding(client_key, server_key, s, pattern, 0, 0);
-        test_contains_string_padding(client_key, server_key, s, pattern, 2, 0);
-        test_contains_string_padding(client_key, server_key, s, pattern, 0, 2);
-        test_contains_string_padding(client_key, server_key, s, pattern, 2, 2);
+    macro_rules! test_string_pattern {
+        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+            paste::item! {
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+
+		#[test]
+		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
+		    let std_result = $string_arg.$method($pattern_arg);
+                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+		    assert_eq!(std_result as u8, clear_fhe_result);
+		}
+            }
+        };
     }
 
-    pub fn test_contains_char_padding(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: char,
-        string_padding: usize,
-    ) {
-        let std_contains = s.contains(pattern);
-        let mut encrypted_s = client_key
-            .encrypt_str_random_padding(s, string_padding)
-            .unwrap();
-        let encrypted_pattern = client_key.encrypt_ascii_char(pattern as u8);
-        let mut fhe_contains_encrypted = server_key.contains(&encrypted_s, &encrypted_pattern);
-        assert_eq!(
-            client_key.decrypt_u8(&fhe_contains_encrypted),
-            std_contains as u8
-        );
-        let mut fhe_contains_clear = server_key.contains(&encrypted_s, &pattern);
-        assert_eq!(
-            client_key.decrypt_u8(&fhe_contains_clear),
-            std_contains as u8
-        );
+    test_char_pattern!(contains, "abc", 'a');
+    test_char_pattern!(contains, "abc", 'b');
+    test_char_pattern!(contains, "abc", 'c');
+    test_char_pattern!(contains, "abc", 'd');
+    test_char_pattern!(contains, "", 'b');
 
-        encrypted_s = client_key.encrypt_str_padding(s, string_padding).unwrap();
-        fhe_contains_encrypted = server_key.contains(&encrypted_s, &encrypted_pattern);
-        assert_eq!(
-            client_key.decrypt_u8(&fhe_contains_encrypted),
-            std_contains as u8
-        );
-        let mut fhe_contains_clear = server_key.contains(&encrypted_s, &pattern);
-        assert_eq!(
-            client_key.decrypt_u8(&fhe_contains_clear),
-            std_contains as u8
-        );
-    }
-
-    pub fn test_contains_char(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: char,
-    ) {
-        test_contains_char_padding(client_key, server_key, s, pattern, 0);
-        test_contains_char_padding(client_key, server_key, s, pattern, 5);
-    }
-
-    #[test]
-    fn test_contains_char00() {
-        test_contains_char(&CLIENT_KEY, &SERVER_KEY, "abc", 'a');
-    }
-
-    #[test]
-    fn test_contains_char01() {
-        test_contains_char(&CLIENT_KEY, &SERVER_KEY, "abc", 'b');
-    }
-
-    #[test]
-    fn test_contains_char02() {
-        test_contains_char(&CLIENT_KEY, &SERVER_KEY, "abc", 'c');
-    }
-
-    #[test]
-    fn test_contains_char1() {
-        test_contains_char(&CLIENT_KEY, &SERVER_KEY, "abc", 'd');
-    }
-
-    #[test]
-    fn test_contains_char2() {
-        test_contains_char(&CLIENT_KEY, &SERVER_KEY, "", 'b');
-    }
-
-    #[test]
-    fn test_contains_string00() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "a");
-    }
-
-    #[test]
-    fn test_contains_string01() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "b");
-    }
-
-    #[test]
-    fn test_contains_string02() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "c");
-    }
-
-    #[test]
-    fn test_contains_string10() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "ab");
-    }
-
-    #[test]
-    fn test_contains_string11() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "bc");
-    }
-
-    #[test]
-    fn test_contains_string2() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "abc");
-    }
-
-    #[test]
-    fn test_contains_string3() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "abcd");
-    }
-
-    #[test]
-    fn test_contains_string4() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "d");
-    }
-
-    #[test]
-    fn test_contains_string5() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "dzzzs");
-    }
-
-    #[test]
-    fn test_contains_string6() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "abc", "");
-    }
-
-    #[test]
-    fn test_contains_string7() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "", "abc");
-    }
-
-    #[test]
-    fn test_contains_string8() {
-        test_contains_string(&CLIENT_KEY, &SERVER_KEY, "", "");
-    }
+    test_string_pattern!(contains, "abc", "a");
+    test_string_pattern!(contains, "abc", "b");
+    test_string_pattern!(contains, "abc", "c");
+    test_string_pattern!(contains, "abc", "ab");
+    test_string_pattern!(contains, "abc", "bc");
+    test_string_pattern!(contains, "abc", "abc");
+    test_string_pattern!(contains, "abc", "abcd");
+    test_string_pattern!(contains, "abc", "d");
+    test_string_pattern!(contains, "abc", "dzzzs");
+    test_string_pattern!(contains, "abc", "");
+    test_string_pattern!(contains, "", "abc");
+    test_string_pattern!(contains, "", "");
 }
