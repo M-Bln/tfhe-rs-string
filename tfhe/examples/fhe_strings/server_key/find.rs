@@ -522,70 +522,70 @@ mod tests {
         ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
             paste::item! {
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
-		}
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
             }
         };
     }
@@ -594,88 +594,88 @@ mod tests {
         ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
             paste::item! {
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
                                      let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
                                      let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
                                      let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
                                      let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
 
-		#[test]
-		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-		    let std_result = $string_arg.$method($pattern_arg);
+    		#[test]
+    		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
+    		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
                                      let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-		    match std_result {
-			Some(result) => {
-			    assert_eq!(result as u8, clear_fhe_result);
-			    assert_eq!(clear_found, 1);
-			},
-			None => assert_eq!(clear_found, 0)
-		    }
+    		    match std_result {
+    			Some(result) => {
+    			    assert_eq!(result as u8, clear_fhe_result);
+    			    assert_eq!(clear_found, 1);
+    			},
+    			None => assert_eq!(clear_found, 0)
+    		    }
 
-		}
+    		}
             }
         };
     }
