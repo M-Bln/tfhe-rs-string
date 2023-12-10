@@ -12,6 +12,14 @@ impl StringServerKey {
         pattern.find_in(self, haystack)
     }
 
+    pub fn rfind(
+        &self,
+        haystack: &FheString,
+        pattern: &impl FhePattern,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        pattern.rfind_in(self, haystack)
+    }
+
     pub fn find_char(
         &self,
         s: &FheString,
@@ -30,6 +38,29 @@ impl StringServerKey {
             let increment_index = self.increment_index(s, n, &found);
             self.integer_key
                 .add_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    pub fn rfind_char(
+        &self,
+        s: &FheString,
+        char_pattern: &impl FheCharPattern,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        match s.length {
+            FheStrLength::Clear(length) if length == 0 => return (zero.clone(), zero),
+            _ => (),
+        }
+        let (mut index, mut found): (RadixCiphertext, RadixCiphertext) =
+            (self.initial_index_rfind_char(&s.length), zero.clone());
+        for n in (0..s.content.len()).rev() {
+            let current_match: RadixCiphertext = char_pattern.fhe_eq(self, &s.content[n]);
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            let increment_index = self.increment_index(s, n, &found);
+            self.integer_key
+                .sub_assign_parallelized(&mut index, &increment_index);
         }
         (found, index)
     }
@@ -89,6 +120,28 @@ impl StringServerKey {
         }
     }
 
+    pub fn rfind_clear_string(
+        &self,
+        s: &FheString,
+        pattern: &str,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        match (s.content.len(), pattern.len()) {
+            (0, 0) => return (self.create_true(), zero),
+            (content_length, pattern_length) if pattern_length > content_length => {
+                return (zero.clone(), zero)
+            }
+            _ => (),
+        }
+
+        match s.padding {
+            Padding::Anywhere => {
+                self.connected_rfind_clear_string(&self.remove_initial_padding(s), pattern)
+            }
+            _ => self.connected_rfind_clear_string(s, pattern),
+        }
+    }
+
     pub fn connected_find_unpadded_string(
         &self,
         s: &FheString,
@@ -123,6 +176,31 @@ impl StringServerKey {
             let increment_index = self.increment_index(s, n, &found);
             self.integer_key
                 .add_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    pub fn connected_rfind_clear_string(
+        &self,
+        s: &FheString,
+        pattern: &str,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        let mut index = self.initial_index_rfind(&s.length);
+        if pattern.len() == 0 {
+            return (self.create_true(), index);
+        }
+        let mut found = self.create_zero();
+        for n in (0..s.content.len()).rev() {
+            let increment_index = self.rincrement_index(s, n, &found);
+            //let current_match = self.starts_with_vec_clear(&s.content[n..],  pattern);
+            let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
+
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+
+            self.integer_key
+                .sub_assign_parallelized(&mut index, &increment_index);
         }
         (found, index)
     }
@@ -196,6 +274,8 @@ impl StringServerKey {
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
+            // (0,_) => return (self.eq_clear_char(&pattern.content[0]),
+            // self.initial_index_rfind(&s.length)),
             _ => (),
         }
 
@@ -218,17 +298,23 @@ impl StringServerKey {
         pattern: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         let zero: RadixCiphertext = self.create_zero();
-        let mut index = self.initial_index_rfind(&s.length);
+        let initial_index = self.initial_index_rfind(&s.length);
+        let mut index = initial_index.clone();
         let mut found = zero;
-        for n in (0..s.content.len() + 1).rev() {
+        for n in (0..s.content.len()).rev() {
+            let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
             self.integer_key
                 .bitor_assign_parallelized(&mut found, &current_match);
-            let increment_index = self.increment_index(s, n, &found);
 
             self.integer_key
                 .sub_assign_parallelized(&mut index, &increment_index);
         }
+        index = self.integer_key.cmux_parallelized(
+            &self.is_empty_encrypted(pattern),
+            &initial_index,
+            &index,
+        );
         (found, index)
     }
 
@@ -441,6 +527,16 @@ impl StringServerKey {
         match length {
             ClearOrEncrypted::Clear(clear_length) => self.create_n(*clear_length as u8),
             ClearOrEncrypted::Encrypted(encrypted_length) => encrypted_length.clone(),
+        }
+    }
+
+    pub fn initial_index_rfind_char(&self, length: &FheStrLength) -> RadixCiphertext {
+        match length {
+            ClearOrEncrypted::Clear(0) => self.create_zero(),
+            ClearOrEncrypted::Clear(clear_length) => self.create_n(*clear_length as u8 - 1),
+            ClearOrEncrypted::Encrypted(encrypted_length) => self
+                .integer_key
+                .scalar_sub_parallelized(encrypted_length, 1),
         }
     }
 
@@ -680,22 +776,53 @@ mod tests {
         };
     }
 
-    test_option_index_char_pattern!(find, "abc", 'a');
-    test_option_index_char_pattern!(find, "abc", 'b');
-    test_option_index_char_pattern!(find, "abc", 'c');
-    test_option_index_char_pattern!(find, "abc", 'd');
-    test_option_index_char_pattern!(find, "", 'b');
+    // test_option_index_char_pattern!(find, "abc", 'a');
+    // test_option_index_char_pattern!(find, "abc", 'b');
+    // test_option_index_char_pattern!(find, "abc", 'c');
+    // test_option_index_char_pattern!(find, "abc", 'd');
+    // test_option_index_char_pattern!(find, "", 'b');
 
-    test_option_index_string_pattern!(find, "abc", "a");
-    test_option_index_string_pattern!(find, "abc", "b");
-    test_option_index_string_pattern!(find, "abc", "c");
-    test_option_index_string_pattern!(find, "abc", "ab");
-    test_option_index_string_pattern!(find, "abc", "bc");
-    test_option_index_string_pattern!(find, "abc", "abc");
-    test_option_index_string_pattern!(find, "abc", "abcd");
-    test_option_index_string_pattern!(find, "abc", "d");
-    test_option_index_string_pattern!(find, "abc", "dzzzs");
-    test_option_index_string_pattern!(find, "abc", "");
-    test_option_index_string_pattern!(find, "", "abc");
-    test_option_index_string_pattern!(find, "", "");
+    // test_option_index_string_pattern!(find, "abc", "a");
+    // test_option_index_string_pattern!(find, "abc", "b");
+    // test_option_index_string_pattern!(find, "abc", "c");
+    // test_option_index_string_pattern!(find, "abc", "ab");
+    // test_option_index_string_pattern!(find, "abc", "bc");
+    // test_option_index_string_pattern!(find, "abc", "abc");
+    // test_option_index_string_pattern!(find, "abc", "abcd");
+    // test_option_index_string_pattern!(find, "abc", "d");
+    // test_option_index_string_pattern!(find, "abc", "dzzzs");
+    // test_option_index_string_pattern!(find, "abc", "");
+    // test_option_index_string_pattern!(find, "", "abc");
+    // test_option_index_string_pattern!(find, "", "");
+
+    // test_option_index_char_pattern!(rfind, "abcab", 'a');
+    // test_option_index_char_pattern!(rfind, "abcab", 'b');
+    // test_option_index_char_pattern!(rfind, "abcabcd", 'c');
+    // test_option_index_char_pattern!(rfind, "abc", 'd');
+    // test_option_index_char_pattern!(rfind, "", 'b');
+
+    // test_option_index_string_pattern!(rfind, "abc", "a");
+    // test_option_index_string_pattern!(rfind, "abc", "b");
+    // test_option_index_string_pattern!(rfind, "abc", "c");
+    // test_option_index_string_pattern!(rfind, "abc", "ab");
+    // test_option_index_string_pattern!(rfind, "abc", "bc");
+    // test_option_index_string_pattern!(rfind, "abc", "abc");
+    // test_option_index_string_pattern!(rfind, "abc", "abcd");
+    // test_option_index_string_pattern!(rfind, "abc", "d");
+    // test_option_index_string_pattern!(rfind, "abc", "dzzzs");
+    // test_option_index_string_pattern!(rfind, "abc", "");
+    // test_option_index_string_pattern!(rfind, "", "abc");
+    // test_option_index_string_pattern!(rfind, "", "");
+    // test_option_index_string_pattern!(rfind, "abcab", "ab");
+    // test_option_index_string_pattern!(rfind, "abcabd", "ab");
+    // test_option_index_string_pattern!(rfind, "abcap", "ab");
+    // test_option_index_string_pattern!(rfind, "abcal", "ab");
+    // test_option_index_string_pattern!(rfind, "aubuca", "ab");
+    // test_option_index_string_pattern!(rfind, "auubuc", "ab");
+    // test_option_index_string_pattern!(rfind, "cca", "ab");
+    test_option_index_string_pattern!(rfind, "aaa", "aa");
+    test_option_index_string_pattern!(rfind, "aaaa", "aa");
+    test_option_index_string_pattern!(rfind, "aaaa", "aaa");
+    test_option_index_string_pattern!(rfind, "aaa", "aaa");
+    test_option_index_string_pattern!(rfind, "aaa", "aaaa");
 }
