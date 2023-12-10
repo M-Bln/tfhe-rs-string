@@ -233,6 +233,34 @@ impl StringServerKey {
         (found, index)
     }
 
+    pub fn find_clear_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &str,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        match (s.content.len(), pattern.len()) {
+            (0, 0) => return (self.create_true(), from.clone()),
+            (0, _) => return (zero.clone(), zero),
+            _ => (),
+        }
+        let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
+        for n in 0..s.content.len() {
+            let current_match = self.integer_key.bitand_parallelized(
+                &pattern.is_prefix_of_slice(self, &s.content[n..]),
+                //                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_le_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            let increment_index = self.increment_index(s, n, &found);
+            self.integer_key
+                .add_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
     pub fn find_from_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
