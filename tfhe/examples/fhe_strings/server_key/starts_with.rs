@@ -10,6 +10,9 @@ impl FhePattern for &str {
         haystack: &[FheAsciiChar],
     ) -> RadixCiphertext {
         let mut result = server_key.create_true();
+        if self.len() > haystack.len() {
+            return server_key.create_zero();
+        }
         for n in 0..std::cmp::min(haystack.len(), self.len()) {
             server_key.integer_key.bitand_assign_parallelized(
                 &mut result,
@@ -56,6 +59,14 @@ impl FhePattern for &str {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         server_key.find_clear_string(haystack, self)
+    }
+
+    fn rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.rfind_clear_string(haystack, self)
     }
 }
 
@@ -165,6 +176,14 @@ impl FhePattern for FheString {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         server_key.find_string(haystack, self)
+    }
+
+    fn rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.rfind_string(haystack, self)
     }
 }
 

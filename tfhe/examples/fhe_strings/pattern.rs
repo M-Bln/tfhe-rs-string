@@ -21,6 +21,12 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext);
 
+    fn rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext);
+
     fn is_contained_in(
         &self,
         server_key: &StringServerKey,
@@ -114,6 +120,12 @@ pub trait FheCharPattern {
         server_key: &StringServerKey,
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext);
+
+    fn char_rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext);
 }
 
 impl FheCharPattern for char {
@@ -128,6 +140,14 @@ impl FheCharPattern for char {
     ) -> (RadixCiphertext, RadixCiphertext) {
         server_key.find_char(haystack, self)
     }
+
+    fn char_rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.rfind_char(haystack, self)
+    }
 }
 
 impl FheCharPattern for FheAsciiChar {
@@ -141,6 +161,14 @@ impl FheCharPattern for FheAsciiChar {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         server_key.find_char(haystack, self)
+    }
+
+    fn char_rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.rfind_char(haystack, self)
     }
 }
 
@@ -166,6 +194,14 @@ impl<T: FheCharPattern> FhePattern for T {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         self.char_find_in(server_key, haystack)
+    }
+
+    fn rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        self.char_rfind_in(server_key, haystack)
     }
 }
 
