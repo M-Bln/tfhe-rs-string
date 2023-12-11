@@ -30,6 +30,8 @@ pub trait FhePattern {
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
 
+    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
+    
     fn is_contained_in(
         &self,
         server_key: &StringServerKey,
@@ -114,6 +116,10 @@ impl FhePattern for &str {
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.split_clear(s, self)
+    }
+
+    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        server_key.rsplit_clear(s, self)
     }
 }
 
@@ -236,6 +242,10 @@ impl FhePattern for FheString {
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.split_encrypted(s, self)
     }
+
+    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        server_key.rsplit_encrypted(s, self)
+    }
 }
 
 pub trait FheCharPattern {
@@ -315,6 +325,13 @@ pub trait FheCharPattern {
         Self: Sized,
     {
         server_key.split_char(s, self)
+    }
+
+    fn char_rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
+    where
+        Self: Sized,
+    {
+        server_key.rsplit_char(s, self)
     }
 
     fn char_find_in(
@@ -418,6 +435,10 @@ impl<T: FheCharPattern> FhePattern for T {
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         self.char_split_string(server_key, s)
+    }
+
+    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        self.char_rsplit_string(server_key, s)
     }
 }
 

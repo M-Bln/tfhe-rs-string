@@ -442,6 +442,62 @@ impl StringServerKey {
         (found, index)
     }
 
+    // is called with non empty pattern str
+    pub fn rfind_clear_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &str,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+//        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
+        let zero: RadixCiphertext = self.create_zero();
+	if s.content.len() < pattern.len() {return (zero.clone(), zero)}
+
+        let mut index = self.initial_index_rfind(&s.length);
+        let mut found = zero;
+        for n in (0..s.content.len()).rev() {
+            let increment_index = self.rincrement_index(s, n, &found);
+            let current_match = self.integer_key.bitand_parallelized(
+		&pattern.is_prefix_of_slice(self, &s.content[n..]),
+//                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_gt_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            self.integer_key
+                .sub_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    pub fn rfind_char_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &impl FheCharPattern,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+//        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
+        let zero: RadixCiphertext = self.create_zero();
+	if s.content.len() == 0 {return (zero.clone(), zero)}
+
+        let mut index = self.initial_index_rfind(&s.length);
+        let mut found = zero;
+        for n in (0..s.content.len()).rev() {
+            let increment_index = self.rincrement_index(s, n, &found);
+            let current_match = self.integer_key.bitand_parallelized(
+		&pattern.fhe_eq(self, &s.content[n]),
+//                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_gt_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            self.integer_key
+                .sub_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    
     pub fn rfind_from_to_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
