@@ -1,4 +1,5 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -27,6 +28,8 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext);
 
+    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
+
     fn is_contained_in(
         &self,
         server_key: &StringServerKey,
@@ -40,6 +43,198 @@ pub trait FhePattern {
             );
         }
         return result;
+    }
+}
+
+impl FhePattern for &str {
+    fn is_prefix_of_slice(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &[FheAsciiChar],
+    ) -> RadixCiphertext {
+        let mut result = server_key.create_true();
+        if self.len() > haystack.len() {
+            return server_key.create_zero();
+        }
+        for n in 0..std::cmp::min(haystack.len(), self.len()) {
+            server_key.integer_key.bitand_assign_parallelized(
+                &mut result,
+                &server_key.eq_clear_char(&haystack[n], self.as_bytes()[n]),
+            )
+        }
+        result
+    }
+
+    fn is_prefix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        match &haystack.len() {
+            FheStrLength::Clear(haystack_length) if *haystack_length < self.len() => {
+                return server_key.create_zero()
+            }
+            _ if haystack.content.len() < self.len() => return server_key.create_zero(),
+            _ => (),
+        }
+        match haystack.padding {
+            Padding::None | Padding::Final => {
+                self.is_prefix_of_slice(server_key, &haystack.content)
+            }
+            _ => self.is_prefix_of_slice(
+                server_key,
+                &server_key.remove_initial_padding(haystack).content,
+            ),
+        }
+    }
+
+    fn is_contained_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        server_key.contains_clear_string(haystack, self)
+    }
+
+    fn find_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.find_clear_string(haystack, self)
+    }
+
+    fn rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.rfind_clear_string(haystack, self)
+    }
+
+    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        server_key.split_clear(s, self)
+    }
+}
+
+impl FhePattern for FheString {
+    fn is_prefix_of_slice(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &[FheAsciiChar],
+    ) -> RadixCiphertext {
+        match &self.len() {
+            FheStrLength::Clear(needle_length) if needle_length > &haystack.len() => {
+                return server_key.create_zero()
+            }
+            _ => (),
+        }
+        let mut result = server_key.create_true();
+        let max_needle_length = match &self.len() {
+            FheStrLength::Clear(needle_length) => *needle_length,
+            _ => self.content.len(),
+        };
+        match self.padding {
+            Padding::None => {
+                for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
+                    server_key.integer_key.bitand_assign_parallelized(
+                        &mut result,
+                        &server_key.eq_char(&haystack[n], &self.content[n]),
+                    )
+                }
+            }
+            Padding::Final => {
+                for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
+                    let match_or_end_needle = server_key.integer_key.bitor_parallelized(
+                        &server_key.eq_char(&haystack[n], &self.content[n]),
+                        &server_key.eq_clear_char(&self.content[n], 0),
+                    );
+                    server_key
+                        .integer_key
+                        .bitand_assign_parallelized(&mut result, &match_or_end_needle)
+                }
+                if haystack.len() < max_needle_length {
+                    server_key.integer_key.bitand_assign_parallelized(
+                        &mut result,
+                        &server_key.eq_clear_char(&self.content[haystack.len()], 0),
+                    )
+                }
+            }
+            _ => {
+                let unpadded_needle = server_key.remove_initial_padding(self);
+                for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
+                    let match_or_end_needle = server_key.integer_key.bitor_parallelized(
+                        &server_key.eq_char(&haystack[n], &unpadded_needle.content[n]),
+                        &server_key.eq_clear_char(&unpadded_needle.content[n], 0),
+                    );
+                    server_key
+                        .integer_key
+                        .bitand_assign_parallelized(&mut result, &match_or_end_needle)
+                }
+                if haystack.len() < max_needle_length {
+                    server_key.integer_key.bitand_assign_parallelized(
+                        &mut result,
+                        &server_key.eq_clear_char(&unpadded_needle.content[haystack.len()], 0),
+                    )
+                }
+            }
+        }
+        result
+    }
+
+    fn is_prefix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        match &(self.len(), haystack.len()) {
+            (FheStrLength::Clear(needle_length), FheStrLength::Clear(haystack_length))
+                if *needle_length > *haystack_length =>
+            {
+                return server_key.create_zero()
+            }
+            (FheStrLength::Clear(needle_length), _) if *needle_length > haystack.content.len() => {
+                return server_key.create_zero()
+            }
+            _ => (),
+        }
+        match haystack.padding {
+            Padding::None | Padding::Final => {
+                self.is_prefix_of_slice(server_key, &haystack.content)
+            }
+            _ => self.is_prefix_of_slice(
+                server_key,
+                &server_key.remove_initial_padding(haystack).content,
+            ),
+        }
+    }
+
+    fn is_contained_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        server_key.contains_string(haystack, self)
+    }
+
+    fn find_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.find_string(haystack, self)
+    }
+
+    fn rfind_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        server_key.rfind_string(haystack, self)
+    }
+
+    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        server_key.split_encrypted(s, self)
     }
 }
 
@@ -115,17 +310,34 @@ pub trait FheCharPattern {
         result
     }
 
+    fn char_split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
+    where
+        Self: Sized,
+    {
+        server_key.split_char(s, self)
+    }
+
     fn char_find_in(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext);
+    ) -> (RadixCiphertext, RadixCiphertext)
+    where
+        Self: Sized,
+    {
+        server_key.find_char(haystack, self)
+    }
 
     fn char_rfind_in(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext);
+    ) -> (RadixCiphertext, RadixCiphertext)
+    where
+        Self: Sized,
+    {
+        server_key.rfind_char(haystack, self)
+    }
 }
 
 impl FheCharPattern for char {
@@ -133,21 +345,21 @@ impl FheCharPattern for char {
         server_key.eq_clear_char(c, *self as u8)
     }
 
-    fn char_find_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.find_char(haystack, self)
-    }
+    // fn char_find_in(
+    //     &self,
+    //     server_key: &StringServerKey,
+    //     haystack: &FheString,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     server_key.find_char(haystack, self)
+    // }
 
-    fn char_rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.rfind_char(haystack, self)
-    }
+    // fn char_rfind_in(
+    //     &self,
+    //     server_key: &StringServerKey,
+    //     haystack: &FheString,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     server_key.rfind_char(haystack, self)
+    // }
 }
 
 impl FheCharPattern for FheAsciiChar {
@@ -155,21 +367,21 @@ impl FheCharPattern for FheAsciiChar {
         server_key.eq_char(c, &self)
     }
 
-    fn char_find_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.find_char(haystack, self)
-    }
+    // fn char_find_in(
+    //     &self,
+    //     server_key: &StringServerKey,
+    //     haystack: &FheString,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     server_key.find_char(haystack, self)
+    // }
 
-    fn char_rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.rfind_char(haystack, self)
-    }
+    // fn char_rfind_in(
+    //     &self,
+    //     server_key: &StringServerKey,
+    //     haystack: &FheString,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     server_key.rfind_char(haystack, self)
+    // }
 }
 
 impl<T: FheCharPattern> FhePattern for T {
@@ -202,6 +414,10 @@ impl<T: FheCharPattern> FhePattern for T {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         self.char_rfind_in(server_key, haystack)
+    }
+
+    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        self.char_split_string(server_key, s)
     }
 }
 

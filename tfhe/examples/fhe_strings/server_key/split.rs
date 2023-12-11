@@ -1,6 +1,6 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::client_key::ConversionError;
-use crate::pattern::FheCharPattern;
+use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -27,7 +27,9 @@ impl StringServerKey {
             ),
         }
     }
-
+    pub fn split(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
+        pattern.split_string(self, s)
+    }
     pub fn split_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
             ClearOrEncrypted::Clear(0) => {
@@ -525,6 +527,7 @@ mod tests {
     use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, Padding};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
+    use crate::{compare_result, test_fhe_split_char_pattern, test_fhe_split_string_pattern};
     use lazy_static::lazy_static;
 
     lazy_static! {
@@ -533,274 +536,16 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    pub fn test_split(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        let std_split: Vec<String> = s.split(pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_random_padding(s, 3).unwrap();
-        let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 3).unwrap();
-        let fhe_split = server_key.split_encrypted(&encrypted_s, &encrypted_pattern);
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        assert_eq!(clear_len, std_split.len() as u8);
-        let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        assert_eq!(clear_split, std_split);
-    }
+    test_fhe_split_string_pattern!(split, "", "");
+    test_fhe_split_string_pattern!(split, "", "ab");
+    test_fhe_split_string_pattern!(split, "acbc", "c");
 
-    pub fn test_split_with_padding(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-        string_padding: usize,
-        pattern_padding: usize,
-    ) {
-        let std_split: Vec<String> = s.split(pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_padding(s, string_padding).unwrap();
-        let encrypted_pattern = client_key
-            .encrypt_str_padding(pattern, pattern_padding)
-            .unwrap();
-        let fhe_split = server_key.split_encrypted(&encrypted_s, &encrypted_pattern);
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        let clear_split: Vec<String> = fhe_split.parts[..std_split.len()]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        // let clear_split: Vec<String> = fhe_split.parts[..6].iter().map(|s|
-        // client_key.decrypt_string(s).unwrap()).collect();
-        assert_eq!(clear_split, std_split);
-        assert_eq!(clear_len, std_split.len() as u8);
-    }
-
-    pub fn test_split_clear_n(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        n: usize,
-        s: &str,
-        pattern: &str,
-    ) {
-        let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_random_padding(s, 3).unwrap();
-        let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 3).unwrap();
-        let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        assert_eq!(clear_len, std_split.len() as u8);
-        let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        assert_eq!(clear_split, std_split);
-    }
-
-    pub fn test_split_clear_n_with_padding(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        n: usize,
-        s: &str,
-        pattern: &str,
-        string_padding: usize,
-        pattern_padding: usize,
-    ) {
-        let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key
-            .encrypt_str_random_padding(s, string_padding)
-            .unwrap();
-        let encrypted_pattern = client_key
-            .encrypt_str_random_padding(pattern, pattern_padding)
-            .unwrap();
-        let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        assert_eq!(clear_len, std_split.len() as u8);
-        let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        assert_eq!(clear_split, std_split);
-    }
-
-    pub fn test_split_clear_with_padding(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-        string_padding: usize,
-    ) {
-        let std_split: Vec<String> = s.split(pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key
-            .encrypt_str_random_padding(s, string_padding)
-            .unwrap();
-        let fhe_split = server_key.split_clear(&encrypted_s, pattern);
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        assert_eq!(clear_len, std_split.len() as u8);
-        let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        assert_eq!(clear_split, std_split);
-    }
-
-    pub fn test_split_encrypted_n(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        n: usize,
-        s: &str,
-        pattern: &str,
-    ) {
-        let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key.encrypt_str_random_padding(s, 2).unwrap();
-        let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 2).unwrap();
-        let encrypted_n = server_key.create_n(n as u8);
-        let fhe_split = server_key.split_encrypted_n_encrypted_pattern(
-            &encrypted_n,
-            &encrypted_s,
-            &encrypted_pattern,
-        );
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        assert_eq!(clear_len, std_split.len() as u8);
-        let clear_split: Vec<String> = fhe_split.parts[..(std_split.len() as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        assert_eq!(clear_split, std_split);
-    }
-
-    pub fn test_split_encrypted_n_with_padding(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        n: usize,
-        s: &str,
-        pattern: &str,
-        string_padding: usize,
-        pattern_padding: usize,
-    ) {
-        let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
-        let encrypted_s = client_key
-            .encrypt_str_random_padding(s, string_padding)
-            .unwrap();
-        let encrypted_pattern = client_key
-            .encrypt_str_random_padding(pattern, pattern_padding)
-            .unwrap();
-        let encrypted_n = server_key.create_n(n as u8);
-        let fhe_split = server_key.split_encrypted_n_encrypted_pattern(
-            &encrypted_n,
-            &encrypted_s,
-            &encrypted_pattern,
-        );
-        let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
-        let clear_split: Vec<String> = fhe_split.parts[..(std_split.len() as usize)]
-            .iter()
-            .map(|s| client_key.decrypt_string(s).unwrap())
-            .collect();
-        assert_eq!(clear_split, std_split);
-        assert_eq!(clear_len, std_split.len() as u8);
-    }
-
-    pub fn full_test_split_encrypted_n(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 2, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 0, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 2, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 0, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 2, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 0, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 2, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 0, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 2, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 0, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 2, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 0, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 2);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 0);
-        test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 0);
-    }
-
-    pub fn full_test_split_clear_n(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 2, 2);
-        test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 0, 2);
-        test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 2, 0);
-        test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 0, 0);
-        test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 2, 2);
-        test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 0, 2);
-        test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 2, 0);
-        test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 0, 0);
-        test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 2, 2);
-        test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 0, 2);
-        test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 2, 0);
-        test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 0, 0);
-        test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 2);
-        test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 2);
-        test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 0);
-        test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 0);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 2);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 2);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 0);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 0);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 2);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 2);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 0);
-        test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 0);
-    }
-
-    pub fn full_test_split_clear(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        test_split_clear_with_padding(client_key, server_key, s, pattern, 2);
-        test_split_clear_with_padding(client_key, server_key, s, pattern, 0);
-    }
-
-    pub fn full_test_split(
-        client_key: &StringClientKey,
-        server_key: &StringServerKey,
-        s: &str,
-        pattern: &str,
-    ) {
-        test_split_with_padding(client_key, server_key, s, pattern, 2, 2);
-        test_split_with_padding(client_key, server_key, s, pattern, 0, 2);
-        test_split_with_padding(client_key, server_key, s, pattern, 2, 0);
-        test_split_with_padding(client_key, server_key, s, pattern, 0, 0);
-    }
-
-    macro_rules! test_fhe_split_string {
-        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
-            paste::item! {
-            #[test]
-            fn [<"test_" $method "_" $string_arg "_" $pattern_arg>]() {
-                [<"full_test_" $method>](&CLIENT_KEY, &SERVER_KEY, $string_arg, $pattern_arg);
-            }
-            }
-        };
-    }
-
-    // test_fhe_split_string!(split, "", "");
-    // test_fhe_split_string!(split, "", "ab");
-    // test_fhe_split_string!(split, "acbc", "c");
-
+    test_fhe_split_char_pattern!(split, "", 'a');
+    test_fhe_split_char_pattern!(split, "a", 'a');
+    test_fhe_split_char_pattern!(split, "acbc", 'c');
+    test_fhe_split_char_pattern!(split, "cccc", 'c');
+    test_fhe_split_char_pattern!(split, "cabd", 'a');
+    test_fhe_split_char_pattern!(split, "acb", 'c');
     // test_fhe_split_string!(split_clear, "", "");
     // test_fhe_split_string!(split_clear, "", "ab");
     // test_fhe_split_string!(split_clear, "acbc", "c");
@@ -811,6 +556,228 @@ mod tests {
     // test_fhe_split_string!(split_char, "cccc", 'c');
     // test_fhe_split_string!(split_char, "cabd", 'c');
     // test_fhe_split_string!(split_char, "acb", 'c');
+
+    // pub fn test_split_clear_n(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     n: usize,
+    //     s: &str,
+    //     pattern: &str,
+    // ) {
+    //     let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
+    //     let encrypted_s = client_key.encrypt_str_random_padding(s, 3).unwrap();
+    //     let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 3).unwrap();
+    //     let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
+    //     let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+    //     assert_eq!(clear_len, std_split.len() as u8);
+    //     let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
+    //         .iter()
+    //         .map(|s| client_key.decrypt_string(s).unwrap())
+    //         .collect();
+    //     assert_eq!(clear_split, std_split);
+    // }
+
+    // pub fn test_split_clear_n_with_padding(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     n: usize,
+    //     s: &str,
+    //     pattern: &str,
+    //     string_padding: usize,
+    //     pattern_padding: usize,
+    // ) {
+    //     let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
+    //     let encrypted_s = client_key
+    //         .encrypt_str_random_padding(s, string_padding)
+    //         .unwrap();
+    //     let encrypted_pattern = client_key
+    //         .encrypt_str_random_padding(pattern, pattern_padding)
+    //         .unwrap();
+    //     let fhe_split = server_key.split_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
+    //     let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+    //     assert_eq!(clear_len, std_split.len() as u8);
+    //     let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
+    //         .iter()
+    //         .map(|s| client_key.decrypt_string(s).unwrap())
+    //         .collect();
+    //     assert_eq!(clear_split, std_split);
+    // }
+
+    // pub fn test_split_clear_with_padding(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     s: &str,
+    //     pattern: &str,
+    //     string_padding: usize,
+    // ) {
+    //     let std_split: Vec<String> = s.split(pattern).map(|s| String::from(s)).collect();
+    //     let encrypted_s = client_key
+    //         .encrypt_str_random_padding(s, string_padding)
+    //         .unwrap();
+    //     let fhe_split = server_key.split_clear(&encrypted_s, pattern);
+    //     let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+    //     assert_eq!(clear_len, std_split.len() as u8);
+    //     let clear_split: Vec<String> = fhe_split.parts[..(clear_len as usize)]
+    //         .iter()
+    //         .map(|s| client_key.decrypt_string(s).unwrap())
+    //         .collect();
+    //     assert_eq!(clear_split, std_split);
+    // }
+
+    // pub fn test_split_encrypted_n(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     n: usize,
+    //     s: &str,
+    //     pattern: &str,
+    // ) {
+    //     let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
+    //     let encrypted_s = client_key.encrypt_str_random_padding(s, 2).unwrap();
+    //     let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 2).unwrap();
+    //     let encrypted_n = server_key.create_n(n as u8);
+    //     let fhe_split = server_key.split_encrypted_n_encrypted_pattern(
+    //         &encrypted_n,
+    //         &encrypted_s,
+    //         &encrypted_pattern,
+    //     );
+    //     let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+    //     assert_eq!(clear_len, std_split.len() as u8);
+    //     let clear_split: Vec<String> = fhe_split.parts[..(std_split.len() as usize)]
+    //         .iter()
+    //         .map(|s| client_key.decrypt_string(s).unwrap())
+    //         .collect();
+    //     assert_eq!(clear_split, std_split);
+    // }
+
+    // pub fn test_split_encrypted_n_with_padding(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     n: usize,
+    //     s: &str,
+    //     pattern: &str,
+    //     string_padding: usize,
+    //     pattern_padding: usize,
+    // ) {
+    //     let std_split: Vec<String> = s.splitn(n, pattern).map(|s| String::from(s)).collect();
+    //     let encrypted_s = client_key
+    //         .encrypt_str_random_padding(s, string_padding)
+    //         .unwrap();
+    //     let encrypted_pattern = client_key
+    //         .encrypt_str_random_padding(pattern, pattern_padding)
+    //         .unwrap();
+    //     let encrypted_n = server_key.create_n(n as u8);
+    //     let fhe_split = server_key.split_encrypted_n_encrypted_pattern(
+    //         &encrypted_n,
+    //         &encrypted_s,
+    //         &encrypted_pattern,
+    //     );
+    //     let clear_len = client_key.decrypt_u8(&fhe_split.number_parts);
+    //     let clear_split: Vec<String> = fhe_split.parts[..(std_split.len() as usize)]
+    //         .iter()
+    //         .map(|s| client_key.decrypt_string(s).unwrap())
+    //         .collect();
+    //     assert_eq!(clear_split, std_split);
+    //     assert_eq!(clear_len, std_split.len() as u8);
+    // }
+
+    // pub fn full_test_split_encrypted_n(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     s: &str,
+    //     pattern: &str,
+    // ) {
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 2, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 0, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 2, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 0, s, pattern, 0, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 2, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 0, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 2, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 1, s, pattern, 0, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 2, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 0, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 2, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, 2, s, pattern, 0, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 0);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2,
+    // 2);     test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s,
+    // pattern, 0, 2);     test_split_encrypted_n_with_padding(client_key, server_key, s.len() +
+    // 1, s, pattern, 2, 0);     test_split_encrypted_n_with_padding(client_key, server_key,
+    // s.len() + 1, s, pattern, 0, 0);     test_split_encrypted_n_with_padding(client_key,
+    // server_key, s.len() + 4, s, pattern, 2, 2);
+    //     test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0,
+    // 2);     test_split_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s,
+    // pattern, 2, 0);     test_split_encrypted_n_with_padding(client_key, server_key, s.len() +
+    // 4, s, pattern, 0, 0); }
+
+    // pub fn full_test_split_clear_n(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     s: &str,
+    //     pattern: &str,
+    // ) {
+    //     test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 2, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 0, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 2, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, 0, s, pattern, 0, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 2, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 0, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 2, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, 1, s, pattern, 0, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 2, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 0, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 2, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, 2, s, pattern, 0, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 2);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 0);
+    //     test_split_clear_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 0);
+    // }
+
+    // pub fn full_test_split_clear(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     s: &str,
+    //     pattern: &str,
+    // ) {
+    //     test_split_clear_with_padding(client_key, server_key, s, pattern, 2);
+    //     test_split_clear_with_padding(client_key, server_key, s, pattern, 0);
+    // }
+
+    // pub fn full_test_split(
+    //     client_key: &StringClientKey,
+    //     server_key: &StringServerKey,
+    //     s: &str,
+    //     pattern: &str,
+    // ) {
+    //     test_split_with_padding(client_key, server_key, s, pattern, 2, 2);
+    //     test_split_with_padding(client_key, server_key, s, pattern, 0, 2);
+    //     test_split_with_padding(client_key, server_key, s, pattern, 2, 0);
+    //     test_split_with_padding(client_key, server_key, s, pattern, 0, 0);
+    // }
+
+    // macro_rules! test_fhe_split_string {
+    //     ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+    //         paste::item! {
+    //         #[test]
+    //         fn [<"test_" $method "_" $string_arg "_" $pattern_arg>]() {
+    //             [<"full_test_" $method>](&CLIENT_KEY, &SERVER_KEY, $string_arg, $pattern_arg);
+    //         }
+    //         }
+    //     };
+    // }
+
     // #[test]
     // fn test_full_test_split0() {
     //     full_test_split(&CLIENT_KEY, &SERVER_KEY, "", "");
