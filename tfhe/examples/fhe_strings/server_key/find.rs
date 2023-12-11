@@ -501,49 +501,49 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn rfind_from_to_final_padding_allow_empty_pattern(
-        &self,
-        s: &FheString,
-        pattern: &FheString,
-        from: &RadixCiphertext,
-        to: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
-        let zero: RadixCiphertext = self.create_zero();
-        match (s.content.len(), pattern.content.len()) {
-            (0, 0) => return (from_greater_than_zero, zero),
-            (0, _) => {
-                return (
-                    self.integer_key.bitand_parallelized(
-                        &self.eq_clear_char(&pattern.content[0], 0),
-                        &from_greater_than_zero,
-                    ),
-                    zero,
-                )
-            }
-            _ => (),
-        }
+    // pub fn rfind_from_to_final_padding_allow_empty_pattern(
+    //     &self,
+    //     s: &FheString,
+    //     pattern: &FheString,
+    //     from: &RadixCiphertext,
+    //     to: &RadixCiphertext,
+    // ) -> (RadixCiphertext, RadixCiphertext) {
+    //     let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
+    //     let zero: RadixCiphertext = self.create_zero();
+    //     match (s.content.len(), pattern.content.len()) {
+    //         (0, 0) => return (from_greater_than_zero, zero),
+    //         (0, _) => {
+    //             return (
+    //                 self.integer_key.bitand_parallelized(
+    //                     &self.eq_clear_char(&pattern.content[0], 0),
+    //                     &from_greater_than_zero,
+    //                 ),
+    //                 zero,
+    //             )
+    //         }
+    //         _ => (),
+    //     }
 
-        let mut index = self.initial_index_rfind(&s.length);
-        let mut found = zero;
-        for n in (0..s.content.len()).rev() {
-            let increment_index = self.rincrement_index(s, n, &found);
-            let current_match = self.integer_key.bitand_parallelized(
-                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-                &self.integer_key.scalar_ge_parallelized(from, n as u64),
-            );
-            self.integer_key
-                .bitor_assign_parallelized(&mut found, &current_match);
-            self.integer_key
-                .sub_assign_parallelized(&mut index, &increment_index);
-        }
-        index = self.integer_key.cmux_parallelized(
-            &self.is_empty_encrypted(pattern),
-            &self.min_length_radix(&s.length, from),
-            &index,
-        );
-        (found, index)
-    }
+    //     let mut index = self.initial_index_rfind(&s.length);
+    //     let mut found = zero;
+    //     for n in (0..s.content.len()).rev() {
+    //         let increment_index = self.rincrement_index(s, n, &found);
+    //         let current_match = self.integer_key.bitand_parallelized(
+    //             &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+    //             &self.integer_key.scalar_ge_parallelized(from, n as u64),
+    //         );
+    //         self.integer_key
+    //             .bitor_assign_parallelized(&mut found, &current_match);
+    //         self.integer_key
+    //             .sub_assign_parallelized(&mut index, &increment_index);
+    //     }
+    //     index = self.integer_key.cmux_parallelized(
+    //         &self.is_empty_encrypted(pattern),
+    //         &self.min_length_radix(&s.length, from),
+    //         &index,
+    //     );
+    //     (found, index)
+    // }
 
     // pub fn rfind_from_final_padding_allow_empty_pattern(
     //     &self,
