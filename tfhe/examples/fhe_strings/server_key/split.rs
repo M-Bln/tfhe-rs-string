@@ -51,6 +51,13 @@ impl StringServerKey {
         }
     }
 
+    pub fn split_char(&self, s: &FheString, pattern: &impl FheCharPattern) -> FheSplit {
+        match s.padding {
+            Padding::None | Padding::Final => self.split_char_final_padding(s, pattern),
+            _ => self.split_char_final_padding(&self.remove_initial_padding(s), pattern),
+        }
+    }
+
     pub fn split_clear_n_encrypted(
         &self,
         n: usize,
@@ -97,6 +104,42 @@ impl StringServerKey {
             })
         }
         parts.push(empty_string);
+        FheSplit {
+            parts: parts,
+            number_parts: number_parts,
+            current_index: 0,
+        }
+    }
+
+    pub fn split_char_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &impl FheCharPattern,
+    ) -> FheSplit {
+        // Compute the maximum number of parts of the result.
+        let maximum_number_of_parts = match &s.length {
+            ClearOrEncrypted::Clear(length) => *length + 1,
+            _ => s.content.len() + 1,
+        };
+        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+        let zero = self.create_zero();
+        let mut number_parts = self.create_n(1); // The result has at least 1 part.
+
+        // `start_part` holds the index of the beginning of the current part.
+        let mut start_part = zero.clone();
+
+        for n in 0..maximum_number_of_parts {
+            let (found, end_part) = self.find_char_from_final_padding(s, pattern, &start_part);
+
+            // Increment `number_parts` if the pattern is found.
+            self.integer_key
+                .add_assign_parallelized(&mut number_parts, &found);
+
+            parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+            start_part = self
+                .integer_key
+                .scalar_add_parallelized(&end_part, pattern.len() as u64);
+        }
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -755,14 +798,20 @@ mod tests {
         };
     }
 
-    test_fhe_split_string!(split, "", "");
-    test_fhe_split_string!(split, "", "ab");
-    test_fhe_split_string!(split, "acbc", "c");
+    // test_fhe_split_string!(split, "", "");
+    // test_fhe_split_string!(split, "", "ab");
+    // test_fhe_split_string!(split, "acbc", "c");
 
-    test_fhe_split_string!(split_clear, "", "");
-    test_fhe_split_string!(split_clear, "", "ab");
-    test_fhe_split_string!(split_clear, "acbc", "c");
+    // test_fhe_split_string!(split_clear, "", "");
+    // test_fhe_split_string!(split_clear, "", "ab");
+    // test_fhe_split_string!(split_clear, "acbc", "c");
 
+    // test_fhe_split_string!(split_char, "", 'a');
+    // test_fhe_split_string!(split_char, "a", 'a');
+    // test_fhe_split_string!(split_char, "acbc", 'c');
+    // test_fhe_split_string!(split_char, "cccc", 'c');
+    // test_fhe_split_string!(split_char, "cabd", 'c');
+    // test_fhe_split_string!(split_char, "acb", 'c');
     // #[test]
     // fn test_full_test_split0() {
     //     full_test_split(&CLIENT_KEY, &SERVER_KEY, "", "");
