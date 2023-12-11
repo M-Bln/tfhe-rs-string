@@ -30,6 +30,8 @@ pub trait FhePattern {
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
 
+    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
+
     fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
 
     fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
@@ -120,6 +122,10 @@ impl FhePattern for &str {
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.split_clear(s, self)
+    }
+
+    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        server_key.split_inclusive_clear(s, self)
     }
 
     fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
@@ -255,6 +261,10 @@ impl FhePattern for FheString {
         server_key.split_encrypted(s, self)
     }
 
+    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        server_key.split_inclusive_encrypted(s, self)
+    }
+
     fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.split_terminator_encrypted(s, self)
     }
@@ -345,6 +355,13 @@ pub trait FheCharPattern {
         Self: Sized,
     {
         server_key.split_char(s, self)
+    }
+
+    fn char_split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
+    where
+        Self: Sized,
+    {
+        server_key.split_inclusive_char(s, self)
     }
 
     fn char_split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
@@ -469,6 +486,10 @@ impl<T: FheCharPattern> FhePattern for T {
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         self.char_split_string(server_key, s)
+    }
+
+    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
+        self.char_split_inclusive_string(server_key, s)
     }
 
     fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
