@@ -7,7 +7,7 @@ mod find;
 mod is_empty;
 mod repeat;
 mod rsplit;
-mod split;
+pub mod split;
 mod starts_with;
 mod strip;
 mod substring;

@@ -233,6 +233,60 @@ impl StringServerKey {
         (found, index)
     }
 
+    pub fn find_clear_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &str,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        match (s.content.len(), pattern.len()) {
+            (0, 0) => return (self.create_true(), from.clone()),
+            (0, _) => return (zero.clone(), zero),
+            _ => (),
+        }
+        let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
+        for n in 0..s.content.len() {
+            let current_match = self.integer_key.bitand_parallelized(
+                &pattern.is_prefix_of_slice(self, &s.content[n..]),
+                //                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_le_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            let increment_index = self.increment_index(s, n, &found);
+            self.integer_key
+                .add_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    pub fn find_char_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &impl FheCharPattern,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        let zero: RadixCiphertext = self.create_zero();
+        if s.content.len() == 0 {
+            return (zero.clone(), zero);
+        }
+        let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
+        for n in 0..s.content.len() {
+            let current_match = self.integer_key.bitand_parallelized(
+                &pattern.is_prefix_of_slice(self, &s.content[n..]),
+                //                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_le_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            let increment_index = self.increment_index(s, n, &found);
+            self.integer_key
+                .add_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
     pub fn find_from_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
@@ -385,6 +439,65 @@ impl StringServerKey {
             ),
             &index,
         );
+        (found, index)
+    }
+
+    // is called with non empty pattern str
+    pub fn rfind_clear_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &str,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
+        let zero: RadixCiphertext = self.create_zero();
+        if s.content.len() < pattern.len() {
+            return (zero.clone(), zero);
+        }
+
+        let mut index = self.initial_index_rfind(&s.length);
+        let mut found = zero;
+        for n in (0..s.content.len()).rev() {
+            let increment_index = self.rincrement_index(s, n, &found);
+            let current_match = self.integer_key.bitand_parallelized(
+                &pattern.is_prefix_of_slice(self, &s.content[n..]),
+                //                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_gt_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            self.integer_key
+                .sub_assign_parallelized(&mut index, &increment_index);
+        }
+        (found, index)
+    }
+
+    pub fn rfind_char_from_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &impl FheCharPattern,
+        from: &RadixCiphertext,
+    ) -> (RadixCiphertext, RadixCiphertext) {
+        //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
+        let zero: RadixCiphertext = self.create_zero();
+        if s.content.len() == 0 {
+            return (zero.clone(), zero);
+        }
+
+        let mut index = self.initial_index_rfind(&s.length);
+        let mut found = zero;
+        for n in (0..s.content.len()).rev() {
+            let increment_index = self.rincrement_index(s, n, &found);
+            let current_match = self.integer_key.bitand_parallelized(
+                &pattern.fhe_eq(self, &s.content[n]),
+                //                &self.starts_with_encrypted_vec(&s.content[n..], pattern),
+                &self.integer_key.scalar_gt_parallelized(from, n as u64),
+            );
+            self.integer_key
+                .bitor_assign_parallelized(&mut found, &current_match);
+            self.integer_key
+                .sub_assign_parallelized(&mut index, &increment_index);
+        }
         (found, index)
     }
 
@@ -606,6 +719,7 @@ mod tests {
     use crate::ciphertext::{gen_keys, gen_keys_test};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
+    use crate::{compare_result, test_option_index_char_pattern, test_option_index_string_pattern};
     use lazy_static::lazy_static;
 
     lazy_static! {
@@ -614,212 +728,111 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    macro_rules! test_option_index_char_pattern {
-        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
-            paste::item! {
+    // macro_rules! unit_test_char{
+    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, char , $result_type: ty,
+    // $string_padding: expr) => { 	    #[test]
+    // 	    fn test_name!($method, $string_arg, $pattern_arg, char, $string_padding) () {
+    // 		let std_result = $string_arg.$method($pattern_arg);
+    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
+    // $string_padding).unwrap();             let fhe_result = SERVER_KEY.$method(&encrypted_s,
+    // &$pattern_arg); 		compare_result!($result_type, std_result, fhe_result);
+    // 	    }
+    // 	};
 
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-    		}
+    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, FheChar, $result_type: ty,
+    // $string_padding: expr) => { 	    #[test]
+    // 	    fn test_name!($method, $string_arg, $pattern_arg, FheChar, $string_padding) () {
+    // 		let std_result = $string_arg.$method($pattern_arg);
+    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
+    // $string_padding).unwrap(); 		let encrypted_pattern =
+    // CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);             let fhe_result =
+    // SERVER_KEY.$method(&encrypted_s, &$pattern_arg); 		compare_result!($result_type,
+    // std_result, fhe_result); 	    }
+    // 	};
+    // }
 
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
+    // macro_rules! test_string {
+    //     ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+    //         unit_test_char!($method, $string_arg, $pattern_arg, 0, 0);
+    //         unit_test_char!($method, $string_arg, $pattern_arg, 2, 0);
+    //         unit_test_char!($method, $string_arg, $pattern_arg, 0, 2);
+    //         unit_test_char!($method, $string_arg, $pattern_arg, 2, 2);
+    //     };
+    // }
+    // macro_rules! unit_test_string {
+    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, &str, $result_type: ty,
+    // $string_padding: expr) => { 	    #[test]
+    // 	    fn test_name!($method, $string_arg, $pattern_arg, &str, $string_padding) () {
+    // 		let std_result = $string_arg.$method($pattern_arg);
+    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
+    // $string_padding).unwrap();             let fhe_result = SERVER_KEY.$method(&encrypted_s,
+    // &$pattern_arg); 		compare_result!($result_type, std_result, fhe_result);
+    // 	    }
+    // 	};
+    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, FheString, $result_type: ty,
+    // $string_padding: expr, $pattern_padding: expr) => { 	    #[test]
+    // 	    fn test_name!($method, $string_arg, $pattern_arg, FheChar, $string_padding,
+    // $pattern_padding) () { 		let std_result = $string_arg.$method($pattern_arg);
+    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
+    // $string_padding).unwrap(); 		let encrypted_pattern =
+    // CLIENT_KEY.encrypt_str_padding($pattern_arg as u8, $pattern_padding);             let
+    // fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg); 		compare_result!
+    // ($result_type, std_result, fhe_result); 	    }
+    // 	};
+    // }
 
-    		}
+    test_option_index_char_pattern!(find, "abc", 'a');
+    test_option_index_char_pattern!(find, "abc", 'b');
+    test_option_index_char_pattern!(find, "abc", 'c');
+    test_option_index_char_pattern!(find, "abc", 'd');
+    test_option_index_char_pattern!(find, "", 'b');
 
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
+    //    write_test_char!(find);
 
-    		}
+    // test_char_fhe_option!(find, "abc", 'a');
+    // test_char_fhe_option!(find, "abc", 'b');
+    // test_char_fhe_option!(find, "abc", 'c');
+    // test_char_fhe_option!(find, "abc", 'd');
+    // test_char_fhe_option!(find, "", 'b');
 
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
+    test_option_index_string_pattern!(find, "abc", "a");
+    test_option_index_string_pattern!(find, "abc", "b");
+    test_option_index_string_pattern!(find, "abc", "c");
+    test_option_index_string_pattern!(find, "abc", "ab");
+    test_option_index_string_pattern!(find, "abc", "bc");
+    test_option_index_string_pattern!(find, "abc", "abc");
+    test_option_index_string_pattern!(find, "abc", "abcd");
+    test_option_index_string_pattern!(find, "abc", "d");
+    test_option_index_string_pattern!(find, "abc", "dzzzs");
+    test_option_index_string_pattern!(find, "abc", "");
+    test_option_index_string_pattern!(find, "", "abc");
+    test_option_index_string_pattern!(find, "", "");
 
-    		}
-            }
-        };
-    }
+    test_option_index_char_pattern!(rfind, "abcab", 'a');
+    test_option_index_char_pattern!(rfind, "abcab", 'b');
+    test_option_index_char_pattern!(rfind, "abcabcd", 'c');
+    test_option_index_char_pattern!(rfind, "abc", 'd');
+    test_option_index_char_pattern!(rfind, "", 'b');
 
-    macro_rules! test_option_index_string_pattern {
-        ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
-            paste::item! {
-
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
-    		}
-
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
-    		}
-
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
-    		}
-
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
-    		}
-
-    		#[test]
-    		fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-    		    let std_result = $string_arg.$method($pattern_arg);
-                    let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-                    let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                                     let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
-    		}
-            }
-        };
-    }
-
-    // test_option_index_char_pattern!(find, "abc", 'a');
-    // test_option_index_char_pattern!(find, "abc", 'b');
-    // test_option_index_char_pattern!(find, "abc", 'c');
-    // test_option_index_char_pattern!(find, "abc", 'd');
-    // test_option_index_char_pattern!(find, "", 'b');
-
-    // test_option_index_string_pattern!(find, "abc", "a");
-    // test_option_index_string_pattern!(find, "abc", "b");
-    // test_option_index_string_pattern!(find, "abc", "c");
-    // test_option_index_string_pattern!(find, "abc", "ab");
-    // test_option_index_string_pattern!(find, "abc", "bc");
-    // test_option_index_string_pattern!(find, "abc", "abc");
-    // test_option_index_string_pattern!(find, "abc", "abcd");
-    // test_option_index_string_pattern!(find, "abc", "d");
-    // test_option_index_string_pattern!(find, "abc", "dzzzs");
-    // test_option_index_string_pattern!(find, "abc", "");
-    // test_option_index_string_pattern!(find, "", "abc");
-    // test_option_index_string_pattern!(find, "", "");
-
-    // test_option_index_char_pattern!(rfind, "abcab", 'a');
-    // test_option_index_char_pattern!(rfind, "abcab", 'b');
-    // test_option_index_char_pattern!(rfind, "abcabcd", 'c');
-    // test_option_index_char_pattern!(rfind, "abc", 'd');
-    // test_option_index_char_pattern!(rfind, "", 'b');
-
-    // test_option_index_string_pattern!(rfind, "abc", "a");
-    // test_option_index_string_pattern!(rfind, "abc", "b");
-    // test_option_index_string_pattern!(rfind, "abc", "c");
-    // test_option_index_string_pattern!(rfind, "abc", "ab");
-    // test_option_index_string_pattern!(rfind, "abc", "bc");
-    // test_option_index_string_pattern!(rfind, "abc", "abc");
-    // test_option_index_string_pattern!(rfind, "abc", "abcd");
-    // test_option_index_string_pattern!(rfind, "abc", "d");
-    // test_option_index_string_pattern!(rfind, "abc", "dzzzs");
-    // test_option_index_string_pattern!(rfind, "abc", "");
-    // test_option_index_string_pattern!(rfind, "", "abc");
-    // test_option_index_string_pattern!(rfind, "", "");
-    // test_option_index_string_pattern!(rfind, "abcab", "ab");
-    // test_option_index_string_pattern!(rfind, "abcabd", "ab");
-    // test_option_index_string_pattern!(rfind, "abcap", "ab");
-    // test_option_index_string_pattern!(rfind, "abcal", "ab");
-    // test_option_index_string_pattern!(rfind, "aubuca", "ab");
-    // test_option_index_string_pattern!(rfind, "auubuc", "ab");
-    // test_option_index_string_pattern!(rfind, "cca", "ab");
+    test_option_index_string_pattern!(rfind, "abc", "a");
+    test_option_index_string_pattern!(rfind, "abc", "b");
+    test_option_index_string_pattern!(rfind, "abc", "c");
+    test_option_index_string_pattern!(rfind, "abc", "ab");
+    test_option_index_string_pattern!(rfind, "abc", "bc");
+    test_option_index_string_pattern!(rfind, "abc", "abc");
+    test_option_index_string_pattern!(rfind, "abc", "abcd");
+    test_option_index_string_pattern!(rfind, "abc", "d");
+    test_option_index_string_pattern!(rfind, "abc", "dzzzs");
+    test_option_index_string_pattern!(rfind, "abc", "");
+    test_option_index_string_pattern!(rfind, "", "abc");
+    test_option_index_string_pattern!(rfind, "", "");
+    test_option_index_string_pattern!(rfind, "abcab", "ab");
+    test_option_index_string_pattern!(rfind, "abcabd", "ab");
+    test_option_index_string_pattern!(rfind, "abcap", "ab");
+    test_option_index_string_pattern!(rfind, "abcal", "ab");
+    test_option_index_string_pattern!(rfind, "aubuca", "ab");
+    test_option_index_string_pattern!(rfind, "auubuc", "ab");
+    test_option_index_string_pattern!(rfind, "cca", "ab");
     test_option_index_string_pattern!(rfind, "aaa", "aa");
     test_option_index_string_pattern!(rfind, "aaaa", "aa");
     test_option_index_string_pattern!(rfind, "aaaa", "aaa");
