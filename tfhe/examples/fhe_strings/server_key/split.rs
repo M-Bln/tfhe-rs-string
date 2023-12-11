@@ -1,5 +1,6 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::client_key::ConversionError;
+use crate::pattern::FheCharPattern;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -136,9 +137,7 @@ impl StringServerKey {
                 .add_assign_parallelized(&mut number_parts, &found);
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
-            start_part = self
-                .integer_key
-                .scalar_add_parallelized(&end_part, pattern.len() as u64);
+            start_part = self.integer_key.scalar_add_parallelized(&end_part, 1);
         }
         FheSplit {
             parts: parts,

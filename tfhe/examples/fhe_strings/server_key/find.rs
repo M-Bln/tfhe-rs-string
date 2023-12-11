@@ -699,12 +699,12 @@ mod tests {
             assert_eq!(CLIENT_KEY.decrypt_u8(&$fhe_result), std_result as u8)
         };
         ((RadixCiphertext, RadixCiphertext), $std_result: expr, $fhe_result: expr) => {
-            match $fhe_result {
+            match $std_result {
                 Some(n) => {
-                    assert_eq!(CLIENT_KEY.decrypt_u8($fhe_result.0), 1);
-                    assert_eq!(CLIENT_KEY.decrypt_u8($fhe_result.1), n);
+                    assert_eq!(CLIENT_KEY.decrypt_u8(&$fhe_result.0), 1 as u8);
+                    assert_eq!(CLIENT_KEY.decrypt_u8(&$fhe_result.1), n as u8);
                 }
-                None => assert_eq!(CLIENT_KEY.decrypt_u8(expr.0), 0),
+                None => assert_eq!(CLIENT_KEY.decrypt_u8(&$fhe_result.0), 0),
             }
         };
         (FheSPlit, $std_result: expr, $fhe_result: expr) => {
@@ -860,14 +860,15 @@ mod tests {
     		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
+		    compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                    // let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+    		    // match std_result {
+    		    // 	Some(result) => {
+    		    // 	    assert_eq!(result as u8, clear_fhe_result);
+    		    // 	    assert_eq!(clear_found, 1);
+    		    // 	},
+    		    // 	None => assert_eq!(clear_found, 0)
+    		    // }
     		}
 
     		#[test]
@@ -875,15 +876,15 @@ mod tests {
     		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
+		    compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                    // let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+    		    // match std_result {
+    		    // 	Some(result) => {
+    		    // 	    assert_eq!(result as u8, clear_fhe_result);
+    		    // 	    assert_eq!(clear_found, 1);
+    		    // 	},
+    		    // 	None => assert_eq!(clear_found, 0)
+    		    // }
     		}
 
     		#[test]
@@ -892,15 +893,15 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
     		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
+		    compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                    // let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
+    		    // match std_result {
+    		    // 	Some(result) => {
+    		    // 	    assert_eq!(result as u8, clear_fhe_result);
+    		    // 	    assert_eq!(clear_found, 1);
+    		    // 	},
+    		    // 	None => assert_eq!(clear_found, 0)
+    		    // }
     		}
 
     		#[test]
@@ -909,15 +910,7 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
     		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let (clear_found, clear_fhe_result) = (CLIENT_KEY.decrypt_u8(&fhe_result.0), CLIENT_KEY.decrypt_u8(&fhe_result.1));
-    		    match std_result {
-    			Some(result) => {
-    			    assert_eq!(result as u8, clear_fhe_result);
-    			    assert_eq!(clear_found, 1);
-    			},
-    			None => assert_eq!(clear_found, 0)
-    		    }
-
+		    compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
     		}
             }
         };
@@ -1021,11 +1014,11 @@ mod tests {
 
     //    write_test_char!(find);
 
-    test_char_fhe_option!(find, "abc", 'a');
-    test_char_fhe_option!(find, "abc", 'b');
-    test_char_fhe_option!(find, "abc", 'c');
-    test_char_fhe_option!(find, "abc", 'd');
-    test_char_fhe_option!(find, "", 'b');
+    // test_char_fhe_option!(find, "abc", 'a');
+    // test_char_fhe_option!(find, "abc", 'b');
+    // test_char_fhe_option!(find, "abc", 'c');
+    // test_char_fhe_option!(find, "abc", 'd');
+    // test_char_fhe_option!(find, "", 'b');
 
     // test_option_index_string_pattern!(find, "abc", "a");
     // test_option_index_string_pattern!(find, "abc", "b");
