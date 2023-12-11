@@ -1,8 +1,8 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::client_key::ConversionError;
+use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use crate::pattern::{FhePattern, FheCharPattern};
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
@@ -25,6 +25,10 @@ impl StringServerKey {
         pattern.rsplit_string(self, s)
     }
 
+    pub fn rsplit_terminator(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
+        pattern.rsplit_terminator_string(self, s)
+    }
+
     pub fn rsplit_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
             ClearOrEncrypted::Clear(0) => {
@@ -40,21 +44,23 @@ impl StringServerKey {
     }
 
     pub fn rsplit_clear(&self, s: &FheString, pattern: &str) -> FheSplit {
-	match s.len() {
-	    FheStrLength::Clear(clear_length) if *clear_length < pattern.len()  =>
-		return FheSplit{
-		    parts: vec!(s.clone(),),
-		    number_parts: self.create_n(1),
-		    current_index: 0,
-		},
-	    _ if s.content.len() < pattern.len() =>
-		return FheSplit{
-		    parts: vec!(s.clone(),),
-		    number_parts: self.create_n(1),
-		    current_index: 0,
-		},
-	    _ =>(),
-	}
+        match s.len() {
+            FheStrLength::Clear(clear_length) if *clear_length < pattern.len() => {
+                return FheSplit {
+                    parts: vec![s.clone()],
+                    number_parts: self.create_n(1),
+                    current_index: 0,
+                }
+            }
+            _ if s.content.len() < pattern.len() => {
+                return FheSplit {
+                    parts: vec![s.clone()],
+                    number_parts: self.create_n(1),
+                    current_index: 0,
+                }
+            }
+            _ => (),
+        }
         match s.padding {
             _ if pattern.len() == 0 => {
                 self.rpadding_pair_dispatch(s, s, |s1, s2| self.rsplit_empty_pattern(s1, s2))
@@ -71,7 +77,31 @@ impl StringServerKey {
         }
     }
 
-    
+    pub fn rsplit_terminator_char(&self, s: &FheString, pattern: &impl FheCharPattern) -> FheSplit {
+        match s.len() {
+            FheStrLength::Clear(0) => {
+                return FheSplit {
+                    parts: vec![],
+                    number_parts: self.create_zero(),
+                    current_index: 0,
+                }
+            }
+            _ if s.content.len() == 0 => {
+                return FheSplit {
+                    parts: vec![],
+                    number_parts: self.create_zero(),
+                    current_index: 0,
+                }
+            }
+            _ => (),
+        }
+        match s.padding {
+            Padding::None | Padding::Final => self.rsplit_terminator_char_final_padding(s, pattern),
+            _ => {
+                self.rsplit_terminator_char_final_padding(&self.remove_initial_padding(s), pattern)
+            }
+        }
+    }
 
     pub fn rsplit_terminator_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
@@ -84,6 +114,70 @@ impl StringServerKey {
             _ => self.padding_pair_dispatch(s, pattern, |s1, s2| {
                 self.rsplit_terminator_encrypted_final_padding_allow_empty_pattern(s1, s2)
             }),
+        }
+    }
+
+    pub fn rsplit_terminator_clear(&self, s: &FheString, pattern: &str) -> FheSplit {
+        let empty_fhe_string = FheString {
+            content: vec![],
+            length: FheStrLength::Clear(0),
+            padding: Padding::None,
+        };
+        match s.len() {
+            FheStrLength::Clear(0) if pattern.len() == 0 => {
+                return FheSplit {
+                    parts: vec![empty_fhe_string],
+                    number_parts: self.create_n(1),
+                    current_index: 0,
+                }
+            }
+            _ if s.content.len() == 0 && pattern.len() == 0 => {
+                return FheSplit {
+                    parts: vec![empty_fhe_string],
+                    number_parts: self.create_n(1),
+                    current_index: 0,
+                }
+            }
+            FheStrLength::Clear(0) => {
+                return FheSplit {
+                    parts: vec![],
+                    number_parts: self.create_n(0),
+                    current_index: 0,
+                }
+            }
+            _ if s.content.len() == 0 => {
+                return FheSplit {
+                    parts: vec![],
+                    number_parts: self.create_n(0),
+                    current_index: 0,
+                }
+            }
+            FheStrLength::Clear(clear_length) if *clear_length < pattern.len() => {
+                return FheSplit {
+                    parts: vec![s.clone()],
+                    number_parts: self.create_n(1),
+                    current_index: 0,
+                }
+            }
+            _ if s.content.len() < pattern.len() => {
+                return FheSplit {
+                    parts: vec![s.clone()],
+                    number_parts: self.create_n(1),
+                    current_index: 0,
+                }
+            }
+            _ => (),
+        }
+        match s.padding {
+            _ if pattern.len() == 0 => self.rpadding_pair_dispatch(s, s, |s1, s2| {
+                self.rsplit_terminator_empty_pattern(s1, s2)
+            }),
+            Padding::None | Padding::Final => {
+                self.rsplit_terminator_clear_final_padding(s, pattern)
+            }
+            _ => {
+                self.rsplit_terminator_clear_final_padding(&self.remove_initial_padding(s), pattern)
+            }
         }
     }
 
@@ -609,11 +703,7 @@ impl StringServerKey {
         }
     }
 
-    pub fn rsplit_clear_final_padding(
-        &self,
-        s: &FheString,
-        pattern: &str,
-    ) -> FheSplit {
+    pub fn rsplit_clear_final_padding(&self, s: &FheString, pattern: &str) -> FheSplit {
         // Compute the maximum number of parts of the result.
         let maximum_number_of_parts = match &s.length {
             ClearOrEncrypted::Clear(length) => *length + 1,
@@ -627,7 +717,7 @@ impl StringServerKey {
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
 
-        let decrement_search_from = (pattern.len() -1) as u64;
+        let decrement_search_from = (pattern.len() - 1) as u64;
 
         for i in 0..maximum_number_of_parts {
             let start_pattern: RadixCiphertext;
@@ -635,18 +725,17 @@ impl StringServerKey {
                 let search_from = self.integer_key.cmux_parallelized(
                     &self
                         .integer_key
-                        .scalar_ge_parallelized(&end_part, decrement_search_from ),
+                        .scalar_ge_parallelized(&end_part, decrement_search_from),
                     &self
                         .integer_key
-                        .scalar_sub_parallelized(&end_part, decrement_search_from ),
+                        .scalar_sub_parallelized(&end_part, decrement_search_from),
                     &zero.clone(),
                 );
 
                 (found, start_pattern) =
                     self.rfind_clear_from_final_padding(s, pattern, &search_from);
             } else {
-                (found, start_pattern) =
-                    self.rfind_clear_from_final_padding(s, pattern, &end_part);
+                (found, start_pattern) = self.rfind_clear_from_final_padding(s, pattern, &end_part);
             }
 
             // Increment `number_parts` if the pattern is found.
@@ -655,7 +744,9 @@ impl StringServerKey {
 
             let start_part = self.integer_key.cmux_parallelized(
                 &found,
-                &self.integer_key.scalar_add_parallelized(&start_pattern, pattern.len() as u64),
+                &self
+                    .integer_key
+                    .scalar_add_parallelized(&start_pattern, pattern.len() as u64),
                 &zero,
             );
 
@@ -691,9 +782,8 @@ impl StringServerKey {
 
         for i in 0..maximum_number_of_parts {
             let start_pattern: RadixCiphertext;
-	    
-            (found, start_pattern) =
-                self.rfind_char_from_final_padding(s, pattern, &end_part);
+
+            (found, start_pattern) = self.rfind_char_from_final_padding(s, pattern, &end_part);
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
@@ -717,8 +807,8 @@ impl StringServerKey {
             current_index: 0,
         }
     }
-    
-    pub fn rsplit_terminator_encrypted_final_padding_allow_empty_pattern(
+
+    pub fn old_rsplit_terminator_encrypted_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
         pattern: &FheString,
@@ -808,6 +898,265 @@ impl StringServerKey {
         }
     }
 
+    pub fn rsplit_terminator_encrypted_final_padding_allow_empty_pattern(
+        &self,
+        s: &FheString,
+        pattern: &FheString,
+    ) -> FheSplit {
+        // Compute the maximum number of parts of the result.
+        let maximum_number_of_parts = match &s.length {
+            ClearOrEncrypted::Clear(length) => *length + 1,
+            _ => s.content.len() + 1,
+        };
+        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+        let zero = self.create_zero();
+        let mut number_parts = self.is_not_empty_encrypted(&s); // The result has at least 1 part if s is non-empty 0 otherwise.
+
+        // `end_part` holds the index of the end of the current part.
+        let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
+        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let decrement_search_from = self.integer_key.cmux_parallelized(
+            &empty_pattern,
+            &zero.clone(),
+            &self.sub_scalar_to_length(&pattern.length, 1),
+        );
+
+        let (mut found, mut start_pattern) =
+            self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
+        let has_trailing_empty_string = self.integer_key.bitand_parallelized(
+            &found,
+            &self.integer_key.eq_parallelized(
+                &self.add_length_to_radix(&start_pattern, &pattern.length),
+                &self.add_length_to_radix(&self.create_zero(), &s.length),
+            ),
+        );
+        let mut search_from = self.integer_key.cmux_parallelized(
+            &has_trailing_empty_string,
+            &self.integer_key.cmux_parallelized(
+                &self
+                    .integer_key
+                    .ge_parallelized(&start_pattern, &decrement_search_from),
+                &self
+                    .integer_key
+                    .sub_parallelized(&start_pattern, &decrement_search_from),
+                &zero,
+            ),
+            &end_part,
+        );
+        end_part = self.integer_key.cmux_parallelized(
+            &has_trailing_empty_string,
+            &start_pattern,
+            &end_part,
+        );
+        // let mut start_part = self.integer_key.cmux_parallelized(
+        //     &has_trailing_empty_string,
+        //     ,
+        //     &start_part,
+        // )
+        for i in 0..maximum_number_of_parts {
+            if i > 0 {
+                search_from = self.integer_key.cmux_parallelized(
+                    &self
+                        .integer_key
+                        .ge_parallelized(&end_part, &decrement_search_from),
+                    &self
+                        .integer_key
+                        .sub_parallelized(&end_part, &decrement_search_from),
+                    &zero.clone(),
+                );
+
+                (found, start_pattern) =
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &search_from);
+            } else {
+                (found, start_pattern) =
+                    self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &search_from);
+            }
+
+            let start_part = self.integer_key.cmux_parallelized(
+                &found,
+                &self.add_length_to_radix(&start_pattern, &pattern.length),
+                &zero,
+            );
+            // Increment `number_parts` if the pattern is found.
+            self.integer_key
+                .add_assign_parallelized(&mut number_parts, &found);
+
+            parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+            end_part = self
+                .integer_key
+                .cmux_parallelized(&found, &start_pattern, &zero);
+        }
+
+        // Count parts when the pattern is empty
+        number_parts = self.integer_key.cmux_parallelized(
+            &empty_pattern,
+            &self.add_length_scalar(&s.length, 1),
+            &number_parts,
+        );
+
+        FheSplit {
+            parts: parts,
+            number_parts: number_parts,
+            current_index: 0,
+        }
+    }
+
+    pub fn rsplit_terminator_clear_final_padding(&self, s: &FheString, pattern: &str) -> FheSplit {
+        // Compute the maximum number of parts of the result.
+        let maximum_number_of_parts = match &s.length {
+            ClearOrEncrypted::Clear(length) => *length,
+            _ => s.content.len(),
+        };
+        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+        let zero = self.create_zero();
+        let mut number_parts = self.is_not_empty_encrypted(&s); // The result has at least 1 part if s is non-empty 0 otherwise.
+
+        // `end_part` holds the index of the end of the current part.
+        let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
+        let decrement_search_from = (pattern.len() - 1) as u64;
+        //	let initial_decrement_search_from = (pattern.len() - 1) as u64;
+
+        let (mut found, mut start_pattern) =
+            self.rfind_clear_from_final_padding(s, pattern, &end_part);
+        let has_trailing_empty_string = self.integer_key.bitand_parallelized(
+            &found,
+            &self.integer_key.eq_parallelized(
+                &self
+                    .integer_key
+                    .scalar_add_parallelized(&start_pattern, pattern.len() as u64),
+                &self.add_length_to_radix(&self.create_zero(), &s.length),
+            ),
+        );
+
+        let mut search_from = self.integer_key.cmux_parallelized(
+            &has_trailing_empty_string,
+            &self.integer_key.cmux_parallelized(
+                &self
+                    .integer_key
+                    .scalar_ge_parallelized(&start_pattern, decrement_search_from),
+                &self
+                    .integer_key
+                    .scalar_sub_parallelized(&start_pattern, decrement_search_from),
+                &zero,
+            ),
+            &end_part,
+        );
+
+        end_part = self.integer_key.cmux_parallelized(
+            &has_trailing_empty_string,
+            &start_pattern,
+            &end_part,
+        );
+
+        // let mut start_part = self.integer_key.cmux_parallelized(
+        //     &has_trailing_empty_string,
+        //     ,
+        //     &start_part,
+        // )
+        for i in 0..maximum_number_of_parts {
+            if i > 0 {
+                search_from = self.integer_key.cmux_parallelized(
+                    &self
+                        .integer_key
+                        .scalar_ge_parallelized(&end_part, decrement_search_from),
+                    &self
+                        .integer_key
+                        .scalar_sub_parallelized(&end_part, decrement_search_from),
+                    &zero.clone(),
+                );
+
+                (found, start_pattern) =
+                    self.rfind_clear_from_final_padding(s, pattern, &search_from);
+            } else {
+                (found, start_pattern) =
+                    self.rfind_clear_from_final_padding(s, pattern, &search_from);
+            }
+
+            let start_part = self.integer_key.cmux_parallelized(
+                &found,
+                &self
+                    .integer_key
+                    .scalar_add_parallelized(&start_pattern, pattern.len() as u64),
+                &zero,
+            );
+            // Increment `number_parts` if the pattern is found.
+            self.integer_key
+                .add_assign_parallelized(&mut number_parts, &found);
+
+            parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+            end_part = self
+                .integer_key
+                .cmux_parallelized(&found, &start_pattern, &zero);
+        }
+
+        FheSplit {
+            parts: parts,
+            number_parts: number_parts,
+            current_index: 0,
+        }
+    }
+
+    pub fn rsplit_terminator_char_final_padding(
+        &self,
+        s: &FheString,
+        pattern: &impl FheCharPattern,
+    ) -> FheSplit {
+        // Compute the maximum number of parts of the result.
+        let maximum_number_of_parts = match &s.length {
+            ClearOrEncrypted::Clear(length) => *length,
+            _ => s.content.len(),
+        };
+        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+        let zero = self.create_zero();
+        let mut number_parts = self.is_not_empty_encrypted(&s); // The result has at least 1 part if s is non-empty 0 otherwise.
+
+        // `end_part` holds the index of the end of the current part.
+        let mut end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
+
+        let (mut found, mut start_pattern) =
+            self.rfind_char_from_final_padding(s, pattern, &end_part);
+        let has_trailing_empty_string = self.integer_key.bitand_parallelized(
+            &found,
+            &self.integer_key.eq_parallelized(
+                &self.integer_key.scalar_add_parallelized(&start_pattern, 1),
+                &self.add_length_to_radix(&self.create_zero(), &s.length),
+            ),
+        );
+        end_part = self.integer_key.cmux_parallelized(
+            &has_trailing_empty_string,
+            &start_pattern,
+            &end_part,
+        );
+        // let mut start_part = self.integer_key.cmux_parallelized(
+        //     &has_trailing_empty_string,
+        //     ,
+        //     &start_part,
+        // )
+        for i in 0..maximum_number_of_parts {
+            (found, start_pattern) = self.rfind_char_from_final_padding(s, pattern, &end_part);
+
+            let start_part = self.integer_key.cmux_parallelized(
+                &found,
+                &self.integer_key.scalar_add_parallelized(&start_pattern, 1),
+                &zero,
+            );
+            // Increment `number_parts` if the pattern is found.
+            self.integer_key
+                .add_assign_parallelized(&mut number_parts, &found);
+
+            parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
+            end_part = self
+                .integer_key
+                .cmux_parallelized(&found, &start_pattern, &zero);
+        }
+
+        FheSplit {
+            parts: parts,
+            number_parts: number_parts,
+            current_index: 0,
+        }
+    }
+
     // pub fn rsplit_encrypted_final_padding_allow_empty_pattern(
     //     &self,
     //     s: &FheString,
@@ -876,23 +1225,44 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    test_fhe_split_string_pattern!(rsplit, "", "");
-    test_fhe_split_string_pattern!(rsplit, "", "ab");
-    test_fhe_split_string_pattern!(rsplit, "acbc", "c");
-    test_fhe_split_string_pattern!(rsplit, "acbccbcbcbc", "cbc");
-    test_fhe_split_string_pattern!(rsplit, "aczb", "");
-    test_fhe_split_string_pattern!(rsplit, "aaaaa", "a");
-    test_fhe_split_string_pattern!(rsplit, "axbx", "x");
-    test_fhe_split_string_pattern!(rsplit, "ab", "ab");
-    test_fhe_split_string_pattern!(rsplit, "abab", "ab");
-    
-    test_fhe_split_char_pattern!(rsplit, "", 'a');
-    test_fhe_split_char_pattern!(rsplit, "a", 'a');
-    test_fhe_split_char_pattern!(rsplit, "acbc", 'c');
-    test_fhe_split_char_pattern!(rsplit, "cccc", 'c');
-    test_fhe_split_char_pattern!(rsplit, "cabd", 'a');
-    test_fhe_split_char_pattern!(rsplit, "acb", 'c');
-    
+    test_fhe_split_string_pattern!(rsplit, "", "e");
+    // test_fhe_split_string_pattern!(rsplit, "", "");
+    // test_fhe_split_string_pattern!(rsplit, "", "ab");
+    // test_fhe_split_string_pattern!(rsplit, "acbc", "c");
+    // test_fhe_split_string_pattern!(rsplit, "acbccbcbcbc", "cbc");
+    // test_fhe_split_string_pattern!(rsplit, "aczb", "");
+    // test_fhe_split_string_pattern!(rsplit, "aaaaa", "a");
+    // test_fhe_split_string_pattern!(rsplit, "axbx", "x");
+    // test_fhe_split_string_pattern!(rsplit, "ab", "ab");
+    // test_fhe_split_string_pattern!(rsplit, "abab", "ab");
+
+    // test_fhe_split_char_pattern!(rsplit, "", 'a');
+    // test_fhe_split_char_pattern!(rsplit, "a", 'a');
+    // test_fhe_split_char_pattern!(rsplit, "acbc", 'c');
+    // test_fhe_split_char_pattern!(rsplit, "cccc", 'c');
+    // test_fhe_split_char_pattern!(rsplit, "cabd", 'a');
+    // test_fhe_split_char_pattern!(rsplit, "acb", 'c');
+
+    test_fhe_split_string_pattern!(rsplit_terminator, "", "e");
+    test_fhe_split_string_pattern!(rsplit_terminator, "", "");
+    test_fhe_split_string_pattern!(rsplit_terminator, "", "ab");
+    test_fhe_split_string_pattern!(rsplit_terminator, "acbc", "c");
+    test_fhe_split_string_pattern!(rsplit_terminator, "cbca", "c");
+    test_fhe_split_string_pattern!(rsplit_terminator, "acbc", "bc");
+    test_fhe_split_string_pattern!(rsplit_terminator, "acbccbcbcbc", "cbc");
+    test_fhe_split_string_pattern!(rsplit_terminator, "aczb", "");
+    test_fhe_split_string_pattern!(rsplit_terminator, "aaaaa", "a");
+    test_fhe_split_string_pattern!(rsplit_terminator, "axbx", "x");
+    test_fhe_split_string_pattern!(rsplit_terminator, "ab", "ab");
+    test_fhe_split_string_pattern!(rsplit_terminator, "abab", "ab");
+
+    test_fhe_split_char_pattern!(rsplit_terminator, "", 'a');
+    test_fhe_split_char_pattern!(rsplit_terminator, "a", 'a');
+    test_fhe_split_char_pattern!(rsplit_terminator, "acbc", 'c');
+    test_fhe_split_char_pattern!(rsplit_terminator, "cccc", 'c');
+    test_fhe_split_char_pattern!(rsplit_terminator, "cabd", 'a');
+    test_fhe_split_char_pattern!(rsplit_terminator, "cacb", 'c');
+
     // pub fn test_rsplit(
     //     client_key: &StringClientKey,
     //     server_key: &StringServerKey,
@@ -1007,8 +1377,8 @@ mod tests {
     //     let std_rsplit: Vec<String> = s.rsplitn(n, pattern).map(|s| String::from(s)).collect();
     //     let encrypted_s = client_key.encrypt_str_padding(s, 3).unwrap();
     //     let encrypted_pattern = client_key.encrypt_str_padding(pattern, 3).unwrap();
-    //     let fhe_rsplit = server_key.rsplit_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
-    //     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
+    //     let fhe_rsplit = server_key.rsplit_clear_n_encrypted(n, &encrypted_s,
+    // &encrypted_pattern);     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
     //     let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(std_rsplit.len() as usize)]
     //         .iter()
     //         .map(|s| client_key.decrypt_string(s).unwrap())
@@ -1031,8 +1401,8 @@ mod tests {
     //     let encrypted_pattern = client_key
     //         .encrypt_str_padding(pattern, pattern_padding)
     //         .unwrap();
-    //     let fhe_rsplit = server_key.rsplit_clear_n_encrypted(n, &encrypted_s, &encrypted_pattern);
-    //     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
+    //     let fhe_rsplit = server_key.rsplit_clear_n_encrypted(n, &encrypted_s,
+    // &encrypted_pattern);     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
     //     let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(std_rsplit.len() as usize)]
     //         .iter()
     //         .map(|s| client_key.decrypt_string(s).unwrap())
@@ -1053,8 +1423,8 @@ mod tests {
     //     let encrypted_pattern = client_key.encrypt_str_random_padding(pattern, 2).unwrap();
     //     let encrypted_n = server_key.create_n(n as u8);
     //     let fhe_rsplit =
-    //         server_key.rsplit_encrypted_n_encrypted(&encrypted_n, &encrypted_s, &encrypted_pattern);
-    //     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
+    //         server_key.rsplit_encrypted_n_encrypted(&encrypted_n, &encrypted_s,
+    // &encrypted_pattern);     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
     //     let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(std_rsplit.len() as usize)]
     //         .iter()
     //         .map(|s| client_key.decrypt_string(s).unwrap())
@@ -1081,8 +1451,8 @@ mod tests {
     //         .unwrap();
     //     let encrypted_n = server_key.create_n(n as u8);
     //     let fhe_rsplit =
-    //         server_key.rsplit_encrypted_n_encrypted(&encrypted_n, &encrypted_s, &encrypted_pattern);
-    //     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
+    //         server_key.rsplit_encrypted_n_encrypted(&encrypted_n, &encrypted_s,
+    // &encrypted_pattern);     let clear_len = client_key.decrypt_u8(&fhe_rsplit.number_parts);
     //     let clear_rsplit: Vec<String> = fhe_rsplit.parts[..(std_rsplit.len() as usize)]
     //         .iter()
     //         .map(|s| client_key.decrypt_string(s).unwrap())
@@ -1113,15 +1483,16 @@ mod tests {
     //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 2);
     //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 2, 0);
     //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len(), s, pattern, 0, 0);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 2);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 2);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2, 0);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 0, 0);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 2);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 2);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 2, 0);
-    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0, 0);
-    // }
+    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s, pattern, 2,
+    // 2);     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 1, s,
+    // pattern, 0, 2);     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len()
+    // + 1, s, pattern, 2, 0);     test_rsplit_encrypted_n_with_padding(client_key, server_key,
+    // s.len() + 1, s, pattern, 0, 0);     test_rsplit_encrypted_n_with_padding(client_key,
+    // server_key, s.len() + 4, s, pattern, 2, 2);
+    //     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s, pattern, 0,
+    // 2);     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len() + 4, s,
+    // pattern, 2, 0);     test_rsplit_encrypted_n_with_padding(client_key, server_key, s.len()
+    // + 4, s, pattern, 0, 0); }
 
     // pub fn full_test_rsplit_clear_n(
     //     client_key: &StringClientKey,

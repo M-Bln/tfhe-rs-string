@@ -28,6 +28,15 @@ impl StringServerKey {
             _ => self.create_zero(),
         }
     }
+    pub fn is_not_empty_encrypted(&self, s: &FheString) -> RadixCiphertext {
+        match &s.length {
+            ClearOrEncrypted::Encrypted(encrypted_length) => {
+                self.integer_key.scalar_ne_parallelized(encrypted_length, 0)
+            }
+            ClearOrEncrypted::Clear(0) => self.create_zero(),
+            _ => self.create_n(1),
+        }
+    }
 }
 
 #[cfg(test)]
