@@ -105,6 +105,10 @@ impl StringClientKey {
         self.integer_key.decrypt::<u8>(&encrypted_int)
     }
 
+    pub fn encrypt_u8(&self, n: u8) -> RadixCiphertext {
+        self.integer_key.encrypt(n)
+    }
+
     pub fn decrypt_fhe_ascii_vec(&self, s: &FheString) -> Vec<u8> {
         s.content
             .iter()

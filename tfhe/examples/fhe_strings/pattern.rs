@@ -1,4 +1,5 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::integer_arg::FheIntegerArg;
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
@@ -37,6 +38,13 @@ pub trait FhePattern {
     fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
 
     fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
+
+    fn splitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit;
 
     fn is_contained_in(
         &self,
@@ -138,6 +146,15 @@ impl FhePattern for &str {
 
     fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.rsplit_terminator_clear(s, self)
+    }
+
+    fn splitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit {
+        server_key.splitn_clear_string(n, s, self)
     }
 }
 
@@ -276,6 +293,15 @@ impl FhePattern for FheString {
     fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.rsplit_terminator_encrypted(s, self)
     }
+
+    fn splitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit {
+        server_key.splitn_encrypted_string(n, s, self)
+    }
 }
 
 pub trait FheCharPattern {
@@ -383,6 +409,18 @@ pub trait FheCharPattern {
         Self: Sized,
     {
         server_key.rsplit_terminator_char(s, self)
+    }
+
+    fn char_splitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit
+    where
+        Self: Sized,
+    {
+        server_key.splitn_char(n, s, self)
     }
 
     fn char_find_in(
@@ -502,6 +540,15 @@ impl<T: FheCharPattern> FhePattern for T {
 
     fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         self.char_rsplit_terminator_string(server_key, s)
+    }
+
+    fn splitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit {
+        self.char_splitn_string(server_key, n, s)
     }
 }
 

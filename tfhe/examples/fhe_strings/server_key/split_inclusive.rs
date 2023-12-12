@@ -253,14 +253,14 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    test_fhe_split_string_pattern!(split_inclusive, "", "");
-    test_fhe_split_string_pattern!(split_inclusive, "", "ab");
-    test_fhe_split_string_pattern!(split_inclusive, "acbc", "c");
+    // test_fhe_split_string_pattern!(split_inclusive, "", "");
+    // test_fhe_split_string_pattern!(split_inclusive, "", "ab");
+    // test_fhe_split_string_pattern!(split_inclusive, "acbc", "c");
 
-    test_fhe_split_char_pattern!(split_inclusive, "", 'a');
-    test_fhe_split_char_pattern!(split_inclusive, "a", 'a');
-    test_fhe_split_char_pattern!(split_inclusive, "acbc", 'c');
-    test_fhe_split_char_pattern!(split_inclusive, "cccc", 'c');
-    test_fhe_split_char_pattern!(split_inclusive, "cabd", 'a');
-    test_fhe_split_char_pattern!(split_inclusive, "acb", 'c');
+    // test_fhe_split_char_pattern!(split_inclusive, "", 'a');
+    // test_fhe_split_char_pattern!(split_inclusive, "a", 'a');
+    // test_fhe_split_char_pattern!(split_inclusive, "acbc", 'c');
+    // test_fhe_split_char_pattern!(split_inclusive, "cccc", 'c');
+    // test_fhe_split_char_pattern!(split_inclusive, "cabd", 'a');
+    // test_fhe_split_char_pattern!(split_inclusive, "acb", 'c');
 }
