@@ -1,6 +1,7 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::server_key::StringServerKey;
 use crate::pattern::FhePattern;
+use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     pub fn replace(&self, s: &FheString, old_pattern: &impl FhePattern, new: &FheString) -> FheString {

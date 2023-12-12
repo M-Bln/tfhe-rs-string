@@ -1,6 +1,7 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
+use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     pub fn add(&self, mut s1: FheString, pattern: &impl FhePattern) -> FheString {
@@ -78,6 +79,21 @@ impl StringServerKey {
 	match fhe_length {
 	    FheStrLength::Clear(clear_length) => FheStrLength::Clear(clear_length + n),
 	    FheStrLength::Encrypted(encrypted_length) => FheStrLength::Encrypted(self.integer_key.scalar_add_parallelized(encrypted_length, n as u32)),
+	}
+    }
+
+
+    pub fn add_radix_to_length(&self, fhe_length: &FheStrLength, n: &RadixCiphertext) -> FheStrLength{
+	match fhe_length {
+	    FheStrLength::Clear(clear_length) => FheStrLength::Encrypted(self.integer_key.scalar_add_parallelized(n, *clear_length as u32)),
+	    FheStrLength::Encrypted(encrypted_length) => FheStrLength::Encrypted(self.integer_key.add_parallelized(encrypted_length, n )),
+	}
+    }
+
+    pub fn mult_length_by_radix(&self, fhe_length: &FheStrLength, n: &RadixCiphertext) -> FheStrLength{
+	match fhe_length {
+	    FheStrLength::Clear(clear_length) => FheStrLength::Encrypted(self.integer_key.scalar_mul_parallelized(n, *clear_length as u32)),
+	    FheStrLength::Encrypted(encrypted_length) => FheStrLength::Encrypted(self.integer_key.mul_parallelized(encrypted_length, n )),
 	}
     }
 }
