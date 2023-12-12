@@ -495,3 +495,82 @@ macro_rules! test_fhe_split_char_pattern {
         }
     };
 }
+
+
+#[macro_export]
+macro_rules! test_fhe_string_string_pattern {
+    ($method: ident, $string_arg: expr, $old_pattern_arg: expr, $new_string_arg: expr) => {
+        paste::item! {
+
+    	    // #[test]
+    	    // fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
+    	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+            //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+            //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
+	    // 	compare_result!(FheString, std_result, fhe_result);
+    	    // }
+
+	    // #[test]
+    	    // fn [<"test_" $method "_" $string_arg "_padding_2_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
+    	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+            //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
+            //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
+	    // 	compare_result!(FheString, std_result, fhe_result);
+    	    // }
+
+	    #[test]
+    	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_encrypted_" $new_string_arg>]() {
+    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
+                let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new);
+		compare_result!(FheString, std_result, fhe_result);
+    	    }
+
+	    #[test]
+    	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_encrypted_padding_2_" $new_string_arg>]() {
+    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+		let encrypted_new = CLIENT_KEY.encrypt_str_random_padding(&$new_string_arg,2).unwrap();
+                let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new);
+		compare_result!(FheString, std_result, fhe_result);
+    	    }
+
+	    // #[test]
+    	    // fn [<"test_" $method "_" $string_arg "_padding_2_clear_string_" $old_pattern_arg "_encrypted_" $new_string_arg>]() {
+    	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+            //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
+            //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
+	    // 	compare_result!(FheString, std_result, fhe_result);
+    	    // }
+
+
+    	    // #[test]
+    	    // fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
+    	    // 	let std_result = $string_arg.$method($pattern_arg);
+            //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+    	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+ 	    // 	compare_result!(FheString, std_result, fhe_result);
+    	    // }
+
+    	    // #[test]
+    	    // fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
+    	    // 	let std_result = $string_arg.$method($pattern_arg);
+            //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+    	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+	    // 	compare_result!(FheString, std_result, fhe_result);
+    	    // }
+
+    	    // #[test]
+    	    // fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
+    	    // 	let std_result = $string_arg.$method($pattern_arg);
+            //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+    	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+	    // 	compare_result!(FheString, std_result, fhe_result);
+    	    // }
+        }
+    };
+}

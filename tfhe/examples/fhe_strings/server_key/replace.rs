@@ -74,8 +74,8 @@ mod tests {
         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
-
     test_fhe_string_string_pattern!(replace, "abc", "b", "lul");
+    test_fhe_string_string_pattern!(replace, "abc", "b", "l");
     // test_fhe_string_string_pattern!(add, "ab", "");
     // test_fhe_string_string_pattern!(add, "aezfb", "cdfzefzef");
     // test_fhe_string_string_pattern!(add, "", "cd");
