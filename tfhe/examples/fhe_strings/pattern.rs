@@ -46,6 +46,13 @@ pub trait FhePattern {
         s: &FheString,
     ) -> FheSplit;
 
+    fn rsplitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit;
+
     fn is_contained_in(
         &self,
         server_key: &StringServerKey,
@@ -155,6 +162,15 @@ impl FhePattern for &str {
         s: &FheString,
     ) -> FheSplit {
         server_key.splitn_clear_string(n, s, self)
+    }
+
+    fn rsplitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit {
+        server_key.rsplitn_clear_string(n, s, self)
     }
 }
 
@@ -302,6 +318,15 @@ impl FhePattern for FheString {
     ) -> FheSplit {
         server_key.splitn_encrypted_string(n, s, self)
     }
+
+    fn rsplitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit {
+        server_key.rsplitn_encrypted_string(n, s, self)
+    }
 }
 
 pub trait FheCharPattern {
@@ -421,6 +446,18 @@ pub trait FheCharPattern {
         Self: Sized,
     {
         server_key.splitn_char(n, s, self)
+    }
+
+    fn char_rsplitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit
+    where
+        Self: Sized,
+    {
+        server_key.rsplitn_char(n, s, self)
     }
 
     fn char_find_in(
@@ -549,6 +586,15 @@ impl<T: FheCharPattern> FhePattern for T {
         s: &FheString,
     ) -> FheSplit {
         self.char_splitn_string(server_key, n, s)
+    }
+
+    fn rsplitn_string(
+        &self,
+        server_key: &StringServerKey,
+        n: &impl FheIntegerArg,
+        s: &FheString,
+    ) -> FheSplit {
+        self.char_rsplitn_string(server_key, n, s)
     }
 }
 

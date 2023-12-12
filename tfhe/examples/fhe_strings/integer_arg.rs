@@ -25,6 +25,27 @@ pub trait FheIntegerArg {
         haystack: &FheString,
         pattern: &impl FheCharPattern,
     ) -> FheSplit;
+
+    fn rsplitn_encrypted_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &FheString,
+    ) -> FheSplit;
+
+    fn rsplitn_clear_string_pattern(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &str,
+    ) -> FheSplit;
+
+    fn rsplitn_char_pattern(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &impl FheCharPattern,
+    ) -> FheSplit;
 }
 
 impl FheIntegerArg for u32 {
@@ -54,6 +75,33 @@ impl FheIntegerArg for u32 {
     ) -> FheSplit {
         server_key.split_clear_n_char(*self as usize, haystack, pattern)
     }
+
+    fn rsplitn_encrypted_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &FheString,
+    ) -> FheSplit {
+        server_key.rsplit_clear_n_encrypted_string(*self as usize, haystack, pattern)
+    }
+
+    fn rsplitn_clear_string_pattern(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &str,
+    ) -> FheSplit {
+        server_key.rsplit_clear_n_clear_string(*self as usize, haystack, pattern)
+    }
+
+    fn rsplitn_char_pattern(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &impl FheCharPattern,
+    ) -> FheSplit {
+        server_key.rsplit_clear_n_char(*self as usize, haystack, pattern)
+    }
 }
 
 impl FheIntegerArg for RadixCiphertext {
@@ -82,5 +130,32 @@ impl FheIntegerArg for RadixCiphertext {
         pattern: &impl FheCharPattern,
     ) -> FheSplit {
         server_key.split_encrypted_n_char(self, haystack, pattern)
+    }
+
+    fn rsplitn_encrypted_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &FheString,
+    ) -> FheSplit {
+        server_key.rsplit_encrypted_n_encrypted_string(self, haystack, pattern)
+    }
+
+    fn rsplitn_clear_string_pattern(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &str,
+    ) -> FheSplit {
+        server_key.rsplit_encrypted_n_clear_string(self, haystack, pattern)
+    }
+
+    fn rsplitn_char_pattern(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+        pattern: &impl FheCharPattern,
+    ) -> FheSplit {
+        server_key.rsplit_encrypted_n_char(self, haystack, pattern)
     }
 }

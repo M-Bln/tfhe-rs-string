@@ -28,6 +28,7 @@ impl StringServerKey {
             ),
         }
     }
+
     pub fn padding_dispatch<F>(&self, s: &FheString, f: F) -> FheSplit
     where
         F: Fn(&FheString) -> FheSplit,
@@ -40,6 +41,7 @@ impl StringServerKey {
     pub fn split(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
         pattern.split_string(self, s)
     }
+
     pub fn split_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
             ClearOrEncrypted::Clear(0) => {
@@ -969,21 +971,43 @@ mod tests {
     test_splitn_string_pattern!(splitn, 1, "", "");
     test_splitn_string_pattern!(splitn, 2, "", "");
     test_splitn_string_pattern!(splitn, 3, "", "");
-    // test_splitn_string_pattern!(splitn, 0, "", "ab");
-    // test_splitn_string_pattern!(splitn, 1, "", "ab");
-    // test_splitn_string_pattern!(splitn, 2, "", "ab");
-    // test_splitn_string_pattern!(splitn, 3, "", "ab");
-    // test_splitn_string_pattern!(splitn, 0, "acbc", "c");
-    // test_splitn_string_pattern!(splitn, 1, "acbc", "c");
-    // test_splitn_string_pattern!(splitn, 2, "acbc", "c");
-    // test_splitn_string_pattern!(splitn, 3, "acbc", "c");
-    // test_splitn_string_pattern!(splitn, 4, "acbc", "c");
+    test_splitn_string_pattern!(splitn, 0, "", "ab");
+    test_splitn_string_pattern!(splitn, 1, "", "ab");
+    test_splitn_string_pattern!(splitn, 2, "", "ab");
+    test_splitn_string_pattern!(splitn, 3, "", "ab");
+    test_splitn_string_pattern!(splitn, 0, "ab", "ab");
+    test_splitn_string_pattern!(splitn, 1, "ab", "ab");
+    test_splitn_string_pattern!(splitn, 2, "ab", "ab");
+    test_splitn_string_pattern!(splitn, 3, "ab", "ab");
+    test_splitn_string_pattern!(splitn, 0, "abc", "ab");
+    test_splitn_string_pattern!(splitn, 1, "abc", "ab");
+    test_splitn_string_pattern!(splitn, 2, "abc", "ab");
+    test_splitn_string_pattern!(splitn, 3, "abc", "ab");
+    test_splitn_string_pattern!(splitn, 0, "abab", "ab");
+    test_splitn_string_pattern!(splitn, 1, "abab", "ab");
+    test_splitn_string_pattern!(splitn, 2, "abab", "ab");
+    test_splitn_string_pattern!(splitn, 3, "abab", "ab");
+    test_splitn_string_pattern!(splitn, 0, "abcab", "ab");
+    test_splitn_string_pattern!(splitn, 1, "abcab", "ab");
+    test_splitn_string_pattern!(splitn, 2, "abcab", "ab");
+    test_splitn_string_pattern!(splitn, 3, "abcab", "ab");
+    test_splitn_string_pattern!(splitn, 0, "cab", "ab");
+    test_splitn_string_pattern!(splitn, 1, "cab", "ab");
+    test_splitn_string_pattern!(splitn, 2, "cab", "ab");
+    test_splitn_string_pattern!(splitn, 3, "cab", "ab");
+    test_splitn_string_pattern!(splitn, 0, "acbc", "c");
+    test_splitn_string_pattern!(splitn, 1, "acbc", "c");
+    test_splitn_string_pattern!(splitn, 2, "acbc", "c");
+    test_splitn_string_pattern!(splitn, 3, "acbc", "c");
+    test_splitn_string_pattern!(splitn, 4, "acbc", "c");
     test_splitn_string_pattern!(splitn, 0, "acbc", "");
     test_splitn_string_pattern!(splitn, 1, "acbc", "");
     test_splitn_string_pattern!(splitn, 2, "acbc", "");
     test_splitn_string_pattern!(splitn, 3, "acbc", "");
     test_splitn_string_pattern!(splitn, 4, "acbc", "");
-
+    test_splitn_string_pattern!(splitn, 5, "acbc", "");
+    test_splitn_string_pattern!(splitn, 6, "acbc", "");
+    test_splitn_string_pattern!(splitn, 7, "acbc", "");
     // test_splitn_char_pattern!(splitn, 0, "acbc", 'c');
     // test_splitn_char_pattern!(splitn, 1, "acbc", 'c');
     // test_splitn_char_pattern!(splitn, 2, "acbc", 'c');
