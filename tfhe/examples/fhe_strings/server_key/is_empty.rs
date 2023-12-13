@@ -9,6 +9,9 @@ pub enum FheBool {
 }
 
 impl StringServerKey {
+    pub fn len<'a>(&self, s: &'a FheString) -> &'a FheStrLength {
+        s.len()
+    }
     pub fn is_empty(&self, s: &FheString) -> FheBool {
         match &s.length {
             FheStrLength::Clear(0) => FheBool::Clear(true),
