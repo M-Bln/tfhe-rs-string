@@ -196,10 +196,46 @@ impl StringServerKey {
             result_content.push(FheAsciiChar(new_char_content));
         }
 
+        let padding_result = match s.padding {
+            Padding::None | Padding::Initial => Padding::Initial,
+            Padding::Final => Padding::InitialAndFinal,
+            _ => Padding::Anywhere,
+        };
+
         FheString {
             content: result_content,
-            padding: s.padding,
+            padding: padding_result,
             length: self.length_of_final_slice_encrypted_range(&s.length, start),
+        }
+    }
+    pub fn cmux_empty_string(
+        &self,
+        condition: &RadixCiphertext,
+        if_string: &FheString,
+    ) -> FheString {
+        let mut content_result: Vec<FheAsciiChar> = Vec::with_capacity(if_string.content.len());
+        let zero = self.create_zero();
+        for c in if_string.content.iter() {
+            content_result.push(FheAsciiChar(
+                self.integer_key.cmux_parallelized(condition, &c.0, &zero),
+            ));
+        }
+        let encrypted_length_result = match if_string.len() {
+            FheStrLength::Clear(clear_length) => self
+                .integer_key
+                .scalar_mul_parallelized(condition, *clear_length as u32),
+            FheStrLength::Encrypted(encrypted_length) => self
+                .integer_key
+                .mul_parallelized(condition, encrypted_length),
+        };
+        let padding_result = match if_string.padding {
+            Padding::None => Padding::Final,
+            if_string_padding => if_string_padding,
+        };
+        FheString {
+            content: content_result,
+            length: FheStrLength::Encrypted(encrypted_length_result),
+            padding: padding_result,
         }
     }
 

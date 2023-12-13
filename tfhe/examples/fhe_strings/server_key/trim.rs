@@ -1,6 +1,6 @@
 use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::server_key::StringServerKey;
 use crate::client_key::ConversionError;
+use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 pub const ASCII_WHITE_SPACE: u8 = 32;
@@ -21,14 +21,14 @@ impl StringServerKey {
     }
 
     pub fn server_encrypt_str(&self, s: &str) -> Result<FheString, ConversionError> {
-        self.server_encrypt_ascii_vec(
-            &s.as_bytes().to_vec(),
-        )
+        self.server_encrypt_ascii_vec(&s.as_bytes().to_vec())
     }
-    
+
     pub fn server_encrypt_ascii_char(&self, n: char) -> FheAsciiChar {
-        FheAsciiChar( self.integer_key
-		      .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), n as u8))
+        FheAsciiChar(
+            self.integer_key
+                .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), n as u8),
+        )
     }
 
     pub fn server_encrypt_ascii_vec(

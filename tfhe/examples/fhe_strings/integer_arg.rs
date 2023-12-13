@@ -46,6 +46,8 @@ pub trait FheIntegerArg {
         haystack: &FheString,
         pattern: &impl FheCharPattern,
     ) -> FheSplit;
+
+    fn add_one(&self, server_key: &StringServerKey) -> Self;
 }
 
 impl FheIntegerArg for u32 {
@@ -102,6 +104,10 @@ impl FheIntegerArg for u32 {
     ) -> FheSplit {
         server_key.rsplit_clear_n_char(*self as usize, haystack, pattern)
     }
+
+    fn add_one(&self, server_key: &StringServerKey) -> Self {
+        *self + 1
+    }
 }
 
 impl FheIntegerArg for RadixCiphertext {
@@ -157,5 +163,9 @@ impl FheIntegerArg for RadixCiphertext {
         pattern: &impl FheCharPattern,
     ) -> FheSplit {
         server_key.rsplit_encrypted_n_char(self, haystack, pattern)
+    }
+
+    fn add_one(&self, server_key: &StringServerKey) -> Self {
+        server_key.integer_key.scalar_add_parallelized(self, 1)
     }
 }

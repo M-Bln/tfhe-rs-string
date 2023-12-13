@@ -134,10 +134,13 @@ impl StringServerKey {
                 self.integer_key.cmux_parallelized(&in_range, &c.0, &zero);
             result_content.push(FheAsciiChar(new_char_content));
         }
-
+        let result_padding = match s.padding {
+            Padding::Anywhere => Padding::Anywhere,
+            _ => Padding::InitialAndFinal,
+        };
         FheString {
             content: result_content,
-            padding: s.padding,
+            padding: result_padding,
             length: self.length_of_slice_encrypted_range(&s.length, start, end),
         }
     }
