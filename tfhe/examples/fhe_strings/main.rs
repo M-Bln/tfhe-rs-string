@@ -6,9 +6,10 @@ mod server_key;
 mod test_generating_macros;
 mod timing_macros;
 
-use crate::ciphertext::{gen_keys_test, FheStrLength, FheString};
+use crate::ciphertext::{gen_keys_test, FheStrLength, FheString, ClearOrEncrypted};
 use crate::client_key::StringClientKey;
-use crate::server_key::StringServerKey;
+use crate::server_key::{StringServerKey};
+use crate::server_key::is_empty::FheBool;
 //use crate::{time_function};
 use clap::Parser;
 use lazy_static::lazy_static;
@@ -61,6 +62,8 @@ fn main() {
         };
     }
 
+
+    
     time_function!(trim);
     time_function!(trim_start);
     time_function!(trim_end);
@@ -69,4 +72,11 @@ fn main() {
 
     time_len_no_padding!(len, encrypted_s, clear_s);
     time_len_padding!(len, encrypted_s_padding, clear_s, padding_zeros);
+
+    time_is_empty_no_padding!(is_empty, encrypted_s, clear_s);
+    time_is_empty_padding!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
+
+    time_fhe_split_no_padding!(split_ascii_whitespace, encrypted_s, clear_s);
+    time_fhe_split_padding!(split_ascii_whitespace,  encrypted_s_padding, clear_s, padding_zeros);
+    
 }
