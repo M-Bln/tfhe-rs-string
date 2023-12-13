@@ -17,6 +17,8 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> RadixCiphertext;
 
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
+
     fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
 
     fn find_in(
@@ -72,6 +74,11 @@ pub trait FhePattern {
 }
 
 impl FhePattern for &str {
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        let encrypted_self = server_key.server_encrypt_str(self).unwrap();
+        server_key.insert_in_fhe_split_result_padded_anywhere(fhe_split, &encrypted_self)
+    }
+
     fn is_prefix_of_slice(
         &self,
         server_key: &StringServerKey,
@@ -181,6 +188,10 @@ impl FhePattern for &str {
 }
 
 impl FhePattern for FheString {
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        server_key.insert_in_fhe_split_result_padded_anywhere(fhe_split, self)
+    }
+
     fn is_prefix_of_slice(
         &self,
         server_key: &StringServerKey,
@@ -353,6 +364,8 @@ pub trait FheCharPattern {
         self.fhe_eq(server_key, &haystack_slice[0])
     }
 
+    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
+
     fn char_is_prefix_of_string(
         &self,
         server_key: &StringServerKey,
@@ -504,6 +517,11 @@ impl FheCharPattern for char {
         server_key.add_clear_char(s, *self)
     }
 
+    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        let encrypted_self = server_key.server_encrypt_ascii_char(*self);
+        server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, &encrypted_self)
+    }
+
     // fn char_find_in(
     //     &self,
     //     server_key: &StringServerKey,
@@ -528,6 +546,10 @@ impl FheCharPattern for FheAsciiChar {
 
     fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
         server_key.add_encrypted_char(s, self)
+    }
+
+    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, self)
     }
 
     // fn char_find_in(
@@ -569,6 +591,10 @@ impl<T: FheCharPattern> FhePattern for T {
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         self.char_find_in(server_key, haystack)
+    }
+
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        self.char_insert_in(server_key, fhe_split)
     }
 
     fn rfind_in(

@@ -562,6 +562,24 @@ macro_rules! test_fhe_string_string_pattern {
 		compare_result!(FheString, std_result, fhe_result);
     	    }
 
+
+	    #[test]
+    	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_padding_0_clear_" $new_string_arg>]() {
+    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
+		compare_result!(FheString, std_result, fhe_result);
+    	    }
+
+
+	    #[test]
+    	    fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_padding_0_clear_" $new_string_arg>]() {
+    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
+                let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
+		compare_result!(FheString, std_result, fhe_result);
+    	    }
+
 	    // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
