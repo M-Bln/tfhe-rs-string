@@ -1,4 +1,5 @@
 use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::client_key::ConversionError;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -17,6 +18,34 @@ impl StringServerKey {
     pub fn create_n(&self, n: u8) -> RadixCiphertext {
         self.integer_key
             .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), n)
+    }
+
+    pub fn server_encrypt_str(&self, s: &str) -> Result<FheString, ConversionError> {
+        self.server_encrypt_ascii_vec(&s.as_bytes().to_vec())
+    }
+
+    pub fn server_encrypt_ascii_char(&self, n: char) -> FheAsciiChar {
+        FheAsciiChar(
+            self.integer_key
+                .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), n as u8),
+        )
+    }
+
+    pub fn server_encrypt_ascii_vec(
+        &self,
+        ascii_vec: &Vec<u8>,
+    ) -> Result<FheString, ConversionError> {
+        if ascii_vec.iter().any(|c| !c.is_ascii()) {
+            return Err(ConversionError::NonAsciiCharacters);
+        }
+        Ok(FheString {
+            content: ascii_vec
+                .iter()
+                .map(|c| self.server_encrypt_ascii_char(*c as char))
+                .collect(),
+            padding: Padding::None,
+            length: FheStrLength::Clear(ascii_vec.len()),
+        })
     }
 
     pub fn add_radix_length(

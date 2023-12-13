@@ -6,6 +6,7 @@ mod contains;
 mod find;
 mod is_empty;
 mod repeat;
+mod replace;
 mod rsplit;
 mod rsplitn;
 pub mod split;

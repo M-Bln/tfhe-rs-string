@@ -17,6 +17,10 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> RadixCiphertext;
 
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
+
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
+
     fn find_in(
         &self,
         server_key: &StringServerKey,
@@ -70,6 +74,11 @@ pub trait FhePattern {
 }
 
 impl FhePattern for &str {
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        let encrypted_self = server_key.server_encrypt_str(self).unwrap();
+        server_key.insert_in_fhe_split_result_padded_anywhere(fhe_split, &encrypted_self)
+    }
+
     fn is_prefix_of_slice(
         &self,
         server_key: &StringServerKey,
@@ -135,6 +144,10 @@ impl FhePattern for &str {
         server_key.rfind_clear_string(haystack, self)
     }
 
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        server_key.add_clear(s, self)
+    }
+
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
         server_key.split_clear(s, self)
     }
@@ -175,6 +188,10 @@ impl FhePattern for &str {
 }
 
 impl FhePattern for FheString {
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        server_key.insert_in_fhe_split_result_padded_anywhere(fhe_split, self)
+    }
+
     fn is_prefix_of_slice(
         &self,
         server_key: &StringServerKey,
@@ -282,6 +299,10 @@ impl FhePattern for FheString {
         server_key.find_string(haystack, self)
     }
 
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        server_key.add_encrypted(s, self)
+    }
+
     fn rfind_in(
         &self,
         server_key: &StringServerKey,
@@ -343,6 +364,8 @@ pub trait FheCharPattern {
         self.fhe_eq(server_key, &haystack_slice[0])
     }
 
+    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
+
     fn char_is_prefix_of_string(
         &self,
         server_key: &StringServerKey,
@@ -400,6 +423,8 @@ pub trait FheCharPattern {
         }
         result
     }
+
+    fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
 
     fn char_split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
     where
@@ -488,6 +513,15 @@ impl FheCharPattern for char {
         server_key.eq_clear_char(c, *self as u8)
     }
 
+    fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        server_key.add_clear_char(s, *self)
+    }
+
+    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        let encrypted_self = server_key.server_encrypt_ascii_char(*self);
+        server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, &encrypted_self)
+    }
+
     // fn char_find_in(
     //     &self,
     //     server_key: &StringServerKey,
@@ -508,6 +542,14 @@ impl FheCharPattern for char {
 impl FheCharPattern for FheAsciiChar {
     fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> RadixCiphertext {
         server_key.eq_char(c, &self)
+    }
+
+    fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        server_key.add_encrypted_char(s, self)
+    }
+
+    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, self)
     }
 
     // fn char_find_in(
@@ -551,12 +593,20 @@ impl<T: FheCharPattern> FhePattern for T {
         self.char_find_in(server_key, haystack)
     }
 
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        self.char_insert_in(server_key, fhe_split)
+    }
+
     fn rfind_in(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
     ) -> (RadixCiphertext, RadixCiphertext) {
         self.char_rfind_in(server_key, haystack)
+    }
+
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        self.char_push_to(server_key, s)
     }
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
