@@ -4,6 +4,31 @@ use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
+/// Creates a method with 3 arguments `&self, server_key, s`, that just calls a specified method
+/// of `server_key`.
+macro_rules! forward_to_server_key_method {
+    ( $method:ident, $server_key_method: ident, $return_type:ty ) => {
+        fn $method(&self, server_key: &StringServerKey, s: &FheString) -> $return_type {
+            server_key.$server_key_method(s, self)
+        }
+    };
+}
+
+/// Creates a method with 4 arguments `&self, server_key, n, s`, that just calls a specified method
+/// of `server_key`.
+macro_rules! forward_splitn_to_server_key {
+    ( $method:ident, $server_key_method: ident ) => {
+        fn $method(
+            &self,
+            server_key: &StringServerKey,
+            n: &impl FheIntegerArg,
+            s: &FheString,
+        ) -> FheSplit {
+            server_key.$server_key_method(n, s, self)
+        }
+    };
+}
+
 pub trait FhePattern {
     fn is_prefix_of_slice(
         &self,
@@ -79,6 +104,10 @@ impl FhePattern for &str {
         server_key.insert_in_fhe_split_result_padded_anywhere(fhe_split, &encrypted_self)
     }
 
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        server_key.add_clear(s, self)
+    }
+
     fn is_prefix_of_slice(
         &self,
         server_key: &StringServerKey,
@@ -120,76 +149,34 @@ impl FhePattern for &str {
         }
     }
 
-    fn is_contained_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> RadixCiphertext {
-        server_key.contains_clear_string(haystack, self)
-    }
+    forward_to_server_key_method!(
+        find_in,
+        find_clear_string,
+        (RadixCiphertext, RadixCiphertext)
+    );
+    forward_to_server_key_method!(
+        rfind_in,
+        rfind_clear_string,
+        (RadixCiphertext, RadixCiphertext)
+    );
+    forward_to_server_key_method!(is_contained_in, contains_clear_string, RadixCiphertext);
+    forward_to_server_key_method!(split_string, split_clear, FheSplit);
+    forward_to_server_key_method!(split_inclusive_string, split_inclusive_clear, FheSplit);
+    forward_to_server_key_method!(split_terminator_string, split_terminator_clear, FheSplit);
+    forward_to_server_key_method!(rsplit_string, rsplit_clear, FheSplit);
+    forward_to_server_key_method!(rsplit_terminator_string, rsplit_terminator_clear, FheSplit);
 
-    fn find_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.find_clear_string(haystack, self)
-    }
-
-    fn rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.rfind_clear_string(haystack, self)
-    }
-
-    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
-        server_key.add_clear(s, self)
-    }
-
-    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.split_clear(s, self)
-    }
-
-    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.split_inclusive_clear(s, self)
-    }
-
-    fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.split_terminator_clear(s, self)
-    }
-
-    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.rsplit_clear(s, self)
-    }
-
-    fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.rsplit_terminator_clear(s, self)
-    }
-
-    fn splitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit {
-        server_key.splitn_clear_string(n, s, self)
-    }
-
-    fn rsplitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit {
-        server_key.rsplitn_clear_string(n, s, self)
-    }
+    forward_splitn_to_server_key!(splitn_string, splitn_clear_string);
+    forward_splitn_to_server_key!(rsplitn_string, rsplitn_clear_string);
 }
 
 impl FhePattern for FheString {
     fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
         server_key.insert_in_fhe_split_result_padded_anywhere(fhe_split, self)
+    }
+
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        server_key.add_encrypted(s, self)
     }
 
     fn is_prefix_of_slice(
@@ -283,105 +270,35 @@ impl FhePattern for FheString {
         }
     }
 
-    fn is_contained_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> RadixCiphertext {
-        server_key.contains_string(haystack, self)
-    }
+    forward_to_server_key_method!(find_in, find_string, (RadixCiphertext, RadixCiphertext));
+    forward_to_server_key_method!(rfind_in, rfind_string, (RadixCiphertext, RadixCiphertext));
+    forward_to_server_key_method!(is_contained_in, contains_string, RadixCiphertext);
+    forward_to_server_key_method!(split_string, split_encrypted, FheSplit);
+    forward_to_server_key_method!(rsplit_string, rsplit_encrypted, FheSplit);
+    forward_to_server_key_method!(split_inclusive_string, split_inclusive_encrypted, FheSplit);
+    forward_to_server_key_method!(
+        split_terminator_string,
+        split_terminator_encrypted,
+        FheSplit
+    );
+    forward_to_server_key_method!(
+        rsplit_terminator_string,
+        rsplit_terminator_encrypted,
+        FheSplit
+    );
 
-    fn find_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.find_string(haystack, self)
-    }
-
-    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
-        server_key.add_encrypted(s, self)
-    }
-
-    fn rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        server_key.rfind_string(haystack, self)
-    }
-
-    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.split_encrypted(s, self)
-    }
-
-    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.split_inclusive_encrypted(s, self)
-    }
-
-    fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.split_terminator_encrypted(s, self)
-    }
-
-    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.rsplit_encrypted(s, self)
-    }
-
-    fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        server_key.rsplit_terminator_encrypted(s, self)
-    }
-
-    fn splitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit {
-        server_key.splitn_encrypted_string(n, s, self)
-    }
-
-    fn rsplitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit {
-        server_key.rsplitn_encrypted_string(n, s, self)
-    }
+    forward_splitn_to_server_key!(splitn_string, splitn_encrypted_string);
+    forward_splitn_to_server_key!(rsplitn_string, rsplitn_encrypted_string);
 }
 
 pub trait FheCharPattern {
     fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> RadixCiphertext;
 
-    fn char_is_prefix_of_slice(
-        &self,
-        server_key: &StringServerKey,
-        haystack_slice: &[FheAsciiChar],
-    ) -> RadixCiphertext {
-        if haystack_slice.len() == 0 {
-            return server_key.create_zero();
-        }
-        self.fhe_eq(server_key, &haystack_slice[0])
-    }
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
 
-    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
 
-    fn char_is_prefix_of_string(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> RadixCiphertext {
-        match haystack.padding {
-            Padding::None | Padding::Final => {
-                self.char_is_prefix_of_slice(server_key, &haystack.content)
-            }
-            Padding::Initial | Padding::InitialAndFinal => {
-                self.char_is_prefix_of_connected_string(server_key, haystack)
-            }
-            Padding::Anywhere => self.char_is_prefix_of_string_any_padding(server_key, haystack),
-        }
-    }
-    fn char_is_prefix_of_connected_string(
+    fn is_prefix_of_connected_string(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
@@ -401,7 +318,7 @@ pub trait FheCharPattern {
         result
     }
 
-    fn char_is_prefix_of_string_any_padding(
+    fn is_prefix_of_string_any_padding(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
@@ -423,89 +340,54 @@ pub trait FheCharPattern {
         }
         result
     }
+}
 
-    fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
-
-    fn char_split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.split_char(s, self)
+impl<T: FheCharPattern> FhePattern for T {
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+        FheCharPattern::insert_in(self, server_key, fhe_split)
     }
 
-    fn char_split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.split_inclusive_char(s, self)
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+        FheCharPattern::push_to(self, server_key, s)
     }
 
-    fn char_split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.split_terminator_char(s, self)
-    }
-
-    fn char_rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.rsplit_char(s, self)
-    }
-
-    fn char_rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.rsplit_terminator_char(s, self)
-    }
-
-    fn char_splitn_string(
+    fn is_prefix_of_slice(
         &self,
         server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.splitn_char(n, s, self)
+        haystack_slice: &[FheAsciiChar],
+    ) -> RadixCiphertext {
+        if haystack_slice.len() == 0 {
+            return server_key.create_zero();
+        }
+        self.fhe_eq(server_key, &haystack_slice[0])
     }
 
-    fn char_rsplitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit
-    where
-        Self: Sized,
-    {
-        server_key.rsplitn_char(n, s, self)
-    }
-
-    fn char_find_in(
+    fn is_prefix_of_string(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext)
-    where
-        Self: Sized,
-    {
-        server_key.find_char(haystack, self)
+    ) -> RadixCiphertext {
+        match haystack.padding {
+            Padding::None | Padding::Final => {
+                self.is_prefix_of_slice(server_key, &haystack.content)
+            }
+            Padding::Initial | Padding::InitialAndFinal => {
+                self.is_prefix_of_connected_string(server_key, haystack)
+            }
+            Padding::Anywhere => self.is_prefix_of_string_any_padding(server_key, haystack),
+        }
     }
 
-    fn char_rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext)
-    where
-        Self: Sized,
-    {
-        server_key.rfind_char(haystack, self)
-    }
+    forward_to_server_key_method!(find_in, find_char, (RadixCiphertext, RadixCiphertext));
+    forward_to_server_key_method!(rfind_in, rfind_char, (RadixCiphertext, RadixCiphertext));
+    forward_to_server_key_method!(split_string, split_char, FheSplit);
+    forward_to_server_key_method!(rsplit_string, rsplit_char, FheSplit);
+    forward_to_server_key_method!(split_inclusive_string, split_inclusive_char, FheSplit);
+    forward_to_server_key_method!(split_terminator_string, split_terminator_char, FheSplit);
+    forward_to_server_key_method!(rsplit_terminator_string, rsplit_terminator_char, FheSplit);
+
+    forward_splitn_to_server_key!(splitn_string, splitn_char);
+    forward_splitn_to_server_key!(rsplitn_string, rsplitn_char);
 }
 
 impl FheCharPattern for char {
@@ -513,30 +395,14 @@ impl FheCharPattern for char {
         server_key.eq_clear_char(c, *self as u8)
     }
 
-    fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
         server_key.add_clear_char(s, *self)
     }
 
-    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
+    fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
         let encrypted_self = server_key.server_encrypt_ascii_char(*self);
         server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, &encrypted_self)
     }
-
-    // fn char_find_in(
-    //     &self,
-    //     server_key: &StringServerKey,
-    //     haystack: &FheString,
-    // ) -> (RadixCiphertext, RadixCiphertext) {
-    //     server_key.find_char(haystack, self)
-    // }
-
-    // fn char_rfind_in(
-    //     &self,
-    //     server_key: &StringServerKey,
-    //     haystack: &FheString,
-    // ) -> (RadixCiphertext, RadixCiphertext) {
-    //     server_key.rfind_char(haystack, self)
-    // }
 }
 
 impl FheCharPattern for FheAsciiChar {
@@ -544,107 +410,12 @@ impl FheCharPattern for FheAsciiChar {
         server_key.eq_char(c, &self)
     }
 
-    fn char_push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
+    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
         server_key.add_encrypted_char(s, self)
     }
 
-    fn char_insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
-        server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, self)
-    }
-
-    // fn char_find_in(
-    //     &self,
-    //     server_key: &StringServerKey,
-    //     haystack: &FheString,
-    // ) -> (RadixCiphertext, RadixCiphertext) {
-    //     server_key.find_char(haystack, self)
-    // }
-
-    // fn char_rfind_in(
-    //     &self,
-    //     server_key: &StringServerKey,
-    //     haystack: &FheString,
-    // ) -> (RadixCiphertext, RadixCiphertext) {
-    //     server_key.rfind_char(haystack, self)
-    // }
-}
-
-impl<T: FheCharPattern> FhePattern for T {
-    fn is_prefix_of_slice(
-        &self,
-        server_key: &StringServerKey,
-        haystack_slice: &[FheAsciiChar],
-    ) -> RadixCiphertext {
-        self.char_is_prefix_of_slice(server_key, haystack_slice)
-    }
-    fn is_prefix_of_string(
-        &self,
-        server_key: &StringServerKey,
-        haystack_slice: &FheString,
-    ) -> RadixCiphertext {
-        self.char_is_prefix_of_string(server_key, haystack_slice)
-    }
-
-    fn find_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        self.char_find_in(server_key, haystack)
-    }
-
     fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
-        self.char_insert_in(server_key, fhe_split)
-    }
-
-    fn rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
-        self.char_rfind_in(server_key, haystack)
-    }
-
-    fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
-        self.char_push_to(server_key, s)
-    }
-
-    fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        self.char_split_string(server_key, s)
-    }
-
-    fn split_inclusive_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        self.char_split_inclusive_string(server_key, s)
-    }
-
-    fn split_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        self.char_split_terminator_string(server_key, s)
-    }
-
-    fn rsplit_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        self.char_rsplit_string(server_key, s)
-    }
-
-    fn rsplit_terminator_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit {
-        self.char_rsplit_terminator_string(server_key, s)
-    }
-
-    fn splitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit {
-        self.char_splitn_string(server_key, n, s)
-    }
-
-    fn rsplitn_string(
-        &self,
-        server_key: &StringServerKey,
-        n: &impl FheIntegerArg,
-        s: &FheString,
-    ) -> FheSplit {
-        self.char_rsplitn_string(server_key, n, s)
+        server_key.insert_char_in_fhe_split_result_padded_anywhere(fhe_split, self)
     }
 }
 
