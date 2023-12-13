@@ -1,3 +1,4 @@
+
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::pattern::FhePattern;
