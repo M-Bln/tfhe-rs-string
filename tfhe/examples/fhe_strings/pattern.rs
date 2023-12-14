@@ -42,6 +42,22 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> RadixCiphertext;
 
+    fn strip_prefix_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, FheString);
+
+    fn strip_suffix_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, FheString) {
+        let (striped, reversed_result) =
+            self.strip_prefix_in(server_key, &server_key.reverse_string_content(haystack));
+        (striped, server_key.reverse_string_content(&reversed_result))
+    }
+
     fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
 
     fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
@@ -149,6 +165,22 @@ impl FhePattern for &str {
         }
     }
 
+    fn strip_suffix_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, FheString) {
+        let reversed_string = self.chars().rev().collect::<String>();
+        let reversed_self = reversed_string.as_str();
+        let (striped, reversed_result) =
+            reversed_self.strip_prefix_in(server_key, &server_key.reverse_string_content(haystack));
+        (striped, server_key.reverse_string_content(&reversed_result))
+    }
+
+    // fn strip_prefix_in(&self, server_key: &StringServerKey, haystack: &FheString) -> FheString {
+    // 	server_key.strip_clear_prefix(haystack, self)
+    // }
+
     forward_to_server_key_method!(
         find_in,
         find_clear_string,
@@ -158,6 +190,11 @@ impl FhePattern for &str {
         rfind_in,
         rfind_clear_string,
         (RadixCiphertext, RadixCiphertext)
+    );
+    forward_to_server_key_method!(
+        strip_prefix_in,
+        strip_clear_prefix,
+        (RadixCiphertext, FheString)
     );
     forward_to_server_key_method!(is_contained_in, contains_clear_string, RadixCiphertext);
     forward_to_server_key_method!(split_string, split_clear, FheSplit);
@@ -270,6 +307,26 @@ impl FhePattern for FheString {
         }
     }
 
+    fn strip_suffix_in(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> (RadixCiphertext, FheString) {
+        let (striped, reversed_result) = server_key
+            .reverse_string_content(self)
+            .strip_prefix_in(server_key, &server_key.reverse_string_content(haystack));
+        (striped, server_key.reverse_string_content(&reversed_result))
+    }
+
+    // fn strip_prefix_in(&self, server_key: &StringServerKey, haystack: &FheString) ->(Radix
+    // FheString { 	server_key.strip_encrypted_prefix(self, haystack)
+    // }
+
+    forward_to_server_key_method!(
+        strip_prefix_in,
+        strip_encrypted_prefix,
+        (RadixCiphertext, FheString)
+    );
     forward_to_server_key_method!(find_in, find_string, (RadixCiphertext, RadixCiphertext));
     forward_to_server_key_method!(rfind_in, rfind_string, (RadixCiphertext, RadixCiphertext));
     forward_to_server_key_method!(is_contained_in, contains_string, RadixCiphertext);
@@ -378,6 +435,11 @@ impl<T: FheCharPattern> FhePattern for T {
         }
     }
 
+    forward_to_server_key_method!(
+        strip_prefix_in,
+        strip_char_prefix,
+        (RadixCiphertext, FheString)
+    );
     forward_to_server_key_method!(find_in, find_char, (RadixCiphertext, RadixCiphertext));
     forward_to_server_key_method!(rfind_in, rfind_char, (RadixCiphertext, RadixCiphertext));
     forward_to_server_key_method!(split_string, split_char, FheSplit);

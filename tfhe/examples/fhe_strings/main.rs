@@ -36,6 +36,10 @@ struct Arguments {
     integer_arg: Option<usize>,
 
     /// Padding
+    #[clap(default_value_t = 5, short, long)]
+    max_number_repeatition: usize,
+
+    /// Padding
     #[clap(default_value_t = 2, short, long)]
     padding_zeros: usize,
 }
@@ -49,10 +53,17 @@ lazy_static! {
 fn main() {
     let arguments = Arguments::parse();
     let clear_s = arguments.input_string;
+    let clear_pattern = arguments.pattern;
     let padding_zeros = arguments.padding_zeros;
+
     let encrypted_s = CLIENT_KEY.encrypt_str(&clear_s).unwrap();
     let encrypted_s_padding = CLIENT_KEY
         .encrypt_str_padding(&clear_s, padding_zeros)
+        .unwrap();
+
+    let encrypted_pattern = CLIENT_KEY.encrypt_str(&clear_pattern).unwrap();
+    let encrypted_pattern_padded = CLIENT_KEY
+        .encrypt_str_padding(&clear_pattern, padding_zeros)
         .unwrap();
 
     macro_rules! apply_time_function_twice {
@@ -62,23 +73,42 @@ fn main() {
         };
     }
 
-    apply_time_function_twice!(trim);
-    apply_time_function_twice!(trim_start);
-    apply_time_function_twice!(trim_end);
-    apply_time_function_twice!(to_lowercase);
-    apply_time_function_twice!(to_uppercase);
+    macro_rules! apply_time_function_string_pattern_padding_combinations {
+        ($method: ident) => {
+            time_function_string_pattern!($method, encrypted_s, clear_s, clear_pattern);
+            time_function_string_pattern!(
+                $method,
+                encrypted_s_padding,
+                padding_zeros,
+                clear_s,
+                clear_pattern
+            );
+            //time_function_string_pattern!($method, encrypted_s_padding, clear_s,
+            // encrypted_pattern_padded, clear_pattern, padding_zeros);
+            // time_function_string_pattern!($method, encrypted_s_padding, clear_s,
+            // encrypted_pattern_padded, clear_pattern, padding_zeros, padding_zeros);
+        };
+    }
 
-    time_len!(len, encrypted_s, clear_s);
-    time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
+    //apply_time_function_string_pattern_padding_combinations!(strip_prefix);
 
-    time_is_empty!(is_empty, encrypted_s, clear_s);
-    time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
+    // apply_time_function_twice!(trim);
+    // apply_time_function_twice!(trim_start);
+    // apply_time_function_twice!(trim_end);
+    // apply_time_function_twice!(to_lowercase);
+    // apply_time_function_twice!(to_uppercase);
 
-    time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
-    time_fhe_split!(
-        split_ascii_whitespace,
-        encrypted_s_padding,
-        clear_s,
-        padding_zeros
-    );
+    // time_len!(len, encrypted_s, clear_s);
+    // time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
+
+    // time_is_empty!(is_empty, encrypted_s, clear_s);
+    // time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
+
+    // time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
+    // time_fhe_split!(
+    //     split_ascii_whitespace,
+    //     encrypted_s_padding,
+    //     clear_s,
+    //     padding_zeros
+    // );
 }
