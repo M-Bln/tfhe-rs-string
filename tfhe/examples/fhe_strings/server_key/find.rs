@@ -87,14 +87,14 @@ impl StringServerKey {
 
         match (s.padding, pattern.padding) {
             (Padding::Anywhere, Padding::None | Padding::Final) => {
-                self.connected_find_unpadded_string(&self.remove_initial_padding(s), pattern)
+                self.connected_find_unpadded_string(&self.push_padding_to_end(s), pattern)
             }
             (Padding::Anywhere, _) => self.connected_find_unpadded_string(
-                &self.remove_initial_padding(s),
-                &self.remove_initial_padding(pattern),
+                &self.push_padding_to_end(s),
+                &self.push_padding_to_end(pattern),
             ),
             (_, Padding::None | Padding::Final) => self.connected_find_unpadded_string(s, pattern),
-            _ => self.connected_find_unpadded_string(s, &self.remove_initial_padding(pattern)),
+            _ => self.connected_find_unpadded_string(s, &self.push_padding_to_end(pattern)),
         }
     }
 
@@ -114,7 +114,7 @@ impl StringServerKey {
 
         match s.padding {
             Padding::Anywhere => {
-                self.connected_find_clear_string(&self.remove_initial_padding(s), pattern)
+                self.connected_find_clear_string(&self.push_padding_to_end(s), pattern)
             }
             _ => self.connected_find_clear_string(s, pattern),
         }
@@ -136,7 +136,7 @@ impl StringServerKey {
 
         match s.padding {
             Padding::Anywhere => {
-                self.connected_rfind_clear_string(&self.remove_initial_padding(s), pattern)
+                self.connected_rfind_clear_string(&self.push_padding_to_end(s), pattern)
             }
             _ => self.connected_rfind_clear_string(s, pattern),
         }
@@ -335,14 +335,14 @@ impl StringServerKey {
 
         match (s.padding, pattern.padding) {
             (Padding::Anywhere, Padding::None | Padding::Final) => {
-                self.connected_rfind_unpadded_string(&self.remove_initial_padding(s), pattern)
+                self.connected_rfind_unpadded_string(&self.push_padding_to_end(s), pattern)
             }
             (Padding::Anywhere, _) => self.connected_rfind_unpadded_string(
-                &self.remove_initial_padding(s),
-                &self.remove_initial_padding(pattern),
+                &self.push_padding_to_end(s),
+                &self.push_padding_to_end(pattern),
             ),
             (_, Padding::None | Padding::Final) => self.connected_rfind_unpadded_string(s, pattern),
-            _ => self.connected_rfind_unpadded_string(s, &self.remove_initial_padding(pattern)),
+            _ => self.connected_rfind_unpadded_string(s, &self.push_padding_to_end(pattern)),
         }
     }
 

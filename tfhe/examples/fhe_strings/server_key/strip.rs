@@ -65,7 +65,7 @@ impl StringServerKey {
         }
         match s.padding {
             Padding::None | Padding::Final => self.strip_char_prefix_no_init_padding(s, prefix),
-            _ => self.strip_char_prefix_no_init_padding(&self.remove_initial_padding(s), prefix),
+            _ => self.strip_char_prefix_no_init_padding(&self.push_padding_to_end(s), prefix),
             //  _ => self.strip_char_prefix_any_padding(s, prefix), TODO
         }
     }
@@ -117,14 +117,14 @@ impl StringServerKey {
                 self.strip_encrypted_prefix_no_init_padding(s, prefix)
             }
             (Padding::None | Padding::Final, _) => {
-                self.strip_encrypted_prefix_no_init_padding(s, &self.remove_initial_padding(prefix))
+                self.strip_encrypted_prefix_no_init_padding(s, &self.push_padding_to_end(prefix))
             }
             (_, Padding::None | Padding::Final) => {
-                self.strip_encrypted_prefix_no_init_padding(&self.remove_initial_padding(s), prefix)
+                self.strip_encrypted_prefix_no_init_padding(&self.push_padding_to_end(s), prefix)
             }
             _ => self.strip_encrypted_prefix_no_init_padding(
-                &self.remove_initial_padding(s),
-                &self.remove_initial_padding(prefix),
+                &self.push_padding_to_end(s),
+                &self.push_padding_to_end(prefix),
             ),
         }
     }
@@ -139,7 +139,7 @@ impl StringServerKey {
         }
         match s.padding {
             Padding::None | Padding::Final => self.strip_clear_prefix_no_init_padding(s, prefix),
-            _ => self.strip_clear_prefix_no_init_padding(&self.remove_initial_padding(s), prefix),
+            _ => self.strip_clear_prefix_no_init_padding(&self.push_padding_to_end(s), prefix),
         }
     }
 

@@ -157,7 +157,7 @@ impl StringServerKey {
         );
         match result.padding {
             Padding::None | Padding::Final => self.erase_after(result, total_length),
-            _ => self.erase_after(self.remove_initial_padding(&result), total_length),
+            _ => self.erase_after(self.push_padding_to_end(&result), total_length),
         }
     }
 

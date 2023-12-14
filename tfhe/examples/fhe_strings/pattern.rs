@@ -160,7 +160,7 @@ impl FhePattern for &str {
             }
             _ => self.is_prefix_of_slice(
                 server_key,
-                &server_key.remove_initial_padding(haystack).content,
+                &server_key.push_padding_to_end(haystack).content,
             ),
         }
     }
@@ -259,7 +259,7 @@ impl FhePattern for FheString {
                 }
             }
             _ => {
-                let unpadded_needle = server_key.remove_initial_padding(self);
+                let unpadded_needle = server_key.push_padding_to_end(self);
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
                     let match_or_end_needle = server_key.integer_key.bitor_parallelized(
                         &server_key.eq_char(&haystack[n], &unpadded_needle.content[n]),
@@ -302,7 +302,7 @@ impl FhePattern for FheString {
             }
             _ => self.is_prefix_of_slice(
                 server_key,
-                &server_key.remove_initial_padding(haystack).content,
+                &server_key.push_padding_to_end(haystack).content,
             ),
         }
     }

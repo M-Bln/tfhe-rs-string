@@ -61,7 +61,7 @@ impl StringServerKey {
             content: c
                 .content
                 .iter()
-                .map(|c| self.to_lowercase_char(c))
+                .map(|c| self.to_lowercase_cmux_char(c))
                 .collect(),
             padding: c.padding,
             length: c.length.clone(),
@@ -77,11 +77,12 @@ mod tests {
     use lazy_static::lazy_static;
 
     lazy_static! {
-        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_big_int();
+        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
+ 
     // #[test]
     // fn test_to_upper_fhe() {
     //     let encrypted_str = CLIENT_KEY.encrypt_str("aB.").unwrap();
@@ -90,13 +91,13 @@ mod tests {
     //     assert_eq!(&decrypted_str_upper, "AB.");
     // }
 
-    // #[test]
-    // fn test_to_lower_fhe() {
-    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("BC", 0).unwrap();
-    //     let encrypted_str_lower = SERVER_KEY.to_lowercase(&encrypted_str);
-    //     let decrypted_str_lower = CLIENT_KEY.decrypt_string(&encrypted_str_lower).unwrap();
-    //     assert_eq!(&decrypted_str_lower, "bc");
-    // }
+    #[test]
+    fn test_to_lower_fhe() {
+        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("BC", 0).unwrap();
+        let encrypted_str_lower = SERVER_KEY.to_lowercase(&encrypted_str);
+        let decrypted_str_lower = CLIENT_KEY.decrypt_string(&encrypted_str_lower).unwrap();
+        assert_eq!(&decrypted_str_lower, "bc");
+    }
 
     // #[test]
     // fn test_integer_size() {

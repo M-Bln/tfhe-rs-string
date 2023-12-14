@@ -1,6 +1,7 @@
 mod accessors;
 mod add;
 mod change_case;
+mod change_padding;
 mod comparisons;
 mod contains;
 mod find;

@@ -12,11 +12,11 @@ impl StringServerKey {
     {
         match (s1.padding, s2.padding) {
             (Padding::None | Padding::Initial, Padding::None | Padding::Initial) => f(s1, s2),
-            (Padding::None | Padding::Initial, _) => f(s1, &self.remove_final_padding(s2)),
-            (_, Padding::None | Padding::Initial) => f(&self.remove_final_padding(s1), s2),
+            (Padding::None | Padding::Initial, _) => f(s1, &self.push_padding_to_start(s2)),
+            (_, Padding::None | Padding::Initial) => f(&self.push_padding_to_start(s1), s2),
             _ => f(
-                &self.remove_final_padding(s1),
-                &self.remove_final_padding(s2),
+                &self.push_padding_to_start(s1),
+                &self.push_padding_to_start(s2),
             ),
         }
     }
@@ -66,14 +66,14 @@ impl StringServerKey {
                 self.rpadding_pair_dispatch(s, s, |s1, s2| self.rsplit_empty_pattern(s1, s2))
             }
             Padding::None | Padding::Final => self.rsplit_clear_final_padding(s, pattern),
-            _ => self.rsplit_clear_final_padding(&self.remove_initial_padding(s), pattern),
+            _ => self.rsplit_clear_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
     pub fn rsplit_char(&self, s: &FheString, pattern: &impl FheCharPattern) -> FheSplit {
         match s.padding {
             Padding::None | Padding::Final => self.rsplit_char_final_padding(s, pattern),
-            _ => self.rsplit_char_final_padding(&self.remove_initial_padding(s), pattern),
+            _ => self.rsplit_char_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
@@ -98,7 +98,7 @@ impl StringServerKey {
         match s.padding {
             Padding::None | Padding::Final => self.rsplit_terminator_char_final_padding(s, pattern),
             _ => {
-                self.rsplit_terminator_char_final_padding(&self.remove_initial_padding(s), pattern)
+                self.rsplit_terminator_char_final_padding(&self.push_padding_to_end(s), pattern)
             }
         }
     }
@@ -176,7 +176,7 @@ impl StringServerKey {
                 self.rsplit_terminator_clear_final_padding(s, pattern)
             }
             _ => {
-                self.rsplit_terminator_clear_final_padding(&self.remove_initial_padding(s), pattern)
+                self.rsplit_terminator_clear_final_padding(&self.push_padding_to_end(s), pattern)
             }
         }
     }

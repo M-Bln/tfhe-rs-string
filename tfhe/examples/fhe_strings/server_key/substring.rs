@@ -44,7 +44,7 @@ impl StringServerKey {
             )),
             _ => Ok((
                 range_is_included,
-                self.substring_clear_final_padding(&self.remove_initial_padding(s), start, end),
+                self.substring_clear_final_padding(&self.push_padding_to_end(s), start, end),
             )),
         }
     }
@@ -85,7 +85,7 @@ impl StringServerKey {
             ),
             _ => (
                 range_is_included,
-                self.substring_encrypted_final_padding(&self.remove_initial_padding(s), start, end),
+                self.substring_encrypted_final_padding(&self.push_padding_to_end(s), start, end),
             ),
         }
     }

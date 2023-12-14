@@ -28,14 +28,14 @@ impl StringServerKey {
             _ if pattern.len() == 0 => self
                 .padding_pair_dispatch(s, s, |s1, s2| self.split_terminator_empty_pattern(s1, s2)),
             Padding::None | Padding::Final => self.split_inclusive_clear_final_padding(s, pattern),
-            _ => self.split_inclusive_clear_final_padding(&self.remove_initial_padding(s), pattern),
+            _ => self.split_inclusive_clear_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
     pub fn split_inclusive_char(&self, s: &FheString, pattern: &impl FheCharPattern) -> FheSplit {
         match s.padding {
             Padding::None | Padding::Final => self.split_inclusive_char_final_padding(s, pattern),
-            _ => self.split_inclusive_char_final_padding(&self.remove_initial_padding(s), pattern),
+            _ => self.split_inclusive_char_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 

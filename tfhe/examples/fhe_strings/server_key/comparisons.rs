@@ -3,8 +3,8 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
-    /// Check if s1 and s2 encrypt the same string, for s1 and s2 FheString.
-    /// Return an encrypted value of 1 for true.
+    /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString`s.
+    /// Returns an encrypted value of 1 for true, 0 for false.
     pub fn eq(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         match (&s1.length, &s2.length) {
             (&FheStrLength::Clear(l1), &FheStrLength::Clear(l2)) if l1 != l2 => {
@@ -18,20 +18,20 @@ impl StringServerKey {
                 self.eq_no_init_padding(s1, s2)
             }
             (Padding::None | Padding::Final, _) => {
-                self.eq_no_init_padding(s1, &self.remove_initial_padding(s2))
+                self.eq_no_init_padding(s1, &self.push_padding_to_end(s2))
             }
             (_, Padding::None | Padding::Final) => {
-                self.eq_no_init_padding(&self.remove_initial_padding(s1), s2)
+                self.eq_no_init_padding(&self.push_padding_to_end(s1), s2)
             }
             _ => self.eq_no_init_padding(
-                &self.remove_initial_padding(s1),
-                &self.remove_initial_padding(s2),
+                &self.push_padding_to_end(s1),
+                &self.push_padding_to_end(s2),
             ),
         }
     }
 
-    /// Check if s1 and s2 encrypt the same string up to case, for s1 and s2 FheString.
-    /// Return an encrypted value of 1 for true.
+    /// Checks if s1 and s2 encrypt the same string up to case, for s1 and s2 `FheString`s.
+    /// Returns an encrypted value of 1 for true.
     pub fn eq_ignore_case(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         match (&s1.length, &s2.length) {
             (&FheStrLength::Clear(l1), &FheStrLength::Clear(l2)) if l1 != l2 => {
@@ -45,19 +45,19 @@ impl StringServerKey {
                 self.eq_ignore_case_no_init_padding(s1, s2)
             }
             (Padding::None | Padding::Final, _) => {
-                self.eq_ignore_case_no_init_padding(s1, &self.remove_initial_padding(s2))
+                self.eq_ignore_case_no_init_padding(s1, &self.push_padding_to_end(s2))
             }
             (_, Padding::None | Padding::Final) => {
-                self.eq_ignore_case_no_init_padding(&self.remove_initial_padding(s1), s2)
+                self.eq_ignore_case_no_init_padding(&self.push_padding_to_end(s1), s2)
             }
             _ => self.eq_ignore_case_no_init_padding(
-                &self.remove_initial_padding(s1),
-                &self.remove_initial_padding(s2),
+                &self.push_padding_to_end(s1),
+                &self.push_padding_to_end(s2),
             ),
         }
     }
 
-    /// Check if s1 encrypts a string which has the string encrypted by `prefix` as a prefix. Return
+    /// Checks if s1 encrypts a string which has the string encrypted by `prefix` as a prefix. Returns
     /// an encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn starts_with_encrypted(&self, s: &FheString, prefix: &FheString) -> RadixCiphertext {
         // If the prefix is longer than the encrypted string, return false
@@ -76,19 +76,19 @@ impl StringServerKey {
                 self.starts_with_encrypted_no_init_padding(s, prefix)
             }
             (Padding::None | Padding::Final, _) => {
-                self.starts_with_encrypted_no_init_padding(s, &self.remove_initial_padding(prefix))
+                self.starts_with_encrypted_no_init_padding(s, &self.push_padding_to_end(prefix))
             }
             (_, Padding::None | Padding::Final) => {
-                self.starts_with_encrypted_no_init_padding(&self.remove_initial_padding(s), prefix)
+                self.starts_with_encrypted_no_init_padding(&self.push_padding_to_end(s), prefix)
             }
             _ => self.starts_with_encrypted_no_init_padding(
-                &self.remove_initial_padding(s),
-                &self.remove_initial_padding(prefix),
+                &self.push_padding_to_end(s),
+                &self.push_padding_to_end(prefix),
             ),
         }
     }
 
-    /// Check if s1 encrypts a string which has the string encrypted by `sufix` as a sufix. Return
+    /// Checks if s1 encrypts a string which has the string encrypted by `sufix` as a sufix. Returns
     /// an encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn ends_with_encrypted(&self, s: &FheString, sufix: &FheString) -> RadixCiphertext {
         self.starts_with_encrypted(
@@ -97,8 +97,8 @@ impl StringServerKey {
         )
     }
 
-    /// Check if s1 encrypt the string s2, for s1 an FheString and s2 a clear &str.
-    /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
+    /// Checks if s1 encrypt the string s2, for s1 an FheString and s2 a clear &str.
+    /// Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn eq_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
         match s1.length {
             FheStrLength::Clear(l1) if l1 != s2.len() => return self.create_zero(),
@@ -107,11 +107,11 @@ impl StringServerKey {
         }
         return match s1.padding {
             Padding::None | Padding::Final => self.eq_clear_no_init_padding(s1, s2),
-            _ => self.eq_clear_no_init_padding(&self.remove_initial_padding(s1), s2),
+            _ => self.eq_clear_no_init_padding(&self.push_padding_to_end(s1), s2),
         };
     }
 
-    /// Check if the string encrypted by s1 is equal to the clear string s2 up to case. Return an
+    /// Checks if the string encrypted by s1 is equal to the clear string s2 up to case. Returns an
     /// encrypted value of 1 for true.
     pub fn eq_clear_ignore_case(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
         match s1.length {
@@ -121,7 +121,7 @@ impl StringServerKey {
         }
         return match s1.padding {
             Padding::None | Padding::Final => self.eq_clear_ignore_case_no_init_padding(s1, s2),
-            _ => self.eq_clear_ignore_case_no_init_padding(&self.remove_initial_padding(s1), s2),
+            _ => self.eq_clear_ignore_case_no_init_padding(&self.push_padding_to_end(s1), s2),
         };
     }
 
@@ -135,11 +135,11 @@ impl StringServerKey {
         }
         return match s.padding {
             Padding::None | Padding::Final => self.starts_with_clear_no_init_padding(s, prefix),
-            _ => self.starts_with_clear_no_init_padding(&self.remove_initial_padding(s), prefix),
+            _ => self.starts_with_clear_no_init_padding(&self.push_padding_to_end(s), prefix),
         };
     }
 
-    /// Check if `s1` encrypts a string which has the clear string `sufix` as a sufix. Return  an
+    /// Checks if `s1` encrypts a string which has the clear string `sufix` as a sufix. Returns  an
     /// encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn ends_with_clear(&self, s: &FheString, sufix: &str) -> RadixCiphertext {
         self.starts_with_clear(
@@ -148,8 +148,8 @@ impl StringServerKey {
         )
     }
 
-    /// Check if s1 and s2 encrypt the same string, for s1 and s2 FheString with no initial padding
-    /// zeros. Return an encrypted value of 1 for true and an encrypted value of 0 for false.
+    /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString` with no initial padding
+    /// zeros. Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn eq_no_init_padding(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         // First the content are compared
         let mut result = self.create_true();
@@ -180,8 +180,8 @@ impl StringServerKey {
         result
     }
 
-    /// Check if s1 and s2 encrypt the same string up to case, for s1 and s2 FheString with no
-    /// initial padding zeros. Return an encrypted value of 1 for true and an encrypted value of
+    /// Checks if s1 and s2 encrypt the same string up to case, for s1 and s2 `FheString`s with no
+    /// initial padding zeros. Returns an encrypted value of 1 for true and an encrypted value of
     /// 0 for false.
     pub fn eq_ignore_case_no_init_padding(
         &self,
@@ -217,21 +217,21 @@ impl StringServerKey {
         result
     }
 
-    /// Check if s encrypts a string which has the string encrypted by prefix as a prefix. The
-    /// function assumes that both s and prefix do not have initial padding zeros. Return an
+    /// Checks if s encrypts a string which has the string encrypted by prefix as a prefix. The
+    /// function assumes that both s and prefix do not have initial padding zeros. Returns an
     /// encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn starts_with_encrypted_no_init_padding(
         &self,
         s: &FheString,
         prefix: &FheString,
     ) -> RadixCiphertext {
-        // First the overlapping content are compared
+        // First the overlapping contents are compared.
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
             self.integer_key.unchecked_bitand_assign_parallelized(
                 &mut result,
                 &match prefix.padding {
-                    // Padding is either None or Final
+                    // Padding is either None or Final.
                     Padding::None => self.compare_char(
                         &s.content[n],
                         &prefix.content[n],
@@ -252,7 +252,7 @@ impl StringServerKey {
         }
 
         // If prefix content size is greater than s content size, check if the extra characters are
-        // padding zeros
+        // padding zeros.
         if prefix.content.len() > s.content.len() {
             return self.integer_key.bitand_parallelized(
                 &result,
@@ -264,7 +264,7 @@ impl StringServerKey {
         result
     }
 
-    /// Check if s1 encrypt the string s2, for s1 an FheString with no initial padding zeros and s2
+    /// Checks if s1 encrypt the string s2, for s1 an `FheString` with no initial padding zeros and s2
     /// a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
     pub fn eq_clear_no_init_padding(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
@@ -290,7 +290,7 @@ impl StringServerKey {
         result
     }
 
-    /// Check if s1 encrypt the string s2, for s1 an FheString with no initial padding zeros and s2
+    /// Check if s1 encrypts the string s2, for s1 an `FheString` with no initial padding zeros and s2
     /// a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
     pub fn eq_clear_ignore_case_no_init_padding(
@@ -371,15 +371,17 @@ impl StringServerKey {
         self.compare_clear(s1, s2, std::cmp::Ordering::Greater)
     }
 
-    /// Compare the encrypted strings for the lexicographic order for bytes.
+    /// Compares the encrypted strings for the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    /// If the operator is std::cmp::Ordering::Less,
-    /// Return true if the string encrypted by s1 is less than or equal to the string encryptedd by
-    /// s2. If the operator is std::cmp::Ordering::Greater,
-    /// Return true if the string encrypted by s1 is less than or equal to the string encryptedd by
-    /// s2. If the operator is std::cmp::Ordering::Equal,
-    /// Return true if the string encrypted by s1 is equal to the string encryptedd by s2.
-    /// For this case, using the function eq is more efficient.
+    ///  -If the operator is std::cmp::Ordering::Less,
+    ///   Return true if the string encrypted by s1 is less than or equal to the string encryptedd by
+    ///   s2.
+    ///  -If the operator is std::cmp::Ordering::Greater,
+    ///   Return true if the string encrypted by s1 is less than or equal to the string encryptedd by
+    ///   s2.
+    ///  -If the operator is std::cmp::Ordering::Equal,
+    ///   Return true if the string encrypted by s1 is equal to the string encryptedd by s2.
+    ///   For this case, using the function eq is more efficient.
     pub fn compare(
         &self,
         s1: &FheString,
@@ -391,14 +393,14 @@ impl StringServerKey {
                 self.compare_no_init_padding(s1, s2, operator)
             }
             (Padding::None | Padding::Final, _) => {
-                self.compare_no_init_padding(s1, &self.remove_initial_padding(s2), operator)
+                self.compare_no_init_padding(s1, &self.push_padding_to_end(s2), operator)
             }
             (_, Padding::None | Padding::Final) => {
-                self.compare_no_init_padding(&self.remove_initial_padding(s1), s2, operator)
+                self.compare_no_init_padding(&self.push_padding_to_end(s1), s2, operator)
             }
             _ => self.compare_no_init_padding(
-                &self.remove_initial_padding(s1),
-                &self.remove_initial_padding(s2),
+                &self.push_padding_to_end(s1),
+                &self.push_padding_to_end(s2),
                 operator,
             ),
         }
@@ -421,7 +423,7 @@ impl StringServerKey {
     ) -> RadixCiphertext {
         return match s1.padding {
             Padding::None | Padding::Final => self.compare_clear_no_init_padding(s1, s2, operator),
-            _ => self.compare_clear_no_init_padding(&self.remove_initial_padding(s1), s2, operator),
+            _ => self.compare_clear_no_init_padding(&self.push_padding_to_end(s1), s2, operator),
         };
     }
 
@@ -541,14 +543,16 @@ impl StringServerKey {
         self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
     }
 
-    /// Compare the encrypted character c1 and the encrypted char c2 with the operator operator.
-    /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    /// If the operator is std::cmp::Ordering::Less,
-    /// Return true if the character encrypted by c1 is less than or equal to the character
-    /// encrypted by c2. If the operator is std::cmp::Ordering::Greater,
-    /// Return true if the character encrypted by c1 is greater or equal to the character encrypted
-    /// by c2. If the operator is std::cmp::Ordering::Equal,
-    /// Return true if the character encrypted by c1 is equal to the character encrypted by c2.
+    /// Compares the encrypted character c1 and the encrypted char c2 with the operator operator.
+    /// Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
+    ///  -If the operator is std::cmp::Ordering::Less,
+    ///   Returns true if the character encrypted by c1 is less than or equal to the character
+    ///   encrypted by c2.
+    ///  -If the operator is std::cmp::Ordering::Greater,
+    ///   Returns true if the character encrypted by c1 is greater or equal to the character encrypted
+    ///   by c2.
+    ///  -If the operator is std::cmp::Ordering::Equal,
+    ///   Returns true if the character encrypted by c1 is equal to the character encrypted by c2.
     pub fn compare_char(
         &self,
         c1: &FheAsciiChar,
@@ -570,14 +574,15 @@ impl StringServerKey {
         self.integer_key.scalar_eq_parallelized(&c1.0, c2)
     }
 
-    /// Compare the encrypted character c1 and the clear char c2 with the operator `operator`.
-    /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    /// If the operator is std::cmp::Ordering::Less,
-    /// Return true if the character encrypted by c1 is less than or equal to the clear character
-    /// c2. If the operator is std::cmp::Ordering::Greater,
-    /// Return true if the character encrypted by c1 is greater or equal to the clear character c2.
-    /// If the operator is std::cmp::Ordering::Equal,
-    /// Return true if the character encrypted by c1 is equal to the clear character c2.
+    /// Compares the encrypted character c1 and the clear char c2 with the operator `operator`.
+    /// Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
+    ///  -If the operator is std::cmp::Ordering::Less,
+    ///   Return true if the character encrypted by c1 is less than or equal to the clear character
+    ///   c2.
+    ///  -If the operator is std::cmp::Ordering::Greater,
+    ///   Return true if the character encrypted by c1 is greater or equal to the clear character c2.
+    ///  -If the operator is std::cmp::Ordering::Equal,
+    ///   Return true if the character encrypted by c1 is equal to the clear character c2.
     pub fn compare_clear_char(
         &self,
         c: &FheAsciiChar,
@@ -648,120 +653,6 @@ impl StringServerKey {
         }
         FheAsciiChar(result)
     }
-
-    /// Return the first element encrypting a non null character in content,
-    /// replace it in content by an encryption of the null character.
-    /// If all character are null, return an encryption of the null character.
-    pub fn pop_last_non_zero_char(&self, content_slice: &mut [FheAsciiChar]) -> FheAsciiChar {
-        let mut previous_is_padding_zero = self.create_true();
-        let mut result = self.create_zero();
-
-        for c in content_slice.iter_mut().rev() {
-            let current_is_zero = self.integer_key.scalar_eq_parallelized(&c.0, 0);
-
-            let first_non_null = self.integer_key.bitand_parallelized(
-                &previous_is_padding_zero,
-                &self.integer_key.bitnot_parallelized(&current_is_zero),
-            );
-
-            // Encrypt same value as c if c is the first no null encrypted char,
-            // encrypt zero otherwise
-            let to_sub = self.integer_key.mul_parallelized(&c.0, &first_non_null);
-
-            // Compute the result
-            self.integer_key
-                .add_assign_parallelized(&mut result, &to_sub);
-
-            // Update the value in content
-            self.integer_key.sub_assign_parallelized(&mut c.0, &to_sub);
-
-            // Update previous_is_padding_zero
-            self.integer_key
-                .bitand_assign_parallelized(&mut previous_is_padding_zero, &current_is_zero);
-        }
-        FheAsciiChar(result)
-    }
-
-    // /// Return the last element encrypting a non null character in content,
-    // /// replace it in content by an encryption of the null character.
-    // /// If all character are null, return an encryption of the null character.
-    // pub fn pop_last_non_zero_char(&self, content_slice: &mut [FheAsciiChar]) -> FheAsciiChar {
-    //     let mut previous_is_padding_zero = self.create_true();
-    //     let mut result = self.create_zero();
-
-    // 	for c in content_slice.iter().rev() {
-    // 	    let current_non_zero = self.integer_key.scalar_ne_parallelized(&c.0, 0);
-    // 	    let last_non_null = self.integer_key.bitand_parallelized(&current_non_zero,
-    // &previous_is_padding_zero);
-
-    //         // Encrypt same value as c if c is the first no null encrypted char,
-    //         // encrypt zero otherwise
-    //         let to_sub = self.integer_key.mul_parallelized(&c.0, &last_non_null);
-    // 	    result = self.integer_key.cmux_parallelized(&last_non_null, &c.0, &result);
-
-    // 	    // Encrypt same value as c if c is the first no null encrypted char,
-    //         // encrypt zero otherwise
-    //         let to_sub = self.integer_key.mul_parallelized(&c.0, &last_non_null);
-
-    //         // Compute the result
-    //         self.integer_key
-    //             .add_assign_parallelized(&mut result, &to_sub);
-
-    //         // Update the value in content
-    //         self.integer_key.sub_assign_parallelized(&mut c.0, &to_sub);
-
-    //         // Update previous_is_padding_zero
-    //         self.integer_key
-    //             .bitand_assign_parallelized(&mut previous_is_padding_zero, &current_is_zero);
-    // 	}
-
-    //     FheAsciiChar(result)
-    // }
-
-    /// Replace the content of s with an encryption of the same string with the same
-    /// and without initial padding.
-    pub fn remove_initial_padding_assign(&self, s: &mut FheString) {
-        let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
-        let mut prev_content_slice = &mut s.content.clone()[..];
-        for _ in 0..s.content.len() {
-            result_content.push(self.pop_first_non_zero_char(prev_content_slice));
-            prev_content_slice = &mut prev_content_slice[1..];
-        }
-        s.padding = Padding::Final;
-        s.content = result_content;
-    }
-
-    /// Return an encryption of the same string, with the same content length,
-    /// without initial padding.
-    pub fn remove_initial_padding(&self, s: &FheString) -> FheString {
-        let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
-        let mut prev_content_slice = &mut s.content.clone()[..];
-        for _ in 0..s.content.len() {
-            result_content.push(self.pop_first_non_zero_char(prev_content_slice));
-            prev_content_slice = &mut prev_content_slice[1..];
-        }
-        FheString {
-            content: result_content,
-            padding: Padding::Final,
-            length: s.length.clone(),
-        }
-    }
-
-    /// Return an encryption of the same string, with the same content length,
-    /// without final padding.
-    pub fn remove_final_padding(&self, s: &FheString) -> FheString {
-        let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
-        let mut prev_content_slice = &mut s.content.clone()[..];
-        for i in 0..s.content.len() {
-            result_content.push(self.pop_last_non_zero_char(prev_content_slice));
-            prev_content_slice = &mut prev_content_slice[..(s.content.len() - i)];
-        }
-        FheString {
-            content: result_content.into_iter().rev().collect(),
-            padding: Padding::Final,
-            length: s.length.clone(),
-        }
-    }
 }
 
 #[cfg(test)]
@@ -810,7 +701,7 @@ mod tests {
     }
 
     // #[test]
-    // fn test_remove_initial_padding_assign() {
+    // fn test_push_padding_to_end_assign() {
     //     let mut encrypted_str = CLIENT_KEY
     //         .encrypt_ascii_vec(
     //             &vec![0, 97],
@@ -818,7 +709,7 @@ mod tests {
     //             FheStrLength::Clear(1),
     //         )
     //         .unwrap();
-    //     SERVER_KEY.remove_initial_padding_assign(&mut encrypted_str);
+    //     SERVER_KEY.push_padding_to_end_assign(&mut encrypted_str);
     //     let decrypted_char = CLIENT_KEY.decrypt_ascii_char(&encrypted_str.content[0]);
     //     assert_eq!(decrypted_char, 97);
     //     assert_eq!(encrypted_str.padding, Padding::Final);
@@ -828,7 +719,7 @@ mod tests {
     // }
 
     // #[test]
-    // fn test_remove_initial_padding() {
+    // fn test_push_padding_to_end() {
     //     let encrypted_str = CLIENT_KEY
     //         .encrypt_ascii_vec(
     //             &vec![0, 97],
@@ -836,7 +727,7 @@ mod tests {
     //             FheStrLength::Clear(1),
     //         )
     //         .unwrap();
-    //     let encrypted_str_no_padding = SERVER_KEY.remove_initial_padding(&encrypted_str);
+    //     let encrypted_str_no_padding = SERVER_KEY.push_padding_to_end(&encrypted_str);
     //     let decrypted_char = CLIENT_KEY.decrypt_ascii_char(&encrypted_str_no_padding.content[0]);
     //     assert_eq!(decrypted_char, 97);
     //     assert_eq!(encrypted_str_no_padding.padding, Padding::Final);
