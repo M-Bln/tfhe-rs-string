@@ -9,6 +9,7 @@ mod timing_macros;
 use crate::ciphertext::{gen_keys_test, ClearOrEncrypted, FheStrLength, FheString};
 use crate::client_key::StringClientKey;
 use crate::server_key::is_empty::FheBool;
+use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
 //use crate::{time_function};
 use clap::Parser;
@@ -74,9 +75,16 @@ fn main() {
     time_is_empty!(is_empty, encrypted_s, clear_s);
     time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
 
-    time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
     time_fhe_split!(
         split_ascii_whitespace,
+        std::str::SplitAsciiWhitespace,
+        encrypted_s,
+        clear_s,
+        0
+    );
+    time_fhe_split!(
+        split_ascii_whitespace,
+        std::str::SplitAsciiWhitespace,
         encrypted_s_padding,
         clear_s,
         padding_zeros

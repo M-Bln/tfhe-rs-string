@@ -1,5 +1,4 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::client_key::ConversionError;
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
@@ -33,7 +32,7 @@ impl StringServerKey {
     where
         F: Fn(&FheString) -> FheSplit,
     {
-        match (s.padding) {
+        match s.padding {
             Padding::None | Padding::Final => f(s),
             _ => f(&self.remove_initial_padding(s)),
         }

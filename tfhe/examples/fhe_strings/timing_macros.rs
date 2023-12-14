@@ -1,20 +1,20 @@
 #[macro_export]
-macro_rules! display_result {
-    ($method: ident, $clear_s: expr,$fhe_result: ident, $std_result: ident, $duration: expr) => {
-        display_result!($method, $clear_s, $fhe_result, $std_result, $duration, 0)
+macro_rules! display {
+    ($method:ident, $clear_s:expr, $fhe_result:ident, $std_result:ident, $duration:expr) => {
+        display!($method, $clear_s, 0, $fhe_result, $std_result, $duration)
     };
-    ($method: ident, $clear_s: expr, $fhe_result: ident, $std_result: ident, $duration: expr,  $padding_zeros: expr) => {
-        display_result!(
-            "",
+    ($method:ident, $clear_s:expr, $padding_zeros:expr, $fhe_result:ident, $std_result:ident, $duration:expr) => {
+        display!(
             $method,
             $clear_s,
+            $padding_zeros,
             $fhe_result,
+            "",
             $std_result,
-            $duration,
-            $padding_zeros
+            $duration
         )
     };
-    ($status:expr, $method: ident, $clear_s: expr, $fhe_result: ident, $std_result: ident, $duration: expr,  $padding_zeros: expr) => {
+    ($method:ident, $clear_s:expr, $padding_zeros:expr, $fhe_result:ident, $status:expr, $std_result:ident, $duration:expr) => {
         let padding_zeros_string = match $padding_zeros {
             0 => String::from("no padding"),
             _ => format!("{} padding zeros", $padding_zeros),
@@ -34,49 +34,73 @@ macro_rules! display_result {
 }
 
 #[macro_export]
-macro_rules! time_function {
-    ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
-        time_function!($method, $encrypted_s, $clear_s, 0)
+macro_rules! timer {
+    ($method:ident, ($clear_s:ident, $padding_zeros:expr, $std_closure:tt), ($encrypted_s:ident, $fhe_closure:tt)) => {
+        timer!(
+            $method,
+            ($clear_s, $padding_zeros, $std_closure),
+            ($encrypted_s, $fhe_closure),
+            (|_| "")
+        )
     };
-    ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
+    ($method:ident, ($clear_s:ident, $padding_zeros:expr, $std_closure:tt), ($encrypted_s:ident, $fhe_closure:tt), $status_closure:tt) => {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        let fhe_result = CLIENT_KEY.decrypt_string(&encrypted_fhe_result).unwrap();
         let duration = start.elapsed();
-        let std_result = $clear_s.$method();
-        display_result!(
+        let fhe_result = $fhe_closure(&encrypted_fhe_result);
+        let std_result = $std_closure($clear_s.$method());
+        let status = $status_closure(&encrypted_fhe_result);
+        display!(
             $method,
             $clear_s,
+            $padding_zeros,
             fhe_result,
+            status,
             std_result,
-            duration,
-            $padding_zeros
+            duration
         )
     };
 }
 
 #[macro_export]
-macro_rules! time_fhe_split {
+macro_rules! time_function {
     ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
-        time_fhe_split!($method, $encrypted_s, $clear_s, 0)
+        time_function!($method, $encrypted_s, $clear_s, 0)
     };
-    ($method: ident, $encrypted_s_padding: ident, $clear_s: ident, $padding_zeros: expr) => {
-        let start = std::time::Instant::now();
-        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padding);
-        let duration = start.elapsed();
-        let std_result: Vec<String> = $clear_s.$method().map(|s| String::from(s)).collect();
-        let clear_len = CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.number_parts);
-        let fhe_result: Vec<String> = encrypted_fhe_result.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
-            .collect();
-        display_result!(
+    ($method:ident, $encrypted_s:ident, $clear_s:ident, $padding_zeros:expr) => {
+        timer!(
             $method,
-            $clear_s,
-            fhe_result,
-            std_result,
-            duration,
-            $padding_zeros
+            ($clear_s, $padding_zeros, (|clear_result| clear_result)),
+            (
+                $encrypted_s,
+                (|encrypted_result| CLIENT_KEY.decrypt_string(encrypted_result).unwrap())
+            )
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! time_fhe_split {
+    ($method:ident, $return_type:ty, $encrypted_s:ident, $clear_s:ident, $padding_zeros:expr) => {
+        timer!(
+            $method,
+            (
+                $clear_s,
+                $padding_zeros,
+                (|clear_result: $return_type| clear_result
+                    .map(|s| String::from(s))
+                    .collect::<Vec<_>>())
+            ),
+            (
+                $encrypted_s,
+                (|encrypted_result: &FheSplit| {
+                    let clear_len = CLIENT_KEY.decrypt_u8(&encrypted_result.number_parts);
+                    encrypted_result.parts[..(clear_len as usize)]
+                        .iter()
+                        .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
+                        .collect::<Vec<String>>()
+                })
+            )
         );
     };
 }
@@ -87,20 +111,20 @@ macro_rules! time_len {
         time_len!($method, $encrypted_s, $clear_s, 0)
     };
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
-        let start = std::time::Instant::now();
-        let fhe_result = match SERVER_KEY.$method(&$encrypted_s) {
-            FheStrLength::Encrypted(encrypted_length) => CLIENT_KEY.decrypt_u8(&encrypted_length),
-            FheStrLength::Clear(clear_length) => *clear_length as u8,
-        };
-        let duration = start.elapsed();
-        let std_result = $clear_s.$method();
-        display_result!(
+        timer!(
             $method,
-            $clear_s,
-            fhe_result,
-            std_result,
-            duration,
-            $padding_zeros
+            ($clear_s, $padding_zeros, (|clear_result| clear_result)),
+            (
+                $encrypted_s,
+                (|encrypted_result: &FheStrLength| {
+                    match encrypted_result {
+                        FheStrLength::Encrypted(encrypted_length) => {
+                            CLIENT_KEY.decrypt_u8(&encrypted_length)
+                        }
+                        FheStrLength::Clear(clear_length) => *clear_length as u8,
+                    }
+                })
+            )
         );
     };
 }
@@ -111,23 +135,26 @@ macro_rules! time_is_empty {
         time_is_empty!($method, $encrypted_s, $clear_s, 0)
     };
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
-        let start = std::time::Instant::now();
-        let (fhe_result, encryption_status) = match &SERVER_KEY.$method(&$encrypted_s) {
-            FheBool::Encrypted(encrypted_bool) => {
-                (CLIENT_KEY.decrypt_u8(encrypted_bool) != 0, "encrypted")
-            }
-            FheBool::Clear(clear_bool) => (*clear_bool, "clear"),
-        };
-        let duration = start.elapsed();
-        let std_result = $clear_s.$method();
-        display_result!(
-            encryption_status,
+        timer!(
             $method,
-            $clear_s,
-            fhe_result,
-            std_result,
-            duration,
-            $padding_zeros
+            ($clear_s, $padding_zeros, (|clear_result| clear_result)),
+            (
+                $encrypted_s,
+                (|encrypted_result: &FheBool| {
+                    match encrypted_result {
+                        FheBool::Encrypted(encrypted_bool) => {
+                            CLIENT_KEY.decrypt_u8(&encrypted_bool) != 0
+                        }
+                        FheBool::Clear(clear_bool) => *clear_bool,
+                    }
+                })
+            ),
+            (|encrypted_result: &FheBool| {
+                match encrypted_result {
+                    FheBool::Encrypted(_) => "encrypted",
+                    FheBool::Clear(_) => "clear",
+                }
+            })
         );
     };
 }

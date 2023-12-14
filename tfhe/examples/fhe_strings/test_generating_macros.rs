@@ -45,38 +45,38 @@ macro_rules! test_option_index_char_pattern {
     ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
         paste::item! {
 
-           #[test]
+            #[test]
             fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-        compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-        compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_char_" $pattern_arg>]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-            let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-        compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_char_" $pattern_arg>]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-            let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-        compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
+                compare_result!((RadixCiphertext,RadixCiphertext), std_result, fhe_result);
             }
         }
     };
@@ -89,46 +89,46 @@ macro_rules! test_option_index_string_pattern {
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-		compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
+		        compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
 
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-		compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
+		        compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
- 		compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+ 		        compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-		compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+		        compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-		compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+		        compare_result!((RadixCiphertext, RadixCiphertext), std_result, fhe_result);
     	    }
         }
     };
@@ -136,100 +136,61 @@ macro_rules! test_option_index_string_pattern {
 
 #[macro_export]
 macro_rules! test_fhe_add_string_pattern {
-    ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+    ($method:ident, $string_arg:expr, $padding:expr, $pattern_arg:expr, $pattern_type:expr, $pattern_closure:tt) => {
         paste::item! {
-
-    	    #[test]
-    	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-    		let std_result = String::from($string_arg)+$pattern_arg;
-                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-                let fhe_result = SERVER_KEY.$method(encrypted_s, &$pattern_arg);
-		compare_result!(FheString, std_result, fhe_result);
-
-    	    }
-
-    	    #[test]
-    	    fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-    		let std_result = String::from($string_arg)+$pattern_arg;
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-                let fhe_result = SERVER_KEY.$method(encrypted_s, &$pattern_arg);
-		compare_result!(FheString, std_result, fhe_result);
-    	    }
-
-    	    #[test]
-    	    fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-    		let std_result = String::from($string_arg)+$pattern_arg;
-                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(encrypted_s, &encrypted_pattern);
- 		compare_result!(FheString, std_result, fhe_result);
-    	    }
-
-    	    #[test]
-    	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-    		let std_result = String::from($string_arg)+$pattern_arg;
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(encrypted_s, &encrypted_pattern);
-		compare_result!(FheString, std_result, fhe_result);
-    	    }
-
-    	    #[test]
-    	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-    		let std_result = String::from($string_arg)+$pattern_arg;
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-		let fhe_result = SERVER_KEY.$method(encrypted_s, &encrypted_pattern);
-		compare_result!(FheString, std_result, fhe_result);
-    	    }
+            #[test]
+            fn [<"test_" $method "_" $string_arg "_padding_" $padding "_" $pattern_type "_" $pattern_arg>]() {
+                let std_result = String::from($string_arg) + $pattern_arg;
+                let encrypted_s = match $padding {
+                    0 => CLIENT_KEY.encrypt_str(&$string_arg).unwrap(),
+                    n => CLIENT_KEY.encrypt_str_random_padding(&$string_arg, $padding).unwrap(),
+                };
+                let pattern = $pattern_closure($pattern_arg);
+                let fhe_result = SERVER_KEY.$method(encrypted_s, &pattern);
+                compare_result!(FheString, std_result, fhe_result);
+            }
         }
+    };
+    ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+        test_fhe_add_string_pattern!($method, $string_arg, 0, $pattern_arg, "clear", (|pattern| pattern));
+        test_fhe_add_string_pattern!($method, $string_arg, 2, $pattern_arg, "clear", (|pattern| pattern));
+        test_fhe_add_string_pattern!($method, $string_arg, 0, $pattern_arg, "encrypted", (|pattern| CLIENT_KEY.encrypt_str(pattern).unwrap()));
+        test_fhe_add_string_pattern!($method, $string_arg, 2, $pattern_arg, "encrypted", (|pattern| CLIENT_KEY.encrypt_str(pattern).unwrap()));
     };
 }
 
 #[macro_export]
 macro_rules! test_fhe_add_char_pattern {
-    ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+    ($method:ident, $string_arg:expr, $padding:expr, ($pattern_arg:expr, $pattern_type:expr)) => {
         paste::item! {
-
             #[test]
-            fn [<"test_" $method "_" $string_arg "_padding_0_clear_" $pattern_arg>]() {
-            let mut std_result = String::from($string_arg);
-        std_result.push($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-                let fhe_result = SERVER_KEY.$method(encrypted_s, &$pattern_arg);
-        compare_result!(FheString, std_result, fhe_result);
-
-            }
-
-            #[test]
-            fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_" $pattern_arg>]() {
-        let mut std_result = String::from($string_arg);
-        std_result.push($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-                let fhe_result = SERVER_KEY.$method(encrypted_s, &$pattern_arg);
-        compare_result!(FheString, std_result, fhe_result);
-            }
-
-            #[test]
-            fn [<"test_" $method "_" $string_arg "_padding_0_encrypted_" $pattern_arg >]() {
-            let mut std_result = String::from($string_arg);
-        std_result.push($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-            let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-        let fhe_result = SERVER_KEY.$method(encrypted_s, &encrypted_pattern);
-         compare_result!(FheString, std_result, fhe_result);
-            }
-
-            #[test]
-            fn [<"test_" $method "_" $string_arg "_padding_2_encrypted_" $pattern_arg >]() {
-            let mut std_result = String::from($string_arg);
-        std_result.push($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-            let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-        let fhe_result = SERVER_KEY.$method(encrypted_s, &encrypted_pattern);
-        compare_result!(FheString, std_result, fhe_result);
+            fn [<"test_" $method "_" $string_arg "_padding_" $padding "_" $pattern_type "_" $pattern_arg>]() {
+                let mut std_result = String::from($string_arg);
+                std_result.push($pattern_arg);
+                let encrypted_s = match $padding {
+                    0 => CLIENT_KEY.encrypt_str(&$string_arg).unwrap(),
+                    n => CLIENT_KEY.encrypt_str_random_padding(&$string_arg, $padding).unwrap(),
+                };
+                match $pattern_type {
+                    "encrypted" => {
+                        let pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                        let fhe_result = SERVER_KEY.$method(encrypted_s, &pattern);
+                        compare_result!(FheString, std_result, fhe_result);
+                    }
+                    "clear" => {
+                        let fhe_result = SERVER_KEY.$method(encrypted_s, &$pattern_arg);
+                        compare_result!(FheString, std_result, fhe_result);
+                    }
+                    &_ => unreachable!(),
+                };
             }
         }
+    };
+    ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
+        test_fhe_add_char_pattern!($method, $string_arg, 0, ($pattern_arg, "clear"));
+        test_fhe_add_char_pattern!($method, $string_arg, 2, ($pattern_arg, "clear"));
+        test_fhe_add_char_pattern!($method, $string_arg, 0, ($pattern_arg, "encrypted"));
+        test_fhe_add_char_pattern!($method, $string_arg, 2, ($pattern_arg, "encrypted"));
     };
 }
 
@@ -240,45 +201,45 @@ macro_rules! test_fhe_split_string_pattern {
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
- 		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+ 		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-    		let std_result = $string_arg.$method($pattern_arg);
+    		    let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
         }
     };
@@ -291,93 +252,93 @@ macro_rules! test_splitn_string_pattern {
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
                 let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
                 let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
- 		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
+ 		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
-		let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
- 		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
+ 		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
-		let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-		let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+		        let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
-		let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
         }
     };
@@ -390,74 +351,74 @@ macro_rules! test_splitn_char_pattern {
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
                 let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
                 let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &$pattern_arg);
-		compare_result!(FheSplit, std_result, fhe_result);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_0_" $pattern_arg "_encrypted">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-		let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
- 		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+		        let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
+ 		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_0_" $pattern_arg "_encrypted">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
-		let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
- 		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
+ 		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
     	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_clear_" $string_arg "_padding_2_" $pattern_arg "_encrypted">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-		let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+		        let fhe_result = SERVER_KEY.$method(&$integer_arg, &encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_2_" $pattern_arg "_encrypted">]() {
-    		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
+    		    let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-    		let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
-		let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
-		compare_result!(FheSplit, std_result, fhe_result);
+    		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+		        let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
+		        let fhe_result = SERVER_KEY.$method(&encrypted_integer, &encrypted_s, &encrypted_pattern);
+		        compare_result!(FheSplit, std_result, fhe_result);
     	    }
         }
     };
@@ -470,36 +431,36 @@ macro_rules! test_fhe_split_char_pattern {
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_padding_0_clear_char_" $pattern_arg>]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-        compare_result!(FheSplit, std_result, fhe_result);
+                compare_result!(FheSplit, std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_char_" $pattern_arg>]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-        compare_result!(FheSplit, std_result, fhe_result);
+                compare_result!(FheSplit, std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_padding_0_char_" $pattern_arg >]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-            let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-         compare_result!(FheSplit, std_result, fhe_result);
+                let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                compare_result!(FheSplit, std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $string_arg "_padding_2_char_" $pattern_arg >]() {
-            let std_result = $string_arg.$method($pattern_arg);
+                let std_result = $string_arg.$method($pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
-        let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
-        let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-        compare_result!(FheSplit, std_result, fhe_result);
+                let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
+                let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+                compare_result!(FheSplit, std_result, fhe_result);
             }
         }
     };
@@ -511,18 +472,18 @@ macro_rules! test_fhe_split_ascii_whitespace {
         paste::item! {
             #[test]
             fn [<"test_" $method "_" $num "_padding_0">]() {
-            let std_result = $string_arg.$method();
+                let std_result = $string_arg.$method();
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s);
-        compare_result!(FheSplit, std_result, fhe_result);
+                compare_result!(FheSplit, std_result, fhe_result);
             }
 
             #[test]
             fn [<"test_" $method "_" $num "_random_padding_2">]() {
-            let std_result = $string_arg.$method();
+                let std_result = $string_arg.$method();
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s);
-        compare_result!(FheSplit, std_result, fhe_result);
+                compare_result!(FheSplit, std_result, fhe_result);
             }
         }
     };
@@ -538,94 +499,94 @@ macro_rules! test_fhe_string_string_pattern {
     	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
             //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_2_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
             //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_padding_0_encrypted_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
+                let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new);
-		compare_result!(FheString, std_result, fhe_result);
+                compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_encrypted_padding_1_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
+                let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new);
-		compare_result!(FheString, std_result, fhe_result);
+                compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_padding_0_encrypted_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+                let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
+                let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new);
-		compare_result!(FheString, std_result, fhe_result);
+                compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    #[test]
-    	    fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_encrypted_padding_1_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+	        #[test]
+            fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_encrypted_padding_1_" $new_string_arg>]() {
+                let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
+                let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new);
-		compare_result!(FheString, std_result, fhe_result);
-    	    }
+                compare_result!(FheString, std_result, fhe_result);
+            }
 
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_padding_0_clear_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+    		    let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
-		compare_result!(FheString, std_result, fhe_result);
+		        compare_result!(FheString, std_result, fhe_result);
     	    }
 
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_padding_0_clear_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
+    		    let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
-		compare_result!(FheString, std_result, fhe_result);
+		        compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-	    //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
             //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_2_clear_string_" $old_pattern_arg "_encrypted_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
             //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
 
@@ -634,8 +595,8 @@ macro_rules! test_fhe_string_string_pattern {
     	    // 	let std_result = $string_arg.$method($pattern_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
     	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
- 	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+ 	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
     	    // #[test]
@@ -643,8 +604,8 @@ macro_rules! test_fhe_string_string_pattern {
     	    // 	let std_result = $string_arg.$method($pattern_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
     	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
     	    // #[test]
@@ -652,8 +613,8 @@ macro_rules! test_fhe_string_string_pattern {
     	    // 	let std_result = $string_arg.$method($pattern_arg);
             //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
     	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
         }
     };
@@ -667,106 +628,106 @@ macro_rules! test_replace_clear_n_string_pattern {
     	    // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($n_arg, $old_pattern_arg, $new_string_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-	    //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$n_arg, $old_pattern_arg, $new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+	        //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$n_arg, $old_pattern_arg, $new_string_arg);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_2_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($n_arg, $old_pattern_arg, $new_string_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
-	    //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$n_arg, $old_pattern_arg, $new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
+	        //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$n_arg, $old_pattern_arg, $new_string_arg);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $n_arg "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_padding_0_encrypted_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method( $old_pattern_arg, $new_string_arg, $n_arg);
+    		    let std_result = $string_arg.$method( $old_pattern_arg, $new_string_arg, $n_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
+		        let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new, &$n_arg);
-		compare_result!(FheString, std_result, fhe_result);
+		        compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $n_arg  "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_encrypted_padding_1_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg, $n_arg);
+    		    let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg, $n_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
+		        let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new, &$n_arg);
-		compare_result!(FheString, std_result, fhe_result);
+		        compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $n_arg "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_padding_0_encrypted_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method( $old_pattern_arg, $new_string_arg, $n_arg,);
+    		    let std_result = $string_arg.$method( $old_pattern_arg, $new_string_arg, $n_arg,);
                 let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
+		        let encrypted_new = CLIENT_KEY.encrypt_str(&$new_string_arg).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new, &$n_arg,);
-		compare_result!(FheString, std_result, fhe_result);
+		        compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    #[test]
+	        #[test]
     	    fn [<"test_" $method "_" $n_arg "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_encrypted_padding_1_" $new_string_arg>]() {
-    		let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg, $n_arg);
+    		    let std_result = $string_arg.$method($old_pattern_arg, $new_string_arg, $n_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
-		let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
+		        let encrypted_new = CLIENT_KEY.encrypt_str_padding(&$new_string_arg,1).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &encrypted_new, &$n_arg);
-		compare_result!(FheString, std_result, fhe_result);
+		        compare_result!(FheString, std_result, fhe_result);
     	    }
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_0_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($n_arg, $old_pattern_arg, $new_string_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
-	    //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+	        //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_1_clear_string_" $old_pattern_arg "_clear_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($n_arg, $old_pattern_arg, $new_string_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
-	    //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,1).unwrap();
+	        //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, &$new_string_arg);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
-	    // #[test]
+	        // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_2_clear_string_" $old_pattern_arg "_encrypted_" $new_string_arg>]() {
     	    // 	let std_result = $string_arg.$method($n_arg, $old_pattern_arg, $new_string_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
-	    //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg,2).unwrap();
+	        //     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$old_pattern_arg, $new_string_arg);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
 
     	    // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
     	    // 	let std_result = $string_arg.$method($pattern_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
     	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
- 	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+ 	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
     	    // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
     	    // 	let std_result = $string_arg.$method($pattern_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
     	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
-	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
 
     	    // #[test]
     	    // fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
     	    // 	let std_result = $string_arg.$method($pattern_arg);
-	    //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+	        //     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
     	    // 	let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
-	    // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-	    // 	compare_result!(FheString, std_result, fhe_result);
+	        // 	let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
+	        // 	compare_result!(FheString, std_result, fhe_result);
     	    // }
         }
     };

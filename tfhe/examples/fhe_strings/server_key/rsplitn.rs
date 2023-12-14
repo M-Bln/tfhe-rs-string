@@ -11,7 +11,7 @@ impl StringServerKey {
     where
         F: Fn(&FheString) -> FheSplit,
     {
-        match (s.padding) {
+        match s.padding {
             Padding::None | Padding::Initial => f(s),
             _ => f(&self.remove_final_padding(s)),
         }
