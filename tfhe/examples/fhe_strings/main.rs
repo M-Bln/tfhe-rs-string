@@ -83,7 +83,42 @@ fn main() {
                 clear_s,
                 clear_pattern
             );
-            //time_function_string_pattern!($method, encrypted_s_padding, clear_s,
+            time_function_string_pattern!(
+                $method,
+                encrypted_s,
+                0,
+                clear_s,
+                clear_pattern,
+                encrypted_pattern,
+                0
+            );
+            time_function_string_pattern!(
+                $method,
+                encrypted_s_padding,
+                padding_zeros,
+                clear_s,
+                clear_pattern,
+                encrypted_pattern,
+                0
+            );
+            time_function_string_pattern!(
+                $method,
+                encrypted_s,
+                0,
+                clear_s,
+                clear_pattern,
+                encrypted_pattern_padded,
+                padding_zeros
+            );
+            time_function_string_pattern!(
+                $method,
+                encrypted_s_padding,
+                padding_zeros,
+                clear_s,
+                clear_pattern,
+                encrypted_pattern_padded,
+                padding_zeros
+            );
             // encrypted_pattern_padded, clear_pattern, padding_zeros);
             // time_function_string_pattern!($method, encrypted_s_padding, clear_s,
             // encrypted_pattern_padded, clear_pattern, padding_zeros, padding_zeros);
@@ -113,4 +148,3 @@ fn main() {
     //     padding_zeros
     // );
 }
- 
