@@ -120,6 +120,8 @@ pub trait FhePattern {
         }
         return result;
     }
+
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext;
 }
 
 impl FhePattern for &str {
@@ -193,6 +195,10 @@ impl FhePattern for &str {
         let (striped, reversed_result) =
             reversed_self.strip_prefix_in(server_key, &server_key.reverse_string_content(haystack));
         (striped, server_key.reverse_string_content(&reversed_result))
+    }
+
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+        server_key.eq_clear(s, self)
     }
 
     // fn strip_prefix_in(&self, server_key: &StringServerKey, haystack: &FheString) -> FheString {
@@ -296,6 +302,10 @@ impl FhePattern for FheString {
             }
         }
         result
+    }
+
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+        server_key.eq_encrypted(self, s)
     }
 
     fn is_prefix_of_string(
@@ -430,6 +440,10 @@ pub trait FheCharPattern {
 impl<T: FheCharPattern> FhePattern for T {
     fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString {
         FheCharPattern::insert_in(self, server_key, fhe_split)
+    }
+
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+        server_key.create_zero()
     }
 
     fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
