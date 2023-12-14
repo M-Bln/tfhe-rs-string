@@ -42,9 +42,9 @@ impl StringServerKey {
         pattern.split_string(self, s)
     }
 
-    pub fn split_ascii_whitespace(&self, s: &FheString) -> FheSplit {
-        self.split_char(&s, &' ')
-    }
+    // pub fn split_ascii_whitespace(&self, s: &FheString) -> FheSplit {
+    //     self.split_char(&s, &' ')
+    // }
 
     pub fn split_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
