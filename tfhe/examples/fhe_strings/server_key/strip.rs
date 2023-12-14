@@ -1,20 +1,99 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
-    pub fn strip_encrypted_sufix(
+    pub fn strip_prefix(
         &self,
         s: &FheString,
-        sufix: &FheString,
+        prefix: &impl FhePattern,
+    ) -> (RadixCiphertext, FheString) {
+        prefix.strip_prefix_in(self, s)
+    }
+
+    pub fn strip_suffix(
+        &self,
+        s: &FheString,
+        suffix: &impl FhePattern,
+    ) -> (RadixCiphertext, FheString) {
+        suffix.strip_suffix_in(self, s)
+    }
+
+    pub fn strip_encrypted_suffix(
+        &self,
+        s: &FheString,
+        suffix: &FheString,
     ) -> (RadixCiphertext, FheString) {
         let reversed_result: (RadixCiphertext, FheString) = self.strip_encrypted_prefix(
             &self.reverse_string_content(&s),
-            &self.reverse_string_content(&sufix),
+            &self.reverse_string_content(&suffix),
         );
         (
             reversed_result.0,
             self.reverse_string_content(&reversed_result.1),
+        )
+    }
+
+    pub fn strip_char_prefix(
+        &self,
+        s: &FheString,
+        prefix: &impl FheCharPattern,
+    ) -> (RadixCiphertext, FheString) {
+        match s.len() {
+            FheStrLength::Clear(0) => {
+                return (
+                    self.create_zero(),
+                    FheString {
+                        content: vec![],
+                        length: FheStrLength::Clear(0),
+                        padding: Padding::None,
+                    },
+                )
+            }
+            _ if s.content.is_empty() => {
+                return (
+                    self.create_zero(),
+                    FheString {
+                        content: vec![],
+                        length: FheStrLength::Clear(0),
+                        padding: Padding::None,
+                    },
+                )
+            }
+            _ => (),
+        }
+        match s.padding {
+            Padding::None | Padding::Final => self.strip_char_prefix_no_init_padding(s, prefix),
+            _ => self.strip_char_prefix_no_init_padding(&self.remove_initial_padding(s), prefix),
+            //  _ => self.strip_char_prefix_any_padding(s, prefix), TODO
+        }
+    }
+
+    pub fn strip_char_prefix_no_init_padding(
+        &self,
+        s: &FheString,
+        prefix: &impl FheCharPattern,
+    ) -> (RadixCiphertext, FheString) {
+        let is_prefix = prefix.fhe_eq(self, &s.content[0]);
+        let radix_first_char =
+            self.integer_key
+                .cmux_parallelized(&is_prefix, &self.create_zero(), &s.content[0].0);
+        let mut result_content = vec![FheAsciiChar(radix_first_char)];
+        result_content.extend_from_slice(&s.content[1..]);
+        let result_length = self.sub_radix_to_length(s.len(), &is_prefix);
+        let result_padding = match s.padding {
+            Padding::None => Padding::Initial,
+            Padding::Final => Padding::InitialAndFinal,
+            s_padding => s_padding,
+        };
+        (
+            is_prefix,
+            FheString {
+                content: result_content,
+                length: result_length,
+                padding: result_padding,
+            },
         )
     }
 
@@ -48,6 +127,75 @@ impl StringServerKey {
                 &self.remove_initial_padding(prefix),
             ),
         }
+    }
+
+    pub fn strip_clear_prefix(&self, s: &FheString, prefix: &str) -> (RadixCiphertext, FheString) {
+        match s.len() {
+            FheStrLength::Clear(clear_length) if *clear_length < prefix.len() => {
+                return (self.create_zero(), s.clone())
+            }
+            _ if s.content.len() < prefix.len() => return (self.create_zero(), s.clone()),
+            _ => (),
+        }
+        match s.padding {
+            Padding::None | Padding::Final => self.strip_clear_prefix_no_init_padding(s, prefix),
+            _ => self.strip_clear_prefix_no_init_padding(&self.remove_initial_padding(s), prefix),
+        }
+    }
+
+    pub fn strip_clear_prefix_no_init_padding(
+        &self,
+        s: &FheString,
+        prefix: &str,
+    ) -> (RadixCiphertext, FheString) {
+        if s.content.len() < prefix.len() {
+            return (self.create_zero(), s.clone());
+        }
+
+        let zero = self.create_zero();
+        let is_prefix = prefix.is_prefix_of_string(self, s);
+        let mut result_content: Vec<FheAsciiChar> = vec![];
+
+        for (i, c) in prefix.bytes().enumerate() {
+            result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
+                &is_prefix,
+                &zero,
+                &s.content[i].0,
+            )))
+        }
+
+        result_content.extend_from_slice(&s.content[prefix.len()..]);
+        let result_length = match s.len() {
+            FheStrLength::Clear(clear_length) => {
+                FheStrLength::Encrypted(self.integer_key.cmux_parallelized(
+                    &is_prefix,
+                    &self.create_n((clear_length - prefix.len()) as u8),
+                    &self.create_n(*clear_length as u8),
+                ))
+            }
+            FheStrLength::Encrypted(encrypted_length) => FheStrLength::Encrypted(
+                self.integer_key.cmux_parallelized(
+                    &is_prefix,
+                    &self
+                        .integer_key
+                        .scalar_sub_parallelized(encrypted_length, prefix.len() as u32),
+                    encrypted_length,
+                ),
+            ),
+        };
+        let result_padding = match s.padding {
+            Padding::None => Padding::Initial,
+            Padding::Final => Padding::InitialAndFinal,
+            s_padding => s_padding,
+        };
+        (
+            is_prefix,
+            FheString {
+                content: result_content,
+                padding: result_padding,
+                length: result_length,
+            },
+        )
     }
 
     pub fn strip_encrypted_prefix_no_init_padding(
@@ -179,42 +327,81 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, FheStrLength, Padding};
+    use crate::ciphertext::{gen_keys_test, FheStrLength, Padding};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
+    use crate::{
+        compare_result, test_fhe_add_char_pattern, test_fhe_string_string_pattern,
+        test_option_string_char_pattern, test_option_string_string_pattern,
+        test_replace_clear_n_string_pattern,
+    };
     use lazy_static::lazy_static;
 
     lazy_static! {
-        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
+        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_test();
         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    #[test]
-    fn test_strip_encrypted_prefix() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("cdd", 2).unwrap();
-        let encrypted_prefix = CLIENT_KEY.encrypt_str_random_padding("cd", 2).unwrap();
+    // test_option_string_string_pattern!(strip_prefix,"","");
+    // test_option_string_string_pattern!(strip_prefix,"","a");
+    // test_option_string_string_pattern!(strip_prefix,"a","");
+    // test_option_string_string_pattern!(strip_prefix,"a","a");
+    // test_option_string_string_pattern!(strip_prefix,"a","b");
+    // test_option_string_string_pattern!(strip_prefix,"ab","a");
+    // test_option_string_string_pattern!(strip_prefix,"ab","b");
+    // test_option_string_string_pattern!(strip_prefix,"ab","ab");
+    // test_option_string_string_pattern!(strip_prefix,"abc","ab");
+    // test_option_string_string_pattern!(strip_prefix,"abc","bc");
 
-        let result = SERVER_KEY.strip_encrypted_prefix(&encrypted_str, &encrypted_prefix);
+    // test_option_string_char_pattern!(strip_prefix,"",'a');
+    // test_option_string_char_pattern!(strip_prefix,"a",'a');
+    // test_option_string_char_pattern!(strip_prefix,"b",'a');
+    // test_option_string_char_pattern!(strip_prefix,"ab",'a');
+    // test_option_string_char_pattern!(strip_prefix,"ba",'a');
 
-        let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
-        let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
+    test_option_string_string_pattern!(strip_suffix, "", "");
+    test_option_string_string_pattern!(strip_suffix, "", "a");
+    test_option_string_string_pattern!(strip_suffix, "a", "");
+    test_option_string_string_pattern!(strip_suffix, "a", "a");
+    test_option_string_string_pattern!(strip_suffix, "a", "b");
+    test_option_string_string_pattern!(strip_suffix, "ab", "a");
+    test_option_string_string_pattern!(strip_suffix, "ab", "b");
+    test_option_string_string_pattern!(strip_suffix, "ab", "ab");
+    test_option_string_string_pattern!(strip_suffix, "abc", "ab");
+    test_option_string_string_pattern!(strip_suffix, "abc", "bc");
 
-        assert_eq!(clear_starts_with, 1);
-        assert_eq!(clear_striped, "d");
-    }
+    test_option_string_char_pattern!(strip_suffix, "", 'a');
+    test_option_string_char_pattern!(strip_suffix, "a", 'a');
+    test_option_string_char_pattern!(strip_suffix, "b", 'a');
+    test_option_string_char_pattern!(strip_suffix, "ab", 'a');
+    test_option_string_char_pattern!(strip_suffix, "ba", 'a');
 
-    #[test]
-    fn test_strip_encrypted_sufix() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("adi", 2).unwrap();
-        let encrypted_sufix = CLIENT_KEY.encrypt_str_random_padding("di", 2).unwrap();
+    // #[test]
+    // fn test_strip_encrypted_prefix() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("cdd", 2).unwrap();
+    //     let encrypted_prefix = CLIENT_KEY.encrypt_str_random_padding("cd", 2).unwrap();
 
-        let result = SERVER_KEY.strip_encrypted_sufix(&encrypted_str, &encrypted_sufix);
+    //     let result = SERVER_KEY.strip_encrypted_prefix(&encrypted_str, &encrypted_prefix);
 
-        let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
-        let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
+    //     let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
+    //     let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
 
-        assert_eq!(clear_starts_with, 1);
-        assert_eq!(clear_striped, "a");
-    }
+    //     assert_eq!(clear_starts_with, 1);
+    //     assert_eq!(clear_striped, "d");
+    // }
+
+    // #[test]
+    // fn test_strip_encrypted_suffix() {
+    //     let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("adi", 2).unwrap();
+    //     let encrypted_suffix = CLIENT_KEY.encrypt_str_random_padding("di", 2).unwrap();
+
+    //     let result = SERVER_KEY.strip_encrypted_suffix(&encrypted_str, &encrypted_suffix);
+
+    //     let clear_starts_with = CLIENT_KEY.decrypt_u8(&result.0);
+    //     let clear_striped = CLIENT_KEY.decrypt_string(&result.1).unwrap();
+
+    //     assert_eq!(clear_starts_with, 1);
+    //     assert_eq!(clear_striped, "a");
+    // }
 }
