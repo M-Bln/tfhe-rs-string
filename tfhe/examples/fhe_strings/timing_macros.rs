@@ -1,247 +1,133 @@
 #[macro_export]
-macro_rules! time_function_no_padding {
-    ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
-        let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        let clear_result = CLIENT_KEY.decrypt_string(&fhe_result).unwrap();
-        let duration = start.elapsed();
-        let std_result = $clear_s.$method();
-        println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-        println!("Arguments:");
-        println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-        println!("  No padding");
-        println!("Results:");
-        println!("{0: <35} {1:?}", " -std result:", std_result);
-        println!("{0: <35} {1:?}", " -FHE result:", clear_result);
-        println!("time:{:?} ", duration);
+macro_rules! display_result {
+    ($method: ident, $clear_s: expr,$fhe_result: ident, $std_result: ident, $duration: expr) => {
+        display_result!($method, $clear_s, $fhe_result, $std_result, $duration, 0)
+    };
+    ($method: ident, $clear_s: expr, $fhe_result: ident, $std_result: ident, $duration: expr,  $padding_zeros: expr) => {
+        display_result!(
+            "",
+            $method,
+            $clear_s,
+            $fhe_result,
+            $std_result,
+            $duration,
+            $padding_zeros
+        )
+    };
+    ($status:expr, $method: ident, $clear_s: expr, $fhe_result: ident, $std_result: ident, $duration: expr,  $padding_zeros: expr) => {
+        let padding_zeros_string = match $padding_zeros {
+            0 => String::from("no padding"),
+            _ => format!("{} padding zeros", $padding_zeros),
+        };
+        println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
+        println!("arguments:");
+        println!("{: <35} {:?}", "  └ encrypted string", $clear_s);
+        println!("    └ {}", padding_zeros_string);
+        println!("results:");
+        println!("{: <35} {:?}", "  ├ std result:", $std_result);
+        println!("{: <35} {:?}", "  └ FHE result:", $fhe_result);
+        if !$status.is_empty() {
+            println!("    └ {}", $status);
+        }
+        println!("time:                               {:?}", $duration);
     };
 }
 
 #[macro_export]
-macro_rules! time_function_padding {
+macro_rules! time_function {
+    ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
+        time_function!($method, $encrypted_s, $clear_s, 0)
+    };
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        let clear_result = CLIENT_KEY.decrypt_string(&fhe_result).unwrap();
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s);
+        let fhe_result = CLIENT_KEY.decrypt_string(&encrypted_fhe_result).unwrap();
         let duration = start.elapsed();
         let std_result = $clear_s.$method();
-        println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-        println!("Arguments:");
-        println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-        println!("  {0:} padding zeros", $padding_zeros);
-        println!("Results:");
-        println!("{0: <35} {1:?}", " -std result:", std_result);
-        println!("{0: <35} {1:?}", " -FHE result:", clear_result);
-        println!("time:{:?} ", duration);
+        display_result!(
+            $method,
+            $clear_s,
+            fhe_result,
+            std_result,
+            duration,
+            $padding_zeros
+        )
     };
 }
 
 #[macro_export]
-macro_rules! display_result_no_padding{
-    ($method: ident, $clear_s: expr,$fhe_result: ident, $std_result: ident, $duration: expr, FheSplit) => {
-	let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
-	let clear_split: Vec<String> = $fhe_result.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
-            .collect();
-        let std_split: Vec<String> = $std_result.map(|s| String::from(s)).collect();
-	println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-        println!("Arguments:");
-        println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-        println!("  No padding");
-        println!("Results:");
-        println!("{0: <35} {1:?}", " -std result:", std_split);
-        println!("{0: <35} {1:?}", " -FHE result:", clear_split);
-        println!("time:{:?} ", $duration);
-    }
-}
-
-#[macro_export]
-macro_rules! display_result_padding{
-    ($method: ident, $clear_s: expr, $fhe_result: ident, $std_result: ident, $duration: expr,  $padding_zeros: expr, FheSplit) => {
-	let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
-	let clear_split: Vec<String> = $fhe_result.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
-            .collect();
-        let std_split: Vec<String> = $std_result.map(|s| String::from(s)).collect();
-	println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-        println!("Arguments:");
-        println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-        println!("  {0:} padding zeros", $padding_zeros);
-        println!("Results:");
-        println!("{0: <35} {1:?}", " -std result:", std_split);
-        println!("{0: <35} {1:?}", " -FHE result:", clear_split);
-        println!("time:{:?} ", $duration);
-    }
-}
-
-#[macro_export]
-macro_rules! time_fhe_split_no_padding {
+macro_rules! time_fhe_split {
     ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
-        let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-	let duration = start.elapsed();
-	let std_result = $clear_s.$method();
-	display_result_no_padding!($method, $clear_s, fhe_result, std_result, duration, FheSplit);
+        time_fhe_split!($method, $encrypted_s, $clear_s, 0)
     };
-}
-
-#[macro_export]
-macro_rules! time_fhe_split_padding {
     ($method: ident, $encrypted_s_padding: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s_padding);
-	let duration = start.elapsed();
-	let std_result = $clear_s.$method();
-	display_result_padding!($method, $clear_s, fhe_result, std_result, duration, $padding_zeros, FheSplit);
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padding);
+        let duration = start.elapsed();
+        let std_result: Vec<String> = $clear_s.$method().map(|s| String::from(s)).collect();
+        let clear_len = CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.number_parts);
+        let fhe_result: Vec<String> = encrypted_fhe_result.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
+            .collect();
+        display_result!(
+            $method,
+            $clear_s,
+            fhe_result,
+            std_result,
+            duration,
+            $padding_zeros
+        );
     };
 }
 
-
-
 #[macro_export]
-macro_rules! time_len_padding {
+macro_rules! time_len {
+    ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
+        time_len!($method, $encrypted_s, $clear_s, 0)
+    };
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        match fhe_result {
-            FheStrLength::Encrypted(encrypted_length) => {
-                let clear_result = CLIENT_KEY.decrypt_u8(&encrypted_length);
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  {0:} padding zeros", $padding_zeros);
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (encrypted):", clear_result);
-                println!("time:{:?} ", duration);
-            }
-            FheStrLength::Clear(clear_length) => {
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  {0:} padding zeros", $padding_zeros);
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (clear):", clear_length);
-                println!("time:{:?} ", duration);
-            }
-        }
+        let fhe_result = match SERVER_KEY.$method(&$encrypted_s) {
+            FheStrLength::Encrypted(encrypted_length) => CLIENT_KEY.decrypt_u8(&encrypted_length),
+            FheStrLength::Clear(clear_length) => *clear_length as u8,
+        };
+        let duration = start.elapsed();
+        let std_result = $clear_s.$method();
+        display_result!(
+            $method,
+            $clear_s,
+            fhe_result,
+            std_result,
+            duration,
+            $padding_zeros
+        );
     };
 }
 
 #[macro_export]
-macro_rules! time_len_no_padding {
+macro_rules! time_is_empty {
     ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
-        let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        match fhe_result {
-            FheStrLength::Encrypted(encrypted_length) => {
-                let clear_result = CLIENT_KEY.decrypt_u8(&encrypted_length);
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  No padding");
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!(
-                    "{0: <35} {1:?}",
-                    " -FHE result (encrypted, but should be clear!):", clear_result
-                );
-                println!("time:{:?} ", duration);
-            }
-            FheStrLength::Clear(clear_length) => {
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  No padding");
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (clear):", clear_length);
-                println!("time:{:?} ", duration);
-            }
-        }
+        time_is_empty!($method, $encrypted_s, $clear_s, 0)
     };
-}
-
-#[macro_export]
-macro_rules! time_is_empty_padding {
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        match &fhe_result {
+        let (fhe_result, encryption_status) = match &SERVER_KEY.$method(&$encrypted_s) {
             FheBool::Encrypted(encrypted_bool) => {
-                let clear_result = CLIENT_KEY.decrypt_u8(encrypted_bool);
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  {0:} padding zeros", $padding_zeros);
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (encrypted):", (clear_result != 0));
-                println!("time:{:?} ", duration);
+                (CLIENT_KEY.decrypt_u8(encrypted_bool) != 0, "encrypted")
             }
-            FheBool::Clear(clear_bool) => {
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  {0:} padding zeros", $padding_zeros);
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (clear):", *clear_bool);
-                println!("time:{:?} ", duration);
-            }
-        }
+            FheBool::Clear(clear_bool) => (*clear_bool, "clear"),
+        };
+        let duration = start.elapsed();
+        let std_result = $clear_s.$method();
+        display_result!(
+            encryption_status,
+            $method,
+            $clear_s,
+            fhe_result,
+            std_result,
+            duration,
+            $padding_zeros
+        );
     };
 }
-
-#[macro_export]
-macro_rules! time_is_empty_no_padding {
-    ($method: ident, $encrypted_s: ident, $clear_s: ident) => {
-        let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        match &fhe_result {
-            FheBool::Encrypted(encrypted_bool) => {
-                let clear_result = CLIENT_KEY.decrypt_u8(encrypted_bool);
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  No padding");
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (encrypted, but should be clear!):", (clear_result != 0));
-                println!("time:{:?} ", duration);
-            }
-            FheBool::Clear(clear_bool) => {
-                let duration = start.elapsed();
-                let std_result = $clear_s.$method();
-                println!("\n\n\n{0: <20} {1:}", "function:", std::stringify!($method));
-                println!("Arguments:");
-                println!("{0: <35} {1:?}", " -Encrypted string", $clear_s);
-                println!("  No padding");
-                println!("Results:");
-                println!("{0: <35} {1:?}", " -std result:", std_result);
-                println!("{0: <35} {1:?}", " -FHE result (clear):", *clear_bool);
-                println!("time:{:?} ", duration);
-            }
-        }
-    };
-}
-
-
-

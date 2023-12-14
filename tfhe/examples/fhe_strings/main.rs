@@ -6,10 +6,10 @@ mod server_key;
 mod test_generating_macros;
 mod timing_macros;
 
-use crate::ciphertext::{gen_keys_test, FheStrLength, FheString, ClearOrEncrypted};
+use crate::ciphertext::{gen_keys_test, ClearOrEncrypted, FheStrLength, FheString};
 use crate::client_key::StringClientKey;
-use crate::server_key::{StringServerKey};
 use crate::server_key::is_empty::FheBool;
+use crate::server_key::StringServerKey;
 //use crate::{time_function};
 use clap::Parser;
 use lazy_static::lazy_static;
@@ -55,28 +55,30 @@ fn main() {
         .encrypt_str_padding(&clear_s, padding_zeros)
         .unwrap();
 
-    macro_rules! time_function {
+    macro_rules! apply_time_function_twice {
         ($method: ident) => {
-            time_function_no_padding!($method, encrypted_s, clear_s);
-            time_function_padding!($method, encrypted_s_padding, clear_s, padding_zeros);
+            time_function!($method, encrypted_s, clear_s);
+            time_function!($method, encrypted_s_padding, clear_s, padding_zeros);
         };
     }
 
+    apply_time_function_twice!(trim);
+    apply_time_function_twice!(trim_start);
+    apply_time_function_twice!(trim_end);
+    apply_time_function_twice!(to_lowercase);
+    apply_time_function_twice!(to_uppercase);
 
-    
-    time_function!(trim);
-    time_function!(trim_start);
-    time_function!(trim_end);
-    time_function!(to_lowercase);
-    time_function!(to_uppercase);
+    time_len!(len, encrypted_s, clear_s);
+    time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
 
-    time_len_no_padding!(len, encrypted_s, clear_s);
-    time_len_padding!(len, encrypted_s_padding, clear_s, padding_zeros);
+    time_is_empty!(is_empty, encrypted_s, clear_s);
+    time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
 
-    time_is_empty_no_padding!(is_empty, encrypted_s, clear_s);
-    time_is_empty_padding!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
-
-    time_fhe_split_no_padding!(split_ascii_whitespace, encrypted_s, clear_s);
-    time_fhe_split_padding!(split_ascii_whitespace,  encrypted_s_padding, clear_s, padding_zeros);
-    
+    time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
+    time_fhe_split!(
+        split_ascii_whitespace,
+        encrypted_s_padding,
+        clear_s,
+        padding_zeros
+    );
 }
