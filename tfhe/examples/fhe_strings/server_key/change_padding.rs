@@ -3,7 +3,7 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
-        /// Return the first element encrypting a non null character in content,
+    /// Return the first element encrypting a non null character in content,
     /// replace it in content by an encryption of the null character.
     /// If all character are null, return an encryption of the null character.
     pub fn pop_last_non_zero_char(&self, content_slice: &mut [FheAsciiChar]) -> FheAsciiChar {
@@ -35,7 +35,6 @@ impl StringServerKey {
         }
         FheAsciiChar(result)
     }
-
 
     /// Replace the content of s with an encryption of the same string with the same
     /// and without initial padding.

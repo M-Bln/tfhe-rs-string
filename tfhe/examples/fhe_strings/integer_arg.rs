@@ -58,7 +58,7 @@ impl FheIntegerArg for u32 {
         *self + 1
     }
     fn to_string(&self) -> String {
-	"clear".to_string()
+        "clear".to_string()
     }
 }
 
@@ -68,6 +68,6 @@ impl FheIntegerArg for RadixCiphertext {
         server_key.integer_key.scalar_add_parallelized(self, 1)
     }
     fn to_string(&self) -> String {
-	"encrypted".to_string()
+        "encrypted".to_string()
     }
 }

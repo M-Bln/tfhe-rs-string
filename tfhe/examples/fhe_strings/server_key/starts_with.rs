@@ -9,7 +9,6 @@ impl StringServerKey {
         pattern.is_prefix_of_string(self, s)
     }
 
-
     /// Checks if s encrypts a string which has the string encrypted by prefix as a prefix. The
     /// function assumes that both s and prefix do not have initial padding zeros. Returns an
     /// encrypted value of 1 for true and an encrypted value of 0 for false.
@@ -56,7 +55,6 @@ impl StringServerKey {
         }
         result
     }
-
 }
 
 #[cfg(test)]

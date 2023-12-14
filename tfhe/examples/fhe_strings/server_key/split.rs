@@ -22,10 +22,7 @@ impl StringServerKey {
             (Padding::None | Padding::Final, Padding::None | Padding::Final) => f(s1, s2),
             (Padding::None | Padding::Final, _) => f(s1, &self.push_padding_to_end(s2)),
             (_, Padding::None | Padding::Final) => f(&self.push_padding_to_end(s1), s2),
-            _ => f(
-                &self.push_padding_to_end(s1),
-                &self.push_padding_to_end(s2),
-            ),
+            _ => f(&self.push_padding_to_end(s1), &self.push_padding_to_end(s2)),
         }
     }
 

@@ -74,8 +74,7 @@ mod tests {
             .encrypt_str_random_padding(s, string_padding)
             .unwrap();
         let encrypted_pattern = client_key.encrypt_ascii_char(pattern as u8);
-        let mut fhe_ends_with_encrypted =
-            server_key.ends_with(&encrypted_s, &encrypted_pattern);
+        let mut fhe_ends_with_encrypted = server_key.ends_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
             client_key.decrypt_u8(&fhe_ends_with_encrypted),
             std_ends_with as u8
@@ -169,4 +168,3 @@ mod tests {
         test_ends_with_string(&CLIENT_KEY, &SERVER_KEY, "", "");
     }
 }
-

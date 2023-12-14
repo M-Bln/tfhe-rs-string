@@ -5,15 +5,17 @@ mod pattern;
 mod server_key;
 mod test_generating_macros;
 mod timing_macros;
+mod timing_pair_strings_macros;
 
 use crate::ciphertext::{gen_keys_test, ClearOrEncrypted, FheStrLength, FheString};
 use crate::client_key::StringClientKey;
 use crate::server_key::StringServerKey;
 //use crate::integer_arg::FheIntegerArg;
-use tfhe::integer::{RadixCiphertext};
+use tfhe::integer::RadixCiphertext;
 //use crate::{time_function};
 use clap::Parser;
 use lazy_static::lazy_static;
+use timing_pair_strings_macros::{padding_to_string, print_string_arg, Encryption};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -210,8 +212,6 @@ fn main() {
     // time_is_empty!(is_empty, encrypted_s, clear_s);
     // time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
 
-
-    
     // time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
     // time_fhe_split!(
     //     split_ascii_whitespace,
@@ -220,20 +220,53 @@ fn main() {
     //     padding_zeros
     // );
 
+    time_pair_string!(
+        add,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        FheString
+    );
+    time_pair_string!(
+        add,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        FheString
+    );
 
-    
     match arguments.integer_arg {
-	Some(clear_integer_arg) => {
-	    time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
-	    time_repeat_clear(&clear_s, &encrypted_s_padding, clear_integer_arg, padding_zeros);
+        Some(clear_integer_arg) => {
+            time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
+            time_repeat_clear(
+                &clear_s,
+                &encrypted_s_padding,
+                clear_integer_arg,
+                padding_zeros,
+            );
 
-	    let encrypted_integer_arg = CLIENT_KEY.encrypt_u8(clear_integer_arg as u8);
-	    
-	    time_repeat_encrypted(&clear_s, &encrypted_s, clear_integer_arg, arguments.max_number_repeatition, &encrypted_integer_arg, 0);
-	    time_repeat_encrypted(&clear_s, &encrypted_s_padding, clear_integer_arg, arguments.max_number_repeatition, &encrypted_integer_arg, padding_zeros);
-	    
-	}
-	_ => (),
+            let encrypted_integer_arg = CLIENT_KEY.encrypt_u8(clear_integer_arg as u8);
+
+            time_repeat_encrypted(
+                &clear_s,
+                &encrypted_s,
+                clear_integer_arg,
+                arguments.max_number_repeatition,
+                &encrypted_integer_arg,
+                0,
+            );
+            time_repeat_encrypted(
+                &clear_s,
+                &encrypted_s_padding,
+                clear_integer_arg,
+                arguments.max_number_repeatition,
+                &encrypted_integer_arg,
+                padding_zeros,
+            );
+        }
+        _ => (),
     }
 }
 
@@ -254,14 +287,25 @@ fn time_repeat_clear(clear_s: &str, encrypted_s: &FheString, clear_n: usize, pad
     println!("{: <35} {:?}", "  └ clear integer", clear_n);
     println!("results:");
     println!("{: <35} {:}", "  ├ std result:", clear_s.repeat(clear_n));
-    println!("{: <35} {:}", "  └ FHE result:", CLIENT_KEY.decrypt_string(&result).unwrap());
-        // if !$status.is_empty() {
-        //     println!("    └ {}", $status);
-        // }
+    println!(
+        "{: <35} {:}",
+        "  └ FHE result:",
+        CLIENT_KEY.decrypt_string(&result).unwrap()
+    );
+    // if !$status.is_empty() {
+    //     println!("    └ {}", $status);
+    // }
     println!("time:                               {:?}", duration);
 }
 
-fn time_repeat_encrypted(clear_s: &str, encrypted_s: &FheString, clear_n: usize, max_n: usize, encrypted_n: &RadixCiphertext, padding_zeros: usize) {
+fn time_repeat_encrypted(
+    clear_s: &str,
+    encrypted_s: &FheString,
+    clear_n: usize,
+    max_n: usize,
+    encrypted_n: &RadixCiphertext,
+    padding_zeros: usize,
+) {
     let start = std::time::Instant::now();
     let result = SERVER_KEY.repeat_encrypted(encrypted_s, encrypted_n, max_n);
     let duration = start.elapsed();
@@ -278,9 +322,13 @@ fn time_repeat_encrypted(clear_s: &str, encrypted_s: &FheString, clear_n: usize,
     println!("{: <35} {:?}", "  └ encrypted integer", clear_n);
     println!("results:");
     println!("{: <35} {:}", "  ├ std result:", clear_s.repeat(clear_n));
-    println!("{: <35} {:}", "  └ FHE result:", CLIENT_KEY.decrypt_string(&result).unwrap());
-        // if !$status.is_empty() {
-        //     println!("    └ {}", $status);
-        // }
+    println!(
+        "{: <35} {:}",
+        "  └ FHE result:",
+        CLIENT_KEY.decrypt_string(&result).unwrap()
+    );
+    // if !$status.is_empty() {
+    //     println!("    └ {}", $status);
+    // }
     println!("time:                               {:?}", duration);
 }

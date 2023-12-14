@@ -23,10 +23,8 @@ impl StringServerKey {
             (_, Padding::None | Padding::Final) => {
                 self.eq_no_init_padding(&self.push_padding_to_end(s1), s2)
             }
-            _ => self.eq_no_init_padding(
-                &self.push_padding_to_end(s1),
-                &self.push_padding_to_end(s2),
-            ),
+            _ => self
+                .eq_no_init_padding(&self.push_padding_to_end(s1), &self.push_padding_to_end(s2)),
         }
     }
 
@@ -57,8 +55,8 @@ impl StringServerKey {
         }
     }
 
-    // /// Checks if s1 encrypts a string which has the string encrypted by `prefix` as a prefix. Returns
-    // /// an encrypted value of 1 for true and an encrypted value of 0 for false.
+    // /// Checks if s1 encrypts a string which has the string encrypted by `prefix` as a prefix.
+    // Returns /// an encrypted value of 1 for true and an encrypted value of 0 for false.
     // pub fn starts_with_encrypted(&self, s: &FheString, prefix: &FheString) -> RadixCiphertext {
     //     // If the prefix is longer than the encrypted string, return false
     //     match (&s.length, &prefix.length) {
@@ -88,8 +86,8 @@ impl StringServerKey {
     //     }
     // }
 
-    // /// Checks if s1 encrypts a string which has the string encrypted by `sufix` as a sufix. Returns
-    // /// an encrypted value of 1 for true and an encrypted value of 0 for false.
+    // /// Checks if s1 encrypts a string which has the string encrypted by `sufix` as a sufix.
+    // Returns /// an encrypted value of 1 for true and an encrypted value of 0 for false.
     // pub fn ends_with_encrypted(&self, s: &FheString, sufix: &FheString) -> RadixCiphertext {
     //     self.starts_with_encrypted(
     //         &self.reverse_string_content(s),
@@ -139,8 +137,8 @@ impl StringServerKey {
     //     };
     // }
 
-    // /// Checks if `s1` encrypts a string which has the clear string `sufix` as a sufix. Returns  an
-    // /// encrypted value of 1 for true and an encrypted value of 0 for false.
+    // /// Checks if `s1` encrypts a string which has the clear string `sufix` as a sufix. Returns
+    // an /// encrypted value of 1 for true and an encrypted value of 0 for false.
     // pub fn ends_with_clear(&self, s: &FheString, sufix: &str) -> RadixCiphertext {
     //     self.starts_with_clear(
     //         &self.reverse_string_content(s),
@@ -148,8 +146,9 @@ impl StringServerKey {
     //     )
     // }
 
-    /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString` with no initial padding
-    /// zeros. Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
+    /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString` with no initial
+    /// padding zeros. Returns an encrypted value of 1 for true and an encrypted value of 0 for
+    /// false.
     pub fn eq_no_init_padding(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         // First the content are compared
         let mut result = self.create_true();
@@ -217,9 +216,8 @@ impl StringServerKey {
         result
     }
 
-
-    /// Checks if s1 encrypt the string s2, for s1 an `FheString` with no initial padding zeros and s2
-    /// a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
+    /// Checks if s1 encrypt the string s2, for s1 an `FheString` with no initial padding zeros and
+    /// s2 a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
     pub fn eq_clear_no_init_padding(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
         let mut result = self.create_true();
@@ -244,8 +242,8 @@ impl StringServerKey {
         result
     }
 
-    /// Check if s1 encrypts the string s2, for s1 an `FheString` with no initial padding zeros and s2
-    /// a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
+    /// Check if s1 encrypts the string s2, for s1 an `FheString` with no initial padding zeros and
+    /// s2 a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
     pub fn eq_clear_ignore_case_no_init_padding(
         &self,
@@ -270,9 +268,9 @@ impl StringServerKey {
         result
     }
 
-    // /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. The function
-    // /// assumes that both s and prefix do not have initial padding zeros. Return an encrypted value
-    // /// of 1 for true and an encrypted value of 0 for false.
+    // /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. The
+    // function /// assumes that both s and prefix do not have initial padding zeros. Return an
+    // encrypted value /// of 1 for true and an encrypted value of 0 for false.
     // pub fn starts_with_clear_no_init_padding(
     //     &self,
     //     s: &FheString,
@@ -328,11 +326,11 @@ impl StringServerKey {
     /// Compares the encrypted strings for the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
     ///  -If the operator is std::cmp::Ordering::Less,
-    ///   Return true if the string encrypted by s1 is less than or equal to the string encryptedd by
-    ///   s2.
+    ///   Return true if the string encrypted by s1 is less than or equal to the string encryptedd
+    /// by   s2.
     ///  -If the operator is std::cmp::Ordering::Greater,
-    ///   Return true if the string encrypted by s1 is less than or equal to the string encryptedd by
-    ///   s2.
+    ///   Return true if the string encrypted by s1 is less than or equal to the string encryptedd
+    /// by   s2.
     ///  -If the operator is std::cmp::Ordering::Equal,
     ///   Return true if the string encrypted by s1 is equal to the string encryptedd by s2.
     ///   For this case, using the function eq is more efficient.
@@ -503,8 +501,8 @@ impl StringServerKey {
     ///   Returns true if the character encrypted by c1 is less than or equal to the character
     ///   encrypted by c2.
     ///  -If the operator is std::cmp::Ordering::Greater,
-    ///   Returns true if the character encrypted by c1 is greater or equal to the character encrypted
-    ///   by c2.
+    ///   Returns true if the character encrypted by c1 is greater or equal to the character
+    /// encrypted   by c2.
     ///  -If the operator is std::cmp::Ordering::Equal,
     ///   Returns true if the character encrypted by c1 is equal to the character encrypted by c2.
     pub fn compare_char(
@@ -534,8 +532,8 @@ impl StringServerKey {
     ///   Return true if the character encrypted by c1 is less than or equal to the clear character
     ///   c2.
     ///  -If the operator is std::cmp::Ordering::Greater,
-    ///   Return true if the character encrypted by c1 is greater or equal to the clear character c2.
-    ///  -If the operator is std::cmp::Ordering::Equal,
+    ///   Return true if the character encrypted by c1 is greater or equal to the clear character
+    /// c2.  -If the operator is std::cmp::Ordering::Equal,
     ///   Return true if the character encrypted by c1 is equal to the clear character c2.
     pub fn compare_clear_char(
         &self,

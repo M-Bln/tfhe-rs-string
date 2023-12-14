@@ -1,9 +1,9 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::server_key::StringServerKey;
 use crate::integer_arg::FheIntegerArg;
+use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
-impl StringServerKey {    
+impl StringServerKey {
     pub fn repeat_clear(&self, s: &FheString, n: usize) -> FheString {
         let mut result = FheString {
             content: Vec::with_capacity(n * s.content.len()),

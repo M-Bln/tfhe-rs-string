@@ -97,9 +97,7 @@ impl StringServerKey {
         }
         match s.padding {
             Padding::None | Padding::Final => self.rsplit_terminator_char_final_padding(s, pattern),
-            _ => {
-                self.rsplit_terminator_char_final_padding(&self.push_padding_to_end(s), pattern)
-            }
+            _ => self.rsplit_terminator_char_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
@@ -175,9 +173,7 @@ impl StringServerKey {
             Padding::None | Padding::Final => {
                 self.rsplit_terminator_clear_final_padding(s, pattern)
             }
-            _ => {
-                self.rsplit_terminator_clear_final_padding(&self.push_padding_to_end(s), pattern)
-            }
+            _ => self.rsplit_terminator_clear_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 

@@ -82,7 +82,6 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
- 
     // #[test]
     // fn test_to_upper_fhe() {
     //     let encrypted_str = CLIENT_KEY.encrypt_str("aB.").unwrap();

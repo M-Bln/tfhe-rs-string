@@ -80,9 +80,7 @@ impl StringServerKey {
             _ if pattern.len() == 0 => self
                 .padding_pair_dispatch(s, s, |s1, s2| self.split_terminator_empty_pattern(s1, s2)),
             Padding::None | Padding::Final => self.split_terminator_clear_final_padding(s, pattern),
-            _ => {
-                self.split_terminator_clear_final_padding(&self.push_padding_to_end(s), pattern)
-            }
+            _ => self.split_terminator_clear_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
