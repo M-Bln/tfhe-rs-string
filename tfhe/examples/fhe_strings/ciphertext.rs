@@ -101,6 +101,20 @@ pub fn gen_keys() -> (StringClientKey, StringServerKey) {
     }
 }
 
+pub fn gen_keys_big_int() -> (StringClientKey, StringServerKey) {
+    let num_block = 8;
+    match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block) {
+        (radix_client_key, server_key) => (
+            StringClientKey {
+                integer_key: radix_client_key,
+            },
+            StringServerKey {
+                integer_key: server_key,
+            },
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ciphertext::{gen_keys, FheStrLength, Padding};

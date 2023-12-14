@@ -448,7 +448,7 @@ impl StringServerKey {
         for i in 0..maximum_number_of_parts_or_n {
             let (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
             if i == n - 1 {
-                parts.push(self.final_substring_encrypted_final_padding(s, &start_part));
+                parts.push(self.substring_from_encrypted_final_padding(s, &start_part));
             } else {
                 // Increment `number_parts` if the pattern is found.
                 self.integer_key
@@ -568,7 +568,7 @@ impl StringServerKey {
             }
 
             if i == n - 1 {
-                parts.push(self.final_substring_encrypted_final_padding(s, &start_part));
+                parts.push(self.substring_from_encrypted_final_padding(s, &start_part));
             } else {
                 // Increment `number_parts` if the pattern is found.
                 self.integer_key

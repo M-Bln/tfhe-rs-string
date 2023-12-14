@@ -169,13 +169,13 @@ impl StringClientKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, FheStrLength, Padding};
+    use crate::ciphertext::{gen_keys_test, FheStrLength, Padding};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
 
     lazy_static! {
-        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
+        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_test();
         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
@@ -193,5 +193,12 @@ mod tests {
         let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("abc", 4).unwrap();
         let decrypted_str = CLIENT_KEY.decrypt_string(&encrypted_str).unwrap();
         assert_eq!(decrypted_str, "abc");
+    }
+
+    #[test]
+    fn test_integer_size() {
+        let big_int = CLIENT_KEY.integer_key.encrypt(250 as u32);
+        let bigger_int = SERVER_KEY.integer_key.scalar_add_parallelized(&big_int, 30);
+        assert_eq!(CLIENT_KEY.integer_key.decrypt::<u32>(&bigger_int), 280);
     }
 }

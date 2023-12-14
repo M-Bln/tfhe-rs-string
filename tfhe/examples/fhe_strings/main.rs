@@ -188,8 +188,14 @@ fn main() {
         };
     }
 
-    apply_time_function_string_pattern_padding_combinations_return_type!(strip_prefix, FheString);
-    apply_time_function_string_pattern_padding_combinations_return_type!(strip_suffix, FheString);
+    // apply_time_function_string_pattern_padding_combinations_return_type!(
+    //     strip_prefix,
+    //     (RadixCiphertext, FheString)
+    // );
+    // apply_time_function_string_pattern_padding_combinations_return_type!(
+    //     strip_suffix,
+    //     (RadixCiphertext, FheString)
+    // );
 
     // apply_time_function_twice!(trim);
     // apply_time_function_twice!(trim_start);

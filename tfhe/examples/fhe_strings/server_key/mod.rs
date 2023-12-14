@@ -5,6 +5,7 @@ mod comparisons;
 mod contains;
 mod find;
 pub mod is_empty;
+mod length_arithmetic;
 mod repeat;
 mod replace;
 mod rsplit;

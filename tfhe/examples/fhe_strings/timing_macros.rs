@@ -123,6 +123,9 @@ macro_rules! display_result_string_pattern {
 #[macro_export]
 macro_rules! std_resultstring_from_type {
     (FheString, $std_result: expr) => {
+        "CACACACACACACA".to_string()
+    };
+    ((RadixCiphertext, FheString), $std_result: expr) => {
         match $std_result {
             Some(result_string) => format!("Some({:?})", result_string),
             None => "None".to_string(),
@@ -133,6 +136,9 @@ macro_rules! std_resultstring_from_type {
 #[macro_export]
 macro_rules! fhe_resultstring_from_type {
     (FheString, $fhe_result: expr) => {
+        "PIPIPIPIPI".to_string()
+    };
+    ((RadixCiphertext, FheString), $fhe_result: expr) => {
         match $fhe_result {
             (1, result_string) => format!("Some({:?})", result_string),
             _ => "None".to_string(),
