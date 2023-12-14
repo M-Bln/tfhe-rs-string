@@ -1,11 +1,16 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    pub fn eq(&self, s1: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+        pattern.eq_string(self, s1)
+    }
+
     /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString`s.
     /// Returns an encrypted value of 1 for true, 0 for false.
-    pub fn eq(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn eq_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         match (&s1.length, &s2.length) {
             (&FheStrLength::Clear(l1), &FheStrLength::Clear(l2)) if l1 != l2 => {
                 return self.create_zero()

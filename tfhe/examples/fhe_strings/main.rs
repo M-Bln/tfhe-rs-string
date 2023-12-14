@@ -220,53 +220,63 @@ fn main() {
     //     padding_zeros
     // );
 
-    time_pair_string!(
-        add,
-        clear_s,
-        encrypted_s,
-        clear_pattern,
-        encrypted_pattern,
-        FheString
-    );
-    time_pair_string!(
-        add,
-        clear_s,
-        encrypted_s,
-        clear_pattern,
-        encrypted_pattern,
-        FheString,
-	padding_zeros
-    );
-    time_pair_string!(
+    // time_pair_string!(
+    //     add,
+    //     clear_s,
+    //     encrypted_s,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     FheString
+    // );
+    time_pair_string_all_paddings!(
         add,
         clear_s,
         encrypted_s,
         clear_pattern,
         encrypted_pattern,
         FheString,
-	padding_zeros,
-	0
+        padding_zeros
     );
-    time_pair_string!(
-        add,
+
+    time_pair_string_all_paddings!(
+        eq,
         clear_s,
         encrypted_s,
         clear_pattern,
         encrypted_pattern,
-        FheString,
-	0,
-	padding_zeros
+        Bool,
+        padding_zeros
     );
-    time_pair_string!(
-        add,
-        clear_s,
-        encrypted_s,
-        clear_pattern,
-        encrypted_pattern,
-        FheString,
-	padding_zeros,
-	padding_zeros
-    );
+    // time_pair_string!(
+    //     add,
+    //     clear_s,
+    //     encrypted_s,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     FheString,
+    // 	padding_zeros,
+    // 	0
+    // );
+    // time_pair_string!(
+    //     add,
+    //     clear_s,
+    //     encrypted_s,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     FheString,
+    // 	0,
+    // 	padding_zeros
+    // );
+    // time_pair_string!(
+    //     add,
+    //     clear_s,
+    //     encrypted_s,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     FheString,
+    // 	padding_zeros,
+    // 	padding_zeros
+    // );
 
     match arguments.integer_arg {
         Some(clear_integer_arg) => {
