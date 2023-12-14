@@ -234,7 +234,38 @@ fn main() {
         encrypted_s,
         clear_pattern,
         encrypted_pattern,
-        FheString
+        FheString,
+	padding_zeros
+    );
+    time_pair_string!(
+        add,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        FheString,
+	padding_zeros,
+	0
+    );
+    time_pair_string!(
+        add,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        FheString,
+	0,
+	padding_zeros
+    );
+    time_pair_string!(
+        add,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        FheString,
+	padding_zeros,
+	padding_zeros
     );
 
     match arguments.integer_arg {
