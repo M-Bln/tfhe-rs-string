@@ -506,6 +506,29 @@ macro_rules! test_fhe_split_char_pattern {
 }
 
 #[macro_export]
+macro_rules! test_fhe_split_ascii_whitespace {
+    ($method: ident, $string_arg: expr, $num: expr) => {
+        paste::item! {
+            #[test]
+            fn [<"test_" $method "_" $num "_padding_0">]() {
+            let std_result = $string_arg.$method();
+                let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
+                let fhe_result = SERVER_KEY.$method(&encrypted_s);
+        compare_result!(FheSplit, std_result, fhe_result);
+            }
+
+            #[test]
+            fn [<"test_" $method "_" $num "_random_padding_2">]() {
+            let std_result = $string_arg.$method();
+                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                let fhe_result = SERVER_KEY.$method(&encrypted_s);
+        compare_result!(FheSplit, std_result, fhe_result);
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! test_fhe_string_string_pattern {
     ($method: ident, $string_arg: expr, $old_pattern_arg: expr, $new_string_arg: expr) => {
         paste::item! {
