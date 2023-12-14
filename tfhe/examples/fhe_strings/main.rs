@@ -53,7 +53,7 @@ lazy_static! {
 fn main() {
     let arguments = Arguments::parse();
     let clear_s = arguments.input_string;
-    let clear_pattern = arguments.pattern;
+    let clear_pattern = arguments.pattern.as_str();
     let padding_zeros = arguments.padding_zeros;
 
     let encrypted_s = CLIENT_KEY.encrypt_str(&clear_s).unwrap();
@@ -90,7 +90,8 @@ fn main() {
         };
     }
 
-    //apply_time_function_string_pattern_padding_combinations!(strip_prefix);
+    apply_time_function_string_pattern_padding_combinations!(strip_prefix);
+    apply_time_function_string_pattern_padding_combinations!(strip_suffix);
 
     // apply_time_function_twice!(trim);
     // apply_time_function_twice!(trim_start);
@@ -112,3 +113,4 @@ fn main() {
     //     padding_zeros
     // );
 }
+ 

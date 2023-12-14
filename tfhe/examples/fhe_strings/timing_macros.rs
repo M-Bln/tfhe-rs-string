@@ -63,14 +63,22 @@ macro_rules! display_result_string_pattern {
             0 => String::from("no padding"),
             _ => format!("{} padding zeros", $string_padding),
         };
+	let std_result_string = match $std_result {
+	    Some(result_string) => format!("Some({:?})", result_string),
+	    None => "None".to_string(),
+	};
+	let fhe_result_string = match $fhe_result {
+	    (1,result_string) => format!("Some({:?})", result_string),
+	    _ => "None".to_string(),
+	};
         println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
         println!("arguments:");
         println!("{: <35} {:?}", "  └ encrypted string", $clear_s);
         println!("    └ {}", string_padding_zeros_string);
         println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
         println!("results:");
-        println!("{: <35} {:?}", "  ├ std result:", $std_result);
-        println!("{: <35} {:?}", "  └ FHE result:", $fhe_result);
+        println!("{: <35} {:}", "  ├ std result:", std_result_string);
+        println!("{: <35} {:}", "  └ FHE result:", fhe_result_string);
         // if !$status.is_empty() {
         //     println!("    └ {}", $status);
         // }
@@ -85,6 +93,14 @@ macro_rules! display_result_string_pattern {
             0 => String::from("no padding"),
             _ => format!("{} padding zeros", $padding_zeros),
         };
+	let std_result_string = match $std_result {
+	    Some(result_string) => format!("Some({:?})", result_string),
+	    None => "None",
+	};
+	let fhe_result_string = match $fhe_result {
+	    (1,result_string) => format!("Some({:?})", result_string),
+	    _ => "None",
+	};
         println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
         println!("arguments:");
         println!("{: <35} {:?}", "  └ encrypted string", $clear_s);
@@ -95,8 +111,8 @@ macro_rules! display_result_string_pattern {
         );
         println!("    └ {}", pattern_padding_zeros_string);
         println!("results:");
-        println!("{: <35} {:?}", "  ├ std result:", $std_result);
-        println!("{: <35} {:?}", "  └ FHE result:", $fhe_result);
+        println!("{: <35} {:}", "  ├ std result:", std_result_string);
+        println!("{: <35} {:}", "  └ FHE result:", fhe_result_string);
         if !$status.is_empty() {
             println!("    └ {}", $status);
         }
@@ -109,10 +125,11 @@ macro_rules! time_function_string_pattern {
     // unpadded string, clear pattern
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $clear_pattern: ident) => {
         let start = std::time::Instant::now();
-        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s);
-        let fhe_result = CLIENT_KEY.decrypt_string(&encrypted_fhe_result).unwrap();
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$clear_pattern);
+        let fhe_result = (CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+			  CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap());
         let duration = start.elapsed();
-        let std_result = $clear_s.$method();
+        let std_result = $clear_s.$method(&$clear_pattern);
         display_result_string_pattern!(
             $method,
             $clear_s,
@@ -126,10 +143,11 @@ macro_rules! time_function_string_pattern {
     // padded string, clear pattern
     ($method: ident, $encrypted_s_padded: ident, $string_padding: expr, $clear_s: ident,  $clear_pattern: ident) => {
         let start = std::time::Instant::now();
-        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padded);
-        let fhe_result = CLIENT_KEY.decrypt_string(&encrypted_fhe_result).unwrap();
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padded, &$clear_pattern);
+        let fhe_result = (CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+			  CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap());
         let duration = start.elapsed();
-        let std_result = $clear_s.$method();
+        let std_result = $clear_s.$method(&$clear_pattern);
         display_result_string_pattern!(
             $method,
             $clear_s,
