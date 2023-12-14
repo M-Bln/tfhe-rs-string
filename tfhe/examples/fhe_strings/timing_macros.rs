@@ -121,6 +121,162 @@ macro_rules! display_result_string_pattern {
 }
 
 #[macro_export]
+macro_rules! std_resultstring_from_type {
+    (FheString, $std_result: expr) => {
+        match $std_result {
+            Some(result_string) => format!("Some({:?})", result_string),
+            None => "None".to_string(),
+        };
+    };
+}
+
+#[macro_export]
+macro_rules! fhe_resultstring_from_type {
+    (FheString, $fhe_result: expr) => {
+        match $fhe_result {
+            (1, result_string) => format!("Some({:?})", result_string),
+            _ => "None".to_string(),
+        };
+    };
+}
+
+#[macro_export]
+macro_rules! display_result_string_pattern_return_type {
+    // clear string pattern
+    ($method: ident, $return_type: ident, $clear_s: expr, $clear_pattern: expr, $fhe_result: expr, $std_result: expr, $duration: expr, $string_padding: expr) => {
+        let string_padding_zeros_string = match $string_padding {
+            0 => String::from("no padding"),
+            _ => format!("{} padding zeros", $string_padding),
+        };
+        let std_result_string = std_resultstring_from_type!($return_type, $std_result);
+        let fhe_result_string = fhe_resultstring_from_type!($return_type, $fhe_result);
+        // let std_result_string = match $std_result {
+        //     Some(result_string) => format!("Some({:?})", result_string),
+        //     None => "None".to_string(),
+        // };
+        // let fhe_result_string = match $fhe_result {
+        //     (1, result_string) => format!("Some({:?})", result_string),
+        //     _ => "None".to_string(),
+        // };
+        println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
+        println!("arguments:");
+        println!("{: <35} {:?}", "  └ encrypted string", $clear_s);
+        println!("    └ {}", string_padding_zeros_string);
+        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
+        println!("results:");
+        println!("{: <35} {:}", "  ├ std result:", std_result_string);
+        println!("{: <35} {:}", "  └ FHE result:", fhe_result_string);
+        // if !$status.is_empty() {
+        //     println!("    └ {}", $status);
+        // }
+        println!("time:                               {:?}", $duration);
+    };
+    ($method: ident, $return_type: ident $clear_s: expr, $clear_pattern: expr, $fhe_result: expr, $std_result: expr, $duration: expr, $string_padding: expr, $pattern_padding: expr) => {
+        let string_padding_zeros_string = match $string_padding {
+            0 => String::from("no padding"),
+            _ => format!("{} padding zeros", $string_padding),
+        };
+        let pattern_padding_zeros_string = match $string_padding {
+            0 => String::from("no padding"),
+            _ => format!("{} padding zeros", $pattern_padding),
+        };
+        let std_result_string = std_resultstring_from_type!($return_type, $std_result);
+        let fhe_result_string = fhe_resultstring_from_type!($return_type, $fhe_result);
+        // let std_result_string = match $std_result {
+        //     Some(result_string) => format!("Some({:?})", result_string),
+        //     None => "None".to_string(),
+        // };
+        // let fhe_result_string = match $fhe_result {
+        //     (1, result_string) => format!("Some({:?})", result_string),
+        //     _ => "None".to_string(),
+        // };
+        println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
+        println!("arguments:");
+        println!("{: <35} {:?}", "  └ encrypted string", $clear_s);
+        println!("    └ {}", string_padding_zeros_string);
+        println!(
+            "{: <35} {:?}",
+            "  └ encrypted string pattern", $clear_pattern
+        );
+        println!("    └ {}", pattern_padding_zeros_string);
+        println!("results:");
+        println!("{: <35} {:}", "  ├ std result:", std_result_string);
+        println!("{: <35} {:}", "  └ FHE result:", fhe_result_string);
+        // if !$status.is_empty() {
+        //     println!("    └ {}", $status);
+        // }
+        println!("time:                               {:?}", $duration);
+    };
+}
+
+#[macro_export]
+macro_rules! time_function_string_pattern_return_type {
+    // unpadded string, clear pattern
+    ($method: ident, $return_type: ident, $encrypted_s: ident, $clear_s: ident, $clear_pattern: ident) => {
+        let start = std::time::Instant::now();
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$clear_pattern);
+        let fhe_result = (
+            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
+        );
+        let duration = start.elapsed();
+        let std_result = $clear_s.$method(&$clear_pattern);
+        display_result_string_pattern_return_type!(
+            $method,
+            $return_type,
+            $clear_s,
+            $clear_pattern,
+            fhe_result,
+            std_result,
+            duration,
+            0
+        )
+    };
+    // padded string, clear pattern
+    ($method: ident, $return_type: ident, $encrypted_s_padded: ident, $string_padding: expr, $clear_s: ident,  $clear_pattern: ident) => {
+        let start = std::time::Instant::now();
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padded, &$clear_pattern);
+        let fhe_result = (
+            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
+        );
+        let duration = start.elapsed();
+        let std_result = $clear_s.$method(&$clear_pattern);
+        display_result_string_pattern_return_type!(
+            $method,
+            $return_type,
+            $clear_s,
+            $clear_pattern,
+            fhe_result,
+            std_result,
+            duration,
+            $string_padding
+        )
+    };
+    // encrypted string encrypted_pattern
+    ($method: ident, $return_type: ident, $encrypted_s: ident, $string_padding: expr, $clear_s: ident,  $clear_pattern:ident, $encrypted_pattern: ident, $pattern_padding: expr) => {
+        let start = std::time::Instant::now();
+        let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$encrypted_pattern);
+        let fhe_result = (
+            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
+        );
+        let duration = start.elapsed();
+        let std_result = $clear_s.$method(&$clear_pattern);
+        display_result_string_pattern_return_type!(
+            $method,
+            $return_type,
+            $clear_s,
+            $clear_pattern,
+            fhe_result,
+            std_result,
+            duration,
+            $string_padding
+        )
+    };
+}
+
+#[macro_export]
 macro_rules! time_function_string_pattern {
     // unpadded string, clear pattern
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $clear_pattern: ident) => {
