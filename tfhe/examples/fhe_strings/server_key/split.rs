@@ -20,12 +20,9 @@ impl StringServerKey {
     {
         match (s1.padding, s2.padding) {
             (Padding::None | Padding::Final, Padding::None | Padding::Final) => f(s1, s2),
-            (Padding::None | Padding::Final, _) => f(s1, &self.remove_initial_padding(s2)),
-            (_, Padding::None | Padding::Final) => f(&self.remove_initial_padding(s1), s2),
-            _ => f(
-                &self.remove_initial_padding(s1),
-                &self.remove_initial_padding(s2),
-            ),
+            (Padding::None | Padding::Final, _) => f(s1, &self.push_padding_to_end(s2)),
+            (_, Padding::None | Padding::Final) => f(&self.push_padding_to_end(s1), s2),
+            _ => f(&self.push_padding_to_end(s1), &self.push_padding_to_end(s2)),
         }
     }
 
@@ -35,7 +32,7 @@ impl StringServerKey {
     {
         match (s.padding) {
             Padding::None | Padding::Final => f(s),
-            _ => f(&self.remove_initial_padding(s)),
+            _ => f(&self.push_padding_to_end(s)),
         }
     }
     pub fn split(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
@@ -66,14 +63,14 @@ impl StringServerKey {
                 self.padding_pair_dispatch(s, s, |s1, s2| self.split_empty_pattern(s1, s2))
             }
             Padding::None | Padding::Final => self.split_clear_final_padding(s, pattern),
-            _ => self.split_clear_final_padding(&self.remove_initial_padding(s), pattern),
+            _ => self.split_clear_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
     pub fn split_char(&self, s: &FheString, pattern: &impl FheCharPattern) -> FheSplit {
         match s.padding {
             Padding::None | Padding::Final => self.split_char_final_padding(s, pattern),
-            _ => self.split_char_final_padding(&self.remove_initial_padding(s), pattern),
+            _ => self.split_char_final_padding(&self.push_padding_to_end(s), pattern),
         }
     }
 
@@ -448,7 +445,7 @@ impl StringServerKey {
         for i in 0..maximum_number_of_parts_or_n {
             let (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
             if i == n - 1 {
-                parts.push(self.final_substring_encrypted_final_padding(s, &start_part));
+                parts.push(self.substring_from_encrypted_final_padding(s, &start_part));
             } else {
                 // Increment `number_parts` if the pattern is found.
                 self.integer_key
@@ -568,7 +565,7 @@ impl StringServerKey {
             }
 
             if i == n - 1 {
-                parts.push(self.final_substring_encrypted_final_padding(s, &start_part));
+                parts.push(self.substring_from_encrypted_final_padding(s, &start_part));
             } else {
                 // Increment `number_parts` if the pattern is found.
                 self.integer_key

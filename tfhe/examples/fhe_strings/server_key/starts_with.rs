@@ -4,8 +4,56 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.
     fn starts_with(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
         pattern.is_prefix_of_string(self, s)
+    }
+
+    /// Checks if s encrypts a string which has the string encrypted by prefix as a prefix. The
+    /// function assumes that both s and prefix do not have initial padding zeros. Returns an
+    /// encrypted value of 1 for true and an encrypted value of 0 for false.
+    pub fn starts_with_encrypted_no_init_padding(
+        &self,
+        s: &FheString,
+        prefix: &FheString,
+    ) -> RadixCiphertext {
+        // First the overlapping contents are compared.
+        let mut result = self.create_true();
+        for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
+            self.integer_key.unchecked_bitand_assign_parallelized(
+                &mut result,
+                &match prefix.padding {
+                    // Padding is either None or Final.
+                    Padding::None => self.compare_char(
+                        &s.content[n],
+                        &prefix.content[n],
+                        std::cmp::Ordering::Equal,
+                    ),
+                    _ => self.integer_key.unchecked_bitor_parallelized(
+                        &self.compare_char(
+                            &s.content[n],
+                            &prefix.content[n],
+                            std::cmp::Ordering::Equal,
+                        ),
+                        &self
+                            .integer_key
+                            .scalar_eq_parallelized(&prefix.content[n].0, 0),
+                    ),
+                },
+            )
+        }
+
+        // If prefix content size is greater than s content size, check if the extra characters are
+        // padding zeros.
+        if prefix.content.len() > s.content.len() {
+            return self.integer_key.bitand_parallelized(
+                &result,
+                &self
+                    .integer_key
+                    .scalar_eq_parallelized(&prefix.content[s.content.len()].0, 0),
+            );
+        }
+        result
     }
 }
 

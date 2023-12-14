@@ -1,10 +1,13 @@
 mod accessors;
 mod add;
 mod change_case;
+mod change_padding;
 mod comparisons;
 mod contains;
+mod ends_with;
 mod find;
 pub mod is_empty;
+mod length_arithmetic;
 mod repeat;
 mod replace;
 mod rsplit;

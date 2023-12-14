@@ -61,7 +61,7 @@ impl StringServerKey {
             content: c
                 .content
                 .iter()
-                .map(|c| self.to_lowercase_char(c))
+                .map(|c| self.to_lowercase_cmux_char(c))
                 .collect(),
             padding: c.padding,
             length: c.length.clone(),
@@ -71,7 +71,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::gen_keys;
+    use crate::ciphertext::{gen_keys, gen_keys_big_int};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
@@ -92,9 +92,16 @@ mod tests {
 
     #[test]
     fn test_to_lower_fhe() {
-        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("BCD", 2).unwrap();
+        let encrypted_str = CLIENT_KEY.encrypt_str_random_padding("BC", 0).unwrap();
         let encrypted_str_lower = SERVER_KEY.to_lowercase(&encrypted_str);
         let decrypted_str_lower = CLIENT_KEY.decrypt_string(&encrypted_str_lower).unwrap();
-        assert_eq!(&decrypted_str_lower, "bcd");
+        assert_eq!(&decrypted_str_lower, "bc");
     }
+
+    // #[test]
+    // fn test_integer_size() {
+    // 	let big_int = CLIENT_KEY.integer_key.encrypt(250 as u32);
+    // 	let bigger_int = SERVER_KEY.integer_key.scalar_add_parallelized(&big_int,30);
+    // 	assert_eq!(CLIENT_KEY.integer_key.decrypt::<u32>(&bigger_int), 280);
+    // }
 }

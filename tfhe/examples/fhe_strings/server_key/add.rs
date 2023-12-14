@@ -4,9 +4,14 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    /// Concatenates the pattern to the end of the encrypted string s1. It consumes s1 and returns a
+    /// `FheString`.
     pub fn add(&self, mut s1: FheString, pattern: &impl FhePattern) -> FheString {
         pattern.push_to(self, s1)
     }
+
+    /// Concatenates an encrypted string `pattern` to the end of the encrypted string s1. It
+    /// consumes s1 and returns a `FheString`.
     pub fn add_encrypted(&self, mut s1: FheString, s2: &FheString) -> FheString {
         let result_padding: Padding = match (s1.padding, s2.padding) {
             (Padding::None, Padding::None) => Padding::None,
@@ -26,6 +31,8 @@ impl StringServerKey {
         }
     }
 
+    /// Concatenates an clear string `pattern` to the end of the encrypted string s1. It consumes s1
+    /// and returns a `FheString`.
     pub fn add_clear(&self, mut s1: FheString, s2: &str) -> FheString {
         if s2.is_empty() {
             return s1;
@@ -47,10 +54,14 @@ impl StringServerKey {
         }
     }
 
+    /// Concatenates a clear character `c` to the end of the encrypted string s1. It consumes s1 and
+    /// returns a `FheString`.
     pub fn add_clear_char(&self, mut s1: FheString, c: char) -> FheString {
         self.add_encrypted_char(s1, &self.server_encrypt_ascii_char(c))
     }
 
+    /// Concatenates an encrypted character `c` to the end of the encrypted string s1. It consumes
+    /// s1 and returns a `FheString`.
     pub fn add_encrypted_char(&self, mut s1: FheString, c: &FheAsciiChar) -> FheString {
         let result_padding: Padding = match s1.padding {
             Padding::None => Padding::None,
@@ -65,89 +76,6 @@ impl StringServerKey {
             content: s1.content,
             length: result_length,
             padding: result_padding,
-        }
-    }
-
-    pub fn add_length(&self, l1: &FheStrLength, l2: &FheStrLength) -> FheStrLength {
-        match (&l1, &l2) {
-            (FheStrLength::Encrypted(encrypted_l1), l2) => self.add_radix_length(l2, encrypted_l1),
-            (l1, FheStrLength::Encrypted(encrypted_l2)) => self.add_radix_length(l1, encrypted_l2),
-            (FheStrLength::Clear(clear_l1), FheStrLength::Clear(clear_l2)) => {
-                FheStrLength::Clear(*clear_l1 + *clear_l2)
-            }
-        }
-    }
-
-    pub fn add_scalar_to_length(&self, fhe_length: &FheStrLength, n: usize) -> FheStrLength {
-        match fhe_length {
-            FheStrLength::Clear(clear_length) => FheStrLength::Clear(clear_length + n),
-            FheStrLength::Encrypted(encrypted_length) => FheStrLength::Encrypted(
-                self.integer_key
-                    .scalar_add_parallelized(encrypted_length, n as u32),
-            ),
-        }
-    }
-
-    pub fn add_radix_to_length(
-        &self,
-        fhe_length: &FheStrLength,
-        n: &RadixCiphertext,
-    ) -> FheStrLength {
-        match fhe_length {
-            FheStrLength::Clear(clear_length) => FheStrLength::Encrypted(
-                self.integer_key
-                    .scalar_add_parallelized(n, *clear_length as u32),
-            ),
-            FheStrLength::Encrypted(encrypted_length) => {
-                FheStrLength::Encrypted(self.integer_key.add_parallelized(encrypted_length, n))
-            }
-        }
-    }
-
-    pub fn sub_radix_to_length(
-        &self,
-        fhe_length: &FheStrLength,
-        n: &RadixCiphertext,
-    ) -> FheStrLength {
-        match fhe_length {
-            FheStrLength::Clear(clear_length) => {
-                let result_positive = self
-                    .integer_key
-                    .scalar_le_parallelized(n, *clear_length as u32);
-                let radix_result = self.integer_key.cmux_parallelized(
-                    &result_positive,
-                    &self
-                        .integer_key
-                        .sub_parallelized(&self.create_n(*clear_length as u8), n),
-                    &self.create_zero(),
-                );
-                FheStrLength::Encrypted(radix_result)
-            }
-            FheStrLength::Encrypted(encrypted_length) => {
-                let result_positive = self.integer_key.le_parallelized(n, encrypted_length);
-                let radix_result = self.integer_key.cmux_parallelized(
-                    &result_positive,
-                    &self.integer_key.sub_parallelized(encrypted_length, n),
-                    &self.create_zero(),
-                );
-                FheStrLength::Encrypted(radix_result)
-            }
-        }
-    }
-
-    pub fn mult_length_by_radix(
-        &self,
-        fhe_length: &FheStrLength,
-        n: &RadixCiphertext,
-    ) -> FheStrLength {
-        match fhe_length {
-            FheStrLength::Clear(clear_length) => FheStrLength::Encrypted(
-                self.integer_key
-                    .scalar_mul_parallelized(n, *clear_length as u32),
-            ),
-            FheStrLength::Encrypted(encrypted_length) => {
-                FheStrLength::Encrypted(self.integer_key.mul_parallelized(encrypted_length, n))
-            }
         }
     }
 }

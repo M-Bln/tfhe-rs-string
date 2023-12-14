@@ -11,14 +11,14 @@ impl StringServerKey {
     pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
         match (s.padding, pattern.padding) {
             (Padding::Anywhere, Padding::Final | Padding::None) => {
-                self.contains_unpadded_string(&self.remove_initial_padding(s), pattern)
+                self.contains_unpadded_string(&self.push_padding_to_end(s), pattern)
             }
             (Padding::Anywhere, _) => self.contains_unpadded_string(
-                &self.remove_initial_padding(s),
-                &self.remove_initial_padding(pattern),
+                &self.push_padding_to_end(s),
+                &self.push_padding_to_end(pattern),
             ),
             (_, Padding::Final | Padding::None) => self.contains_unpadded_string(s, pattern),
-            _ => self.contains_unpadded_string(s, &self.remove_initial_padding(pattern)),
+            _ => self.contains_unpadded_string(s, &self.push_padding_to_end(pattern)),
         }
     }
 
@@ -33,7 +33,7 @@ impl StringServerKey {
         }
         match s.padding {
             Padding::Anywhere => {
-                self.connected_contains_clear_string(&self.remove_initial_padding(s), pattern)
+                self.connected_contains_clear_string(&self.push_padding_to_end(s), pattern)
             }
             _ => self.connected_contains_clear_string(s, pattern),
         }

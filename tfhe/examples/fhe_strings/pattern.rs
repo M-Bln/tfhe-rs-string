@@ -42,6 +42,14 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> RadixCiphertext;
 
+    fn is_suffix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        self.is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
+    }
+
     fn strip_prefix_in(
         &self,
         server_key: &StringServerKey,
@@ -160,9 +168,19 @@ impl FhePattern for &str {
             }
             _ => self.is_prefix_of_slice(
                 server_key,
-                &server_key.remove_initial_padding(haystack).content,
+                &server_key.push_padding_to_end(haystack).content,
             ),
         }
+    }
+
+    fn is_suffix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        let reversed_string = self.chars().rev().collect::<String>();
+        let reversed_self = reversed_string.as_str();
+        reversed_self.is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
     }
 
     fn strip_suffix_in(
@@ -259,7 +277,7 @@ impl FhePattern for FheString {
                 }
             }
             _ => {
-                let unpadded_needle = server_key.remove_initial_padding(self);
+                let unpadded_needle = server_key.push_padding_to_end(self);
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
                     let match_or_end_needle = server_key.integer_key.bitor_parallelized(
                         &server_key.eq_char(&haystack[n], &unpadded_needle.content[n]),
@@ -302,9 +320,19 @@ impl FhePattern for FheString {
             }
             _ => self.is_prefix_of_slice(
                 server_key,
-                &server_key.remove_initial_padding(haystack).content,
+                &server_key.push_padding_to_end(haystack).content,
             ),
         }
+    }
+
+    fn is_suffix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+        server_key
+            .reverse_string_content(self)
+            .is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
     }
 
     fn strip_suffix_in(

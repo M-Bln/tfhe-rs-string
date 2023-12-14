@@ -13,7 +13,7 @@ impl StringServerKey {
     {
         match (s.padding) {
             Padding::None | Padding::Initial => f(s),
-            _ => f(&self.remove_final_padding(s)),
+            _ => f(&self.push_padding_to_start(s)),
         }
     }
 
