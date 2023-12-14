@@ -23,6 +23,7 @@ pub trait FheIntegerArg {
     generate_fhe_integer_arg_method!(rsplitn_clear_string_pattern, &str);
     generate_fhe_integer_arg_method!(rsplitn_char_pattern, &impl FheCharPattern);
     fn add_one(&self, server_key: &StringServerKey) -> Self;
+    fn to_string(&self) -> String;
 }
 
 macro_rules! impl_integer_arg_method {
@@ -56,11 +57,17 @@ impl FheIntegerArg for u32 {
     fn add_one(&self, server_key: &StringServerKey) -> Self {
         *self + 1
     }
+    fn to_string(&self) -> String {
+	"clear".to_string()
+    }
 }
 
 impl FheIntegerArg for RadixCiphertext {
     impl_splitn_methods!(encrypted, (|itself| itself));
     fn add_one(&self, server_key: &StringServerKey) -> Self {
         server_key.integer_key.scalar_add_parallelized(self, 1)
+    }
+    fn to_string(&self) -> String {
+	"encrypted".to_string()
     }
 }

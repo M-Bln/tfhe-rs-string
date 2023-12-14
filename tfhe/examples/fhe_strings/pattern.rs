@@ -42,6 +42,14 @@ pub trait FhePattern {
         haystack: &FheString,
     ) -> RadixCiphertext;
 
+    fn is_suffix_of_string(
+	&self,
+	server_key: &StringServerKey,
+	haystack: &FheString,
+    ) -> RadixCiphertext {
+	self.is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
+    }
+    
     fn strip_prefix_in(
         &self,
         server_key: &StringServerKey,
@@ -165,6 +173,17 @@ impl FhePattern for &str {
         }
     }
 
+    fn is_suffix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+	let reversed_string = self.chars().rev().collect::<String>();
+	let reversed_self = reversed_string.as_str();
+	reversed_self.is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
+    }
+
+    
     fn strip_suffix_in(
         &self,
         server_key: &StringServerKey,
@@ -306,6 +325,15 @@ impl FhePattern for FheString {
             ),
         }
     }
+
+    fn is_suffix_of_string(
+        &self,
+        server_key: &StringServerKey,
+        haystack: &FheString,
+    ) -> RadixCiphertext {
+	server_key.reverse_string_content(self).is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
+    }
+
 
     fn strip_suffix_in(
         &self,
