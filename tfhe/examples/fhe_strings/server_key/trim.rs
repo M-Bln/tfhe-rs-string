@@ -130,12 +130,13 @@ impl StringServerKey {
         self.trim_end_encrypted(&self.trim_start_encrypted(s, character), character)
     }
     pub fn trim_start_char(&self, s: &FheString, character: u8) -> FheString {
-        self.trim_start_clear_or_encrypted_char(s, &ClearOrEncryptedChar::Clear(character))
+	match s.padding {
+	    Padding::None | Padding::Final => self.trim_start_clear_or_encrypted_char(&s, &ClearOrEncryptedChar::Clear(character)),
+            _ => self.trim_start_clear_or_encrypted_char(&self.push_padding_to_end(&s), &ClearOrEncryptedChar::Clear(character))
+	}
     }
 
-    pub fn trim_start(&self, s: &FheString) -> FheString {
-        self.trim_start_char(s, ASCII_WHITE_SPACE)
-    }
+ 
 
     pub fn trim_start_encrypted(&self, s: &FheString, encrypted_char: &FheAsciiChar) -> FheString {
         self.trim_start_clear_or_encrypted_char(
@@ -147,7 +148,7 @@ impl StringServerKey {
     pub fn trim_start_clear_or_encrypted_char(
         &self,
         s: &FheString,
-        character: &ClearOrEncryptedChar,
+	pattern: &ClearOrEncryptedChar,
     ) -> FheString {
         let mut continue_triming = self.create_true();
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
@@ -156,18 +157,40 @@ impl StringServerKey {
         for c in s.content.iter() {
             self.integer_key.bitand_assign_parallelized(
                 &mut continue_triming,
-                &match s.padding {
-                    Padding::InitialAndFinal | Padding::Initial => {
-                        self.integer_key.bitor_parallelized(
-                            &self.eq_clear_or_encrypted_char(c, character),
-                            &self
-                                .eq_clear_or_encrypted_char(c, &ClearOrEncryptedChar::Clear(b'\0')),
-                        )
-                    }
-                    _ => self.eq_clear_or_encrypted_char(c, character),
-                },
+		&self.eq_clear_or_encrypted_char(c, pattern),
             );
-            self.add_assign_radix_length(&mut result_length, &continue_triming);
+	     result_length = self.sub_radix_to_length(&result_length, &continue_triming);
+            
+            result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
+                &continue_triming,
+                &self.create_zero(),
+                &c.0,
+            )))
+        }
+
+        FheString {
+            content: result_content,
+            padding: Padding::InitialAndFinal,
+            length: result_length,
+        }
+    }    
+
+    
+    pub fn trim_start(
+        &self,
+        s: &FheString,
+    ) -> FheString {
+        let mut continue_triming = self.create_true();
+        let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
+        let mut result_length: FheStrLength = s.length.clone();
+
+        for c in s.content.iter() {
+            self.integer_key.bitand_assign_parallelized(
+                &mut continue_triming,
+		&self.is_ascii_white_space(&c),
+            );
+	    result_length = self.sub_radix_to_length(&result_length, &continue_triming);
+           
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
                 &continue_triming,
                 &self.integer_key.create_trivial_zero_radix(4),
@@ -180,8 +203,11 @@ impl StringServerKey {
             padding: Padding::InitialAndFinal,
             length: result_length,
         }
-    }
+    }    
 }
+
+
+
 
 // #[cfg(test)]
 // mod tests {

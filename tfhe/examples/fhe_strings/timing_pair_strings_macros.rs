@@ -69,7 +69,7 @@ macro_rules! to_string_fhe_result {
 #[macro_export]
 macro_rules! to_string_std_result {
     (add, $clear_s1: ident, $clear_s2: ident) => {{
-        let mut s1 = $clear_s1.clone();
+        let s1 = $clear_s1.clone();
         s1 + $clear_s2
     }};
 }
@@ -112,14 +112,58 @@ macro_rules! time_pair_string {
         );
     };
     ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident, $padding_s1: expr) => {
-        time_pair_clear_s2!(
+	let clear_encryption = Encryption::Clear;
+        time_pair_string!(
             $method,
             $clear_s1,
             $encrypted_s1,
             $clear_s2,
+	    $encrypted_s2,
             $return_type,
-            $padding_s1
+            $padding_s1,
+	    0,
+	    clear_encryption
         );
-    }; /* ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
+    };
+
+    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident, $padding_s1: expr, $padding_s2: expr) => {
+	let encrypted_encryption = Encryption::Encrypted;
+        time_pair_string!(
+            $method,
+            $clear_s1,
+            $encrypted_s1,
+            $clear_s2,
+	    $encrypted_s2,
+            $return_type,
+            $padding_s1,
+	    $padding_s2,
+	    encrypted_encryption
+        );
+    };
+
+    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident, $padding_s1: expr, $padding_s2: expr, $encryption: ident) => {
+        let mut encrypted_s1 = $encrypted_s1.clone();
+        let start = std::time::Instant::now();
+        let fhe_result = match $encryption {
+	    Encryption::Clear => SERVER_KEY.$method(encrypted_s1, &$clear_s2),
+	    Encryption::Encrypted => SERVER_KEY.$method(encrypted_s1, &$encrypted_s2),
+	};
+        let duration = start.elapsed();
+        let string_fhe_result = to_string_fhe_result!(fhe_result, $return_type);
+        let string_std_result = to_string_std_result!($method, $clear_s1, $clear_s2);
+        println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
+        display_result_pair!(
+            $clear_s1,
+            $clear_s2,
+            string_std_result,
+            string_fhe_result,
+            $return_type,
+            $padding_s1,
+            $padding_s2,
+            duration,
+            $encryption
+        )
+    };
+    /* ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
         * $return_type: ident, $padding_s1: expr, $padding_s2: expr) */
 }
