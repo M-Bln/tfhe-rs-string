@@ -69,11 +69,11 @@ fn main() {
     apply_time_function_twice!(to_lowercase);
     apply_time_function_twice!(to_uppercase);
 
-    time_len!(len, encrypted_s, clear_s);
-    time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
+    time_len!(encrypted_s, clear_s);
+    time_len!(encrypted_s_padding, clear_s, padding_zeros);
 
-    time_is_empty!(is_empty, encrypted_s, clear_s);
-    time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
+    time_is_empty!(encrypted_s, clear_s);
+    time_is_empty!(encrypted_s_padding, clear_s, padding_zeros);
 
     time_fhe_split!(
         split_ascii_whitespace,

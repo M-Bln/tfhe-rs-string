@@ -4,14 +4,6 @@ use crate::server_key::split::{FheSplit, ResultFheString};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
-// pub type ResultFheString = (RadixCiphertext, FheString);
-
-// pub struct FheSplit {
-//     pub parts: Vec<FheString>,
-//     pub number_parts: RadixCiphertext,
-//     pub current_index: usize,
-// }
-
 impl StringServerKey {
     pub fn is_ascii_white_space(&self, c: &FheAsciiChar) -> RadixCiphertext {
         let is_tab_feed_return = self.integer_key.bitand_parallelized(
