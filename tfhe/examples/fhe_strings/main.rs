@@ -81,7 +81,7 @@ fn main() {
             time_function_string_pattern!($method, encrypted_s, clear_s, clear_pattern);
             time_function_string_pattern!(
                 $method,
-                encrypted_s_padding,
+                encrypted_s_padding,x
                 padding_zeros,
                 clear_s,
                 clear_pattern
@@ -228,77 +228,198 @@ fn main() {
     //     encrypted_pattern,
     //     FheString
     // );
-    time_pair_string_all_paddings!(
-        add,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        clear_pattern,
-        encrypted_pattern,
-        encrypted_pattern_padded,
-        FheString,
-        padding_zeros
-    );
+    macro_rules! time_pairs {
+        ($method: ident, $return_type: ident) => {
+            time_pair_string_all_paddings!(
+                $method,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                clear_pattern,
+                encrypted_pattern,
+                encrypted_pattern_padded,
+                $return_type,
+                padding_zeros
+            );
+        };
+    }
 
-    time_pair_string_all_paddings!(
-        eq,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        clear_pattern,
-        encrypted_pattern,
-        encrypted_pattern_padded,
-        Bool,
-        padding_zeros
-    );
+    time_pairs!(add, FheString);
 
-    time_pair_string_all_paddings!(
-        eq_ignore_case,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        clear_pattern,
-        encrypted_pattern,
-        encrypted_pattern_padded,
-        Bool,
-        padding_zeros
-    );
+    time_pairs!(eq, Bool);
+    time_pairs!(eq_ignore_case, Bool);
+    time_pairs!(ne, Bool);
+    time_pairs!(le, Bool);
+    time_pairs!(ge, Bool);
 
-    time_pair_string_all_paddings!(
-        ne,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        clear_pattern,
-        encrypted_pattern,
-        encrypted_pattern_padded,
-        Bool,
-        padding_zeros
-    );
+    time_pairs!(starts_with, Bool);
+    time_pairs!(ends_with, Bool);
+    time_pairs!(contains, Bool);
 
-    time_pair_string_all_paddings!(
-        le,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        clear_pattern,
-        encrypted_pattern,
-        encrypted_pattern_padded,
-        Bool,
-        padding_zeros
-    );
+    time_pairs!(split, FheSplit);
+    time_pairs!(split_inclusive, FheSplit);
+    time_pairs!(split_terminator, FheSplit);
+    time_pairs!(rsplit, FheSplit);
 
-    time_pair_string_all_paddings!(
-        ge,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        clear_pattern,
-        encrypted_pattern,
-        encrypted_pattern_padded,
-        Bool,
-        padding_zeros
-    );
+    //time_pairs!(eq, Bool);
+    // time_pair_string_all_paddings!(
+    //     add,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     FheString,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     eq,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     eq_ignore_case,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     ne,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     le,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     ge,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     split,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     FheSplit,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     split_inclusive,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     FheSplit,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     split_terminator,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     FheSplit,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     rsplit,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     FheSplit,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     starts_with,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     ends_with,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    // time_pair_string_all_paddings!(
+    //     contains,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     clear_pattern,
+    //     encrypted_pattern,
+    //     encrypted_pattern_padded,
+    //     Bool,
+    //     padding_zeros
+    // );
+
+    //////////////////////////////////////////:
+
     // time_pair_string!(
     //     add,
     //     clear_s,

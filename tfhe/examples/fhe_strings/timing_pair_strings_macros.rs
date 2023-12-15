@@ -67,6 +67,13 @@ macro_rules! to_string_fhe_result {
     ($fhe_result: ident, Bool) => {
         (CLIENT_KEY.decrypt_u8(&$fhe_result) == 1)
     };
+    ($fhe_result: ident, FheSplit) => {{
+        let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
+        $fhe_result.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
+            .collect::<Vec<String>>()
+    }};
 }
 
 #[macro_export]
@@ -89,6 +96,13 @@ macro_rules! to_string_std_result {
     };
     (ne, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
         ($clear_s1 != $clear_s2.to_string())
+    };
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, FheSplit) => {{
+        let std_result = $clear_s1.$method(&$clear_s2);
+        std_result.map(|s| String::from(s)).collect::<Vec<String>>()
+    }};
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+        $clear_s1.$method(&$clear_s2)
     };
 }
 
