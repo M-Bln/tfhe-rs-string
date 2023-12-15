@@ -68,6 +68,20 @@ impl FheIntegerArg for u32 {
     // }
 }
 
+impl FheIntegerArg for usize {
+    impl_splitn_methods!(clear, (|itself: &usize| *itself as usize));
+    fn add_one(&self, server_key: &StringServerKey) -> Self {
+        *self + 1
+    }
+    fn to_string(&self) -> String {
+        "clear".to_string()
+    }
+
+    // fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString {
+    // 	server_key.repeat_clear(s, *self)
+    // }
+}
+
 impl FheIntegerArg for RadixCiphertext {
     impl_splitn_methods!(encrypted, (|itself| itself));
     fn add_one(&self, server_key: &StringServerKey) -> Self {

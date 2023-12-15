@@ -107,7 +107,7 @@ impl StringServerKey {
         new: &impl FhePattern,
         n: &impl FheIntegerArg,
     ) -> FheString {
-        new.insert_in(&self, &self.splitn(&n.add_one(self), s, old_pattern))
+        new.insert_in(&self, &self.splitn(s, &n.add_one(self), old_pattern))
     }
 
     pub fn replace(
