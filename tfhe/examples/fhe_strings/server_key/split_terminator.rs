@@ -162,8 +162,8 @@ impl StringServerKey {
     pub fn split_terminator_clear_final_padding(&self, s: &FheString, pattern: &str) -> FheSplit {
         // Compute the maximum number of parts of the result.
         let maximum_number_of_parts = match &s.length {
-            ClearOrEncrypted::Clear(length) => *length / pattern.len(),
-            _ => s.content.len() / pattern.len(),
+            ClearOrEncrypted::Clear(length) => *length / pattern.len() + 1,
+            _ => s.content.len() / pattern.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
@@ -380,23 +380,23 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    // test_fhe_split_string_pattern!(split_terminator, "", "e");
-    // test_fhe_split_string_pattern!(split_terminator, "", "");
-    // test_fhe_split_string_pattern!(split_terminator, "", "ab");
-    // test_fhe_split_string_pattern!(split_terminator, "acbc", "c");
-    // test_fhe_split_string_pattern!(split_terminator, "cbca", "c");
-    // test_fhe_split_string_pattern!(split_terminator, "acbc", "bc");
-    // test_fhe_split_string_pattern!(split_terminator, "acbccbcbcbc", "cbc");
-    // test_fhe_split_string_pattern!(split_terminator, "aczb", "");
-    // test_fhe_split_string_pattern!(split_terminator, "aaaaa", "a");
-    // test_fhe_split_string_pattern!(split_terminator, "axbx", "x");
-    // test_fhe_split_string_pattern!(split_terminator, "ab", "ab");
-    // test_fhe_split_string_pattern!(split_terminator, "abab", "ab");
+    test_fhe_split_string_pattern!(split_terminator, "", "e");
+    test_fhe_split_string_pattern!(split_terminator, "", "");
+    test_fhe_split_string_pattern!(split_terminator, "", "ab");
+    test_fhe_split_string_pattern!(split_terminator, "abc", "ab");
+    test_fhe_split_string_pattern!(split_terminator, "cbca", "c");
+    test_fhe_split_string_pattern!(split_terminator, "acbc", "bc");
+    test_fhe_split_string_pattern!(split_terminator, "acbccbcbcbc", "cbc");
+    test_fhe_split_string_pattern!(split_terminator, "aczb", "");
+    test_fhe_split_string_pattern!(split_terminator, "aaaaa", "aa");
+    test_fhe_split_string_pattern!(split_terminator, "axbx", "x");
+    test_fhe_split_string_pattern!(split_terminator, "ab", "ab");
+    test_fhe_split_string_pattern!(split_terminator, "abab", "ab");
 
-    // test_fhe_split_char_pattern!(split_terminator, "", 'a');
-    // test_fhe_split_char_pattern!(split_terminator, "a", 'a');
-    // test_fhe_split_char_pattern!(split_terminator, "acbc", 'c');
-    // test_fhe_split_char_pattern!(split_terminator, "cccc", 'c');
-    // test_fhe_split_char_pattern!(split_terminator, "cabd", 'a');
-    // test_fhe_split_char_pattern!(split_terminator, "cacb", 'c');
+    test_fhe_split_char_pattern!(split_terminator, "", 'a');
+    test_fhe_split_char_pattern!(split_terminator, "a", 'a');
+    test_fhe_split_char_pattern!(split_terminator, "acbc", 'c');
+    test_fhe_split_char_pattern!(split_terminator, "cccc", 'c');
+    test_fhe_split_char_pattern!(split_terminator, "cabd", 'a');
+    test_fhe_split_char_pattern!(split_terminator, "cacb", 'c');
 }

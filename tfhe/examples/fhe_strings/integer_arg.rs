@@ -22,6 +22,8 @@ pub trait FheIntegerArg {
     generate_fhe_integer_arg_method!(rsplitn_encrypted_string, &FheString);
     generate_fhe_integer_arg_method!(rsplitn_clear_string_pattern, &str);
     generate_fhe_integer_arg_method!(rsplitn_char_pattern, &impl FheCharPattern);
+
+    //fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString;
     fn add_one(&self, server_key: &StringServerKey) -> Self;
     fn to_string(&self) -> String;
 }
@@ -60,6 +62,10 @@ impl FheIntegerArg for u32 {
     fn to_string(&self) -> String {
         "clear".to_string()
     }
+
+    // fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString {
+    // 	server_key.repeat_clear(s, *self)
+    // }
 }
 
 impl FheIntegerArg for RadixCiphertext {
@@ -70,4 +76,8 @@ impl FheIntegerArg for RadixCiphertext {
     fn to_string(&self) -> String {
         "encrypted".to_string()
     }
+
+    // fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString {
+    // 	server_key.repeat_encrypted(s, self)
+    // }
 }

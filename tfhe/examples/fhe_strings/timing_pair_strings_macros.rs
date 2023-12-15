@@ -3,6 +3,50 @@ pub enum Encryption {
     Encrypted,
 }
 
+#[macro_export]
+macro_rules! print_arg {
+    (String, $clear_arg: ident, $encryption: ident, $padding_zeros: expr, $rank: expr) => {
+        //	let encryption = $encryption;
+        match $encryption {
+            Encryption::Clear => {
+                let string_title = format!("  └ {:} clear string", $rank);
+                println!("{: <35} {:?}", string_title, $clear_arg);
+            }
+            Encryption::Encrypted => {
+                let string_title = format!("  └ {:} encrypted string", $rank);
+                println!("{: <35} {:?}", string_title, $clear_arg);
+                println!("    └ {}", padding_to_string($padding_zeros));
+            }
+        }
+    };
+    (char, $clear_arg: ident, $encryption: ident, $padding_zeros: expr, $rank: expr) => {
+        //	let encryption = $encryption;
+        match $encryption {
+            Encryption::Clear => {
+                let pattern_title = format!("  └ {:} clear character pattern", $rank);
+                println!("{: <35} {:?}", pattern_title, $clear_arg);
+            }
+            Encryption::Encrypted => {
+                let pattern_title = format!("  └ {:} encrypted character pattern", $rank);
+                println!("{: <35} {:?}", pattern_title, $clear_arg);
+            }
+        }
+    };
+    (usize, $clear_arg: ident, $encryption: ident, $padding_zeros: expr, $rank: expr) => {
+        //	let encryption = $encryption;
+        match $encryption {
+            Encryption::Clear => {
+                let pattern_title = format!("  └ {:} clear integer argument", $rank);
+                println!("{: <35} {:?}", pattern_title, $clear_arg);
+            }
+            Encryption::Encrypted => {
+                let pattern_title = format!("  └ {:} encrypted integer argument", $rank);
+                println!("{: <35} {:?}", pattern_title, $clear_arg);
+            }
+        }
+    };
+}
+
 pub fn print_string_arg(s: &str, encryption: Encryption, padding_zeros: usize, rank: String) {
     match encryption {
         Encryption::Clear => {
@@ -56,28 +100,53 @@ pub fn padding_to_string(padding_zeros: usize) -> String {
 
 #[macro_export]
 macro_rules! display_result_pair {
-    ($clear_s1: ident, $clear_s2: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, String , $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
-        println!("arguments:");
-        println!("{: <35} {:?}", "  └ first string encrypted", &$clear_s1);
-        let padding_string = padding_to_string($padding_s1);
-        println!("    └ {}", padding_string);
-        print_string_arg($clear_s2, $encryption, $padding_s2, "second".to_string());
-        //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
-        println!("results:");
-        println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
-        println!("{: <35} {:?}", "  └ FHE result:", $string_fhe_result);
-        // if !$status.is_empty() {
-        //     println!("    └ {}", $status);
-        // }
-        println!("time:                               {:?}", $duration);
-    };
+    // ($clear_s1: ident, $clear_s2: ident, $string_std_result: ident, $string_fhe_result: ident,
+    // $return_type: ident, String , $padding_s1: expr, $padding_s2: expr, $duration: ident,
+    // $encryption: expr) => {     println!("arguments:");
+    //     println!("{: <35} {:?}", "  └ first string encrypted", &$clear_s1);
+    //     let padding_string = padding_to_string($padding_s1);
+    //     println!("    └ {}", padding_string);
+    //     print_string_arg($clear_s2, $encryption, $padding_s2, "second".to_string());
+    //     //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
+    //     println!("results:");
+    //     println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
+    //     println!("{: <35} {:?}", "  └ FHE result:", $string_fhe_result);
+    //     // if !$status.is_empty() {
+    //     //     println!("    └ {}", $status);
+    //     // }
+    //     println!("time:                               {:?}", $duration);
+    // };
 
-    ($clear_s1: ident, $clear_pattern: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, char , $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
+    // ($clear_s1: ident, $clear_pattern: ident, $string_std_result: ident, $string_fhe_result:
+    // ident, $return_type: ident, char , $padding_s1: expr, $padding_s2: expr, $duration: ident,
+    // $encryption: expr) => {     println!("arguments:");
+    //     println!("{: <35} {:?}", "  └ encrypted string", &$clear_s1);
+    //     let padding_string = padding_to_string($padding_s1);
+    //     println!("    └ {}", padding_string);
+    //     print_char_arg($clear_pattern, $encryption, "".to_string());
+    //     //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
+    //     println!("results:");
+    //     println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
+    //     println!("{: <35} {:?}", "  └ FHE result:", $string_fhe_result);
+    //     // if !$status.is_empty() {
+    //     //     println!("    └ {}", $status);
+    //     // }
+    //     println!("time:                               {:?}", $duration);
+    // };
+    ($clear_s1: ident, $clear_pattern: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, $arg_type: ident , $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
         println!("arguments:");
         println!("{: <35} {:?}", "  └ encrypted string", &$clear_s1);
         let padding_string = padding_to_string($padding_s1);
         println!("    └ {}", padding_string);
-        print_char_arg($clear_pattern, $encryption, "".to_string());
+        let encryption: Encryption = $encryption;
+        print_arg!(
+            $arg_type,
+            $clear_pattern,
+            encryption,
+            $padding_s2,
+            "".to_string()
+        );
+        //print_char_arg($clear_pattern, $encryption, "".to_string());
         //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
         println!("results:");
         println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
@@ -97,24 +166,20 @@ macro_rules! to_string_fhe_result {
     ($fhe_result: ident, Bool) => {
         (CLIENT_KEY.decrypt_u8(&$fhe_result) == 1)
     };
-    ($fhe_result: ident, FheOptionString) => {
-	{
-	    if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
-		Some(CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap())
-	    } else {
-		None
-	    }
-	}
-    };
-    ($fhe_result: ident, FheOptionInt) => {
-	{
-	    if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
-		Some(CLIENT_KEY.decrypt_u8(&$fhe_result.1))
-	    } else {
-		None
-	    }
-	}
-    };
+    ($fhe_result: ident, FheOptionString) => {{
+        if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
+            Some(CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap())
+        } else {
+            None
+        }
+    }};
+    ($fhe_result: ident, FheOptionInt) => {{
+        if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
+            Some(CLIENT_KEY.decrypt_u8(&$fhe_result.1))
+        } else {
+            None
+        }
+    }};
     ($fhe_result: ident, FheSplit) => {{
         let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
         $fhe_result.parts[..(clear_len as usize)]
@@ -157,6 +222,9 @@ macro_rules! to_string_std_result {
         std_result.map(|s| String::from(s)).collect::<Vec<String>>()
     }};
     ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident, char) => {
+        $clear_s1.$method($clear_s2)
+    };
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident, usize) => {
         $clear_s1.$method($clear_s2)
     };
 }
@@ -397,6 +465,59 @@ macro_rules! time_char_pattern_all_paddings {
                 $encrypted_pattern,
                 $return_type,
                 char,
+                $padding_zeros,
+                0
+            );
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! time_integer_arg_all_paddings {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident,  $return_type: ident, $padding_zeros: ident) => {
+        time_pair_string!(
+            // Unpadded string, clear pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            usize
+        );
+        time_pair_string!(
+            // Unpadded string, encrypted unpadded pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            usize,
+            0,
+            0
+        );
+        if $padding_zeros != 0 {
+            time_pair_string!(
+                // Padded string, clear pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                usize,
+                $padding_zeros
+            );
+            time_pair_string!(
+                // Padded string, unpadded pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                usize,
                 $padding_zeros,
                 0
             );

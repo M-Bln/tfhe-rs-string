@@ -80,121 +80,6 @@ fn main() {
         };
     }
 
-    macro_rules! apply_time_function_string_pattern_padding_combinations {
-        ($method: ident) => {
-            time_function_string_pattern!($method, encrypted_s, clear_s, clear_pattern);
-            time_function_string_pattern!(
-                $method,
-                encrypted_s_padding,x
-                padding_zeros,
-                clear_s,
-                clear_pattern
-            );
-            time_function_string_pattern!(
-                $method,
-                encrypted_s,
-                0,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern,
-                0
-            );
-            time_function_string_pattern!(
-                $method,
-                encrypted_s_padding,
-                padding_zeros,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern,
-                0
-            );
-            time_function_string_pattern!(
-                $method,
-                encrypted_s,
-                0,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern_padded,
-                padding_zeros
-            );
-            time_function_string_pattern!(
-                $method,
-                encrypted_s_padding,
-                padding_zeros,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern_padded,
-                padding_zeros
-            );
-            // encrypted_pattern_padded, clear_pattern, padding_zeros);
-            // time_function_string_pattern!($method, encrypted_s_padding, clear_s,
-            // encrypted_pattern_padded, clear_pattern, padding_zeros, padding_zeros);
-        };
-    }
-
-    macro_rules! apply_time_function_string_pattern_padding_combinations_return_type {
-        ($method: ident, $return_type: ident) => {
-            time_function_string_pattern_return_type!(
-                $method,
-                $return_type,
-                encrypted_s,
-                clear_s,
-                clear_pattern
-            );
-            time_function_string_pattern_return_type!(
-                $method,
-                $return_type,
-                encrypted_s_padding,
-                padding_zeros,
-                clear_s,
-                clear_pattern
-            );
-            time_function_string_pattern_return_type!(
-                $method,
-                $return_type,
-                encrypted_s,
-                0,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern,
-                0
-            );
-            time_function_string_pattern_return_type!(
-                $method,
-                $return_type,
-                encrypted_s_padding,
-                padding_zeros,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern,
-                0
-            );
-            time_function_string_pattern_return_type!(
-                $method,
-                $return_type,
-                encrypted_s,
-                0,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern_padded,
-                padding_zeros
-            );
-            time_function_string_pattern_return_type!(
-                $method,
-                $return_type,
-                encrypted_s_padding,
-                padding_zeros,
-                clear_s,
-                clear_pattern,
-                encrypted_pattern_padded,
-                padding_zeros
-            );
-            // encrypted_pattern_padded, clear_pattern, padding_zeros);
-            // time_function_string_pattern!($method, encrypted_s_padding, clear_s,
-            // encrypted_pattern_padded, clear_pattern, padding_zeros, padding_zeros);
-        };
-    }
-
     // apply_time_function_string_pattern_padding_combinations_return_type!(
     //     strip_prefix,
     //     (RadixCiphertext, FheString)
@@ -217,13 +102,13 @@ fn main() {
         time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
         time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
     }
-    // time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
-    // time_fhe_split!(
-    //     split_ascii_whitespace,
-    //     encrypted_s_padding,
-    //     clear_s,
-    //     padding_zeros
-    // );
+    time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
+    time_fhe_split!(
+        split_ascii_whitespace,
+        encrypted_s_padding,
+        clear_s,
+        padding_zeros
+    );
 
     // time_pair_string!(
     //     add,
@@ -266,11 +151,12 @@ fn main() {
 
     time_pairs!(find, FheOptionInt);
     time_pairs!(rfind, FheOptionInt);
-    
+
     time_pairs!(split, FheSplit);
     time_pairs!(split_inclusive, FheSplit);
     time_pairs!(split_terminator, FheSplit);
     time_pairs!(rsplit, FheSplit);
+    time_pairs!(rsplit_terminator, FheSplit);
 
     match arguments.char_pattern {
         Some(clear_char_pattern) => {
@@ -295,11 +181,11 @@ fn main() {
             time_char_pattern!(ends_with, Bool);
             time_char_pattern!(contains, Bool);
 
-	    time_char_pattern!(find, FheOptionInt);
-	    time_char_pattern!(rfind, FheOptionInt);
-	    
-	    time_char_pattern!(strip_prefix, FheOptionString);
-	    time_char_pattern!(strip_suffix, FheOptionString);
+            time_char_pattern!(find, FheOptionInt);
+            time_char_pattern!(rfind, FheOptionInt);
+
+            time_char_pattern!(strip_prefix, FheOptionString);
+            time_char_pattern!(strip_suffix, FheOptionString);
 
             time_char_pattern!(split, FheSplit);
             time_char_pattern!(split_inclusive, FheSplit);
@@ -312,6 +198,24 @@ fn main() {
 
     match arguments.integer_arg {
         Some(clear_integer_arg) => {
+            let encrypted_integer_arg = CLIENT_KEY.encrypt_u8(clear_integer_arg as u8);
+            // macro_rules! time_integer_arg {
+            //     ($method: ident, $return_type: ident) => {
+            //         time_integer_arg_all_paddings!(
+            //             $method,
+            //             clear_s,
+            //             encrypted_s,
+            //             encrypted_s_padding,
+            //             clear_integer_arg,
+            //             encrypted_integer_arg,
+            //             $return_type,
+            //             padding_zeros
+            //         );
+            //     };
+            // }
+
+            // time_integer_arg!(repeat, FheString);
+
             time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
             time_repeat_clear(
                 &clear_s,
@@ -319,8 +223,6 @@ fn main() {
                 clear_integer_arg,
                 padding_zeros,
             );
-
-            let encrypted_integer_arg = CLIENT_KEY.encrypt_u8(clear_integer_arg as u8);
 
             time_repeat_encrypted(
                 &clear_s,

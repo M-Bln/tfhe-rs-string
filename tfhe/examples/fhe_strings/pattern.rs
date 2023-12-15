@@ -1,8 +1,8 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
+use crate::server_key::find::FheOptionInt;
 use crate::server_key::split::FheSplit;
 use crate::server_key::strip::FheOptionString;
-use crate::server_key::find::FheOptionInt;
 
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
@@ -73,17 +73,9 @@ pub trait FhePattern {
 
     fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString;
 
-    fn find_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> FheOptionInt;
+    fn find_in(&self, server_key: &StringServerKey, haystack: &FheString) -> FheOptionInt;
 
-    fn rfind_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> FheOptionInt;
+    fn rfind_in(&self, server_key: &StringServerKey, haystack: &FheString) -> FheOptionInt;
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
 
@@ -223,21 +215,9 @@ impl FhePattern for &str {
     // 	server_key.strip_clear_prefix(haystack, self)
     // }
 
-    forward_to_server_key_method!(
-        find_in,
-        find_clear_string,
-        FheOptionInt
-    );
-    forward_to_server_key_method!(
-        rfind_in,
-        rfind_clear_string,
-        FheOptionInt
-    );
-    forward_to_server_key_method!(
-        strip_prefix_in,
-        strip_clear_prefix,
-        FheOptionString
-    );
+    forward_to_server_key_method!(find_in, find_clear_string, FheOptionInt);
+    forward_to_server_key_method!(rfind_in, rfind_clear_string, FheOptionInt);
+    forward_to_server_key_method!(strip_prefix_in, strip_clear_prefix, FheOptionString);
     forward_to_server_key_method!(eq_string, eq_clear, RadixCiphertext);
 
     // The permutation le <-> ge is to coincides with the order of the arguments when calling
@@ -386,11 +366,7 @@ impl FhePattern for FheString {
     // FheString { 	server_key.strip_encrypted_prefix(self, haystack)
     // }
 
-    forward_to_server_key_method!(
-        strip_prefix_in,
-        strip_encrypted_prefix,
-        FheOptionString
-    );
+    forward_to_server_key_method!(strip_prefix_in, strip_encrypted_prefix, FheOptionString);
     forward_to_server_key_method!(eq_string, eq_encrypted, RadixCiphertext);
 
     // The permutation le <-> ge is to coincides with the order of the arguments when calling
@@ -515,11 +491,7 @@ impl<T: FheCharPattern> FhePattern for T {
         }
     }
 
-    forward_to_server_key_method!(
-        strip_prefix_in,
-        strip_char_prefix,
-        FheOptionString
-    );
+    forward_to_server_key_method!(strip_prefix_in, strip_char_prefix, FheOptionString);
     forward_to_server_key_method!(find_in, find_char, FheOptionInt);
     forward_to_server_key_method!(rfind_in, rfind_char, FheOptionInt);
     forward_to_server_key_method!(split_string, split_char, FheSplit);

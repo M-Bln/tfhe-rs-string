@@ -4,6 +4,9 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
+    // pub fn repeat(&self, s: &FheString, n: &impl FheIntegerArg) -> FheString {
+    // 	n.repeat_string(self, s)
+    // }
     pub fn repeat_clear(&self, s: &FheString, n: usize) -> FheString {
         let mut result = FheString {
             content: Vec::with_capacity(n * s.content.len()),

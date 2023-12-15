@@ -357,7 +357,7 @@ macro_rules! test_fhe_split_string_pattern {
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
     		let std_result = $string_arg.$method($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg, 2).unwrap();
                 let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
 		compare_result!(FheSplit, std_result, fhe_result);
     	    }
@@ -374,7 +374,7 @@ macro_rules! test_fhe_split_string_pattern {
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
     		let std_result = $string_arg.$method($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg, 2).unwrap();
     		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
 		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
 		compare_result!(FheSplit, std_result, fhe_result);
@@ -383,7 +383,7 @@ macro_rules! test_fhe_split_string_pattern {
     	    #[test]
     	    fn [<"test_" $method "_" $string_arg "_padding_2_" $pattern_arg "_padding_2">]() {
     		let std_result = $string_arg.$method($pattern_arg);
-                let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
+                let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg, 2).unwrap();
     		let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
 		let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
 		compare_result!(FheSplit, std_result, fhe_result);

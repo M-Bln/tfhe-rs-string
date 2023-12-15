@@ -6,27 +6,15 @@ use tfhe::integer::RadixCiphertext;
 pub type FheOptionInt = (RadixCiphertext, RadixCiphertext);
 
 impl StringServerKey {
-    pub fn find(
-        &self,
-        haystack: &FheString,
-        pattern: &impl FhePattern,
-    ) -> FheOptionInt {
+    pub fn find(&self, haystack: &FheString, pattern: &impl FhePattern) -> FheOptionInt {
         pattern.find_in(self, haystack)
     }
 
-    pub fn rfind(
-        &self,
-        haystack: &FheString,
-        pattern: &impl FhePattern,
-    ) -> FheOptionInt {
+    pub fn rfind(&self, haystack: &FheString, pattern: &impl FhePattern) -> FheOptionInt {
         pattern.rfind_in(self, haystack)
     }
 
-    pub fn find_char(
-        &self,
-        s: &FheString,
-        char_pattern: &impl FheCharPattern,
-    ) -> FheOptionInt {
+    pub fn find_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (zero.clone(), zero),
@@ -44,11 +32,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn rfind_char(
-        &self,
-        s: &FheString,
-        char_pattern: &impl FheCharPattern,
-    ) -> FheOptionInt {
+    pub fn rfind_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (zero.clone(), zero),
@@ -75,11 +59,7 @@ impl StringServerKey {
 
     // }
 
-    pub fn find_string(
-        &self,
-        s: &FheString,
-        pattern: &FheString,
-    ) -> FheOptionInt {
+    pub fn find_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -100,11 +80,7 @@ impl StringServerKey {
         }
     }
 
-    pub fn find_clear_string(
-        &self,
-        s: &FheString,
-        pattern: &str,
-    ) -> FheOptionInt {
+    pub fn find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -122,11 +98,7 @@ impl StringServerKey {
         }
     }
 
-    pub fn rfind_clear_string(
-        &self,
-        s: &FheString,
-        pattern: &str,
-    ) -> FheOptionInt {
+    pub fn rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -162,11 +134,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn connected_find_clear_string(
-        &self,
-        s: &FheString,
-        pattern: &str,
-    ) -> FheOptionInt {
+    pub fn connected_find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
@@ -182,11 +150,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn connected_rfind_clear_string(
-        &self,
-        s: &FheString,
-        pattern: &str,
-    ) -> FheOptionInt {
+    pub fn connected_rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let mut index = self.initial_index_rfind(&s.length);
         if pattern.len() == 0 {
@@ -321,11 +285,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    pub fn rfind_string(
-        &self,
-        s: &FheString,
-        pattern: &FheString,
-    ) -> FheOptionInt {
+    pub fn rfind_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
