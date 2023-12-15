@@ -232,8 +232,10 @@ fn main() {
         add,
         clear_s,
         encrypted_s,
+        encrypted_s_padding,
         clear_pattern,
         encrypted_pattern,
+        encrypted_pattern_padded,
         FheString,
         padding_zeros
     );
@@ -242,8 +244,10 @@ fn main() {
         eq,
         clear_s,
         encrypted_s,
+        encrypted_s_padding,
         clear_pattern,
         encrypted_pattern,
+        encrypted_pattern_padded,
         Bool,
         padding_zeros
     );
@@ -252,8 +256,10 @@ fn main() {
         eq_ignore_case,
         clear_s,
         encrypted_s,
+        encrypted_s_padding,
         clear_pattern,
         encrypted_pattern,
+        encrypted_pattern_padded,
         Bool,
         padding_zeros
     );
@@ -262,8 +268,10 @@ fn main() {
         ne,
         clear_s,
         encrypted_s,
+        encrypted_s_padding,
         clear_pattern,
         encrypted_pattern,
+        encrypted_pattern_padded,
         Bool,
         padding_zeros
     );
@@ -272,8 +280,10 @@ fn main() {
         le,
         clear_s,
         encrypted_s,
+        encrypted_s_padding,
         clear_pattern,
         encrypted_pattern,
+        encrypted_pattern_padded,
         Bool,
         padding_zeros
     );
@@ -282,8 +292,10 @@ fn main() {
         ge,
         clear_s,
         encrypted_s,
+        encrypted_s_padding,
         clear_pattern,
         encrypted_pattern,
+        encrypted_pattern_padded,
         Bool,
         padding_zeros
     );
