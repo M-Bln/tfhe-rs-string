@@ -231,6 +231,38 @@ fn main() {
                             0
                         )
                     );
+                    time_patterns!(
+                        replacen,
+                        clear_s,
+                        encrypted_s,
+                        encrypted_s_padding,
+                        padding_zeros,
+                        FheString,
+                        (
+                            String,
+                            clear_pattern,
+                            encrypted_pattern,
+                            encrypted_pattern_padded,
+                            Clear,
+                            0
+                        ),
+                        (
+                            String,
+                            clear_replace_pattern,
+                            encrypted_pattern,
+                            encrypted_pattern_padded,
+                            Clear,
+                            0
+                        ),
+                        (
+                            usize,
+                            clear_integer_arg,
+                            encrypted_integer_arg,
+                            encrypted_integer_arg,
+                            Clear,
+                            0
+                        )
+                    );
                 }
                 _ => (),
             }
