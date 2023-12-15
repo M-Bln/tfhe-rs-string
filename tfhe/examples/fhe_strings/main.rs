@@ -247,6 +247,46 @@ fn main() {
         Bool,
         padding_zeros
     );
+
+    time_pair_string_all_paddings!(
+        eq_ignore_case,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        Bool,
+        padding_zeros
+    );
+
+    time_pair_string_all_paddings!(
+        ne,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        Bool,
+        padding_zeros
+    );
+
+    time_pair_string_all_paddings!(
+        le,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        Bool,
+        padding_zeros
+    );
+
+    time_pair_string_all_paddings!(
+        ge,
+        clear_s,
+        encrypted_s,
+        clear_pattern,
+        encrypted_pattern,
+        Bool,
+        padding_zeros
+    );
     // time_pair_string!(
     //     add,
     //     clear_s,

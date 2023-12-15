@@ -84,6 +84,12 @@ macro_rules! to_string_std_result {
     (eq, $clear_s1: ident, $clear_s2: ident) => {
         ($clear_s1 == $clear_s2.to_string())
     };
+    (eq_ignore_case, $clear_s1: ident, $clear_s2: ident) => {
+        $clear_s1.eq_ignore_ascii_case($clear_s2)
+    };
+    (ne, $clear_s1: ident, $clear_s2: ident) => {
+        ($clear_s1 != $clear_s2.to_string())
+    };
 }
 
 #[macro_export]
