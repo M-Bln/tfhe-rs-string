@@ -6,12 +6,26 @@ pub enum Encryption {
 pub fn print_string_arg(s: &str, encryption: Encryption, padding_zeros: usize, rank: String) {
     match encryption {
         Encryption::Clear => {
-            println!("{: <35} {:?}", "  └ second string clear", s);
+            let string_title = format!("  └ {:} string clear", rank);
+            println!("{: <35} {:?}", string_title, s);
         }
         Encryption::Encrypted => {
             let string_title = format!("  └ {:} string encrypted", rank);
             println!("{: <35} {:?}", string_title, s);
             println!("    └ {}", padding_to_string(padding_zeros));
+        }
+    }
+}
+
+pub fn print_char_arg(c: char, encryption: Encryption, rank: String) {
+    match encryption {
+        Encryption::Clear => {
+            let pattern_title = format!("  └ {:} clear character pattern", rank);
+            println!("{: <35} {:?}", pattern_title, c);
+        }
+        Encryption::Encrypted => {
+            let pattern_title = format!("  └ {:} encrypted character pattern", rank);
+            println!("{: <35} {:?}", pattern_title, c);
         }
     }
 }
@@ -42,12 +56,28 @@ pub fn padding_to_string(padding_zeros: usize) -> String {
 
 #[macro_export]
 macro_rules! display_result_pair {
-    ($clear_s1: ident, $clear_s2: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
+    ($clear_s1: ident, $clear_s2: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, String , $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
         println!("arguments:");
         println!("{: <35} {:?}", "  └ first string encrypted", &$clear_s1);
         let padding_string = padding_to_string($padding_s1);
         println!("    └ {}", padding_string);
         print_string_arg($clear_s2, $encryption, $padding_s2, "second".to_string());
+        //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
+        println!("results:");
+        println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
+        println!("{: <35} {:?}", "  └ FHE result:", $string_fhe_result);
+        // if !$status.is_empty() {
+        //     println!("    └ {}", $status);
+        // }
+        println!("time:                               {:?}", $duration);
+    };
+
+    ($clear_s1: ident, $clear_pattern: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, char , $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
+        println!("arguments:");
+        println!("{: <35} {:?}", "  └ encrypted string", &$clear_s1);
+        let padding_string = padding_to_string($padding_s1);
+        println!("    └ {}", padding_string);
+        print_char_arg($clear_pattern, $encryption, "".to_string());
         //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
         println!("results:");
         println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
@@ -78,31 +108,38 @@ macro_rules! to_string_fhe_result {
 
 #[macro_export]
 macro_rules! to_string_std_result {
-    (add, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {{
+    (add, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {{
         let s1 = $clear_s1.clone();
         s1 + $clear_s2
     }};
-    (le, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+    (le, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         ($clear_s1 <= $clear_s2.to_string())
     };
-    (ge, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+    (ge, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         ($clear_s1 >= $clear_s2.to_string())
     };
-    (eq, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+    (eq, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         ($clear_s1 == $clear_s2.to_string())
     };
-    (eq_ignore_case, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+    (eq_ignore_case, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         $clear_s1.eq_ignore_ascii_case($clear_s2)
     };
-    (ne, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+    (ne, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         ($clear_s1 != $clear_s2.to_string())
     };
-    ($method: ident, $clear_s1: ident, $clear_s2: ident, FheSplit) => {{
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, FheSplit, String) => {{
         let std_result = $clear_s1.$method(&$clear_s2);
         std_result.map(|s| String::from(s)).collect::<Vec<String>>()
     }};
-    ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         $clear_s1.$method(&$clear_s2)
+    };
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, FheSplit, char) => {{
+        let std_result = $clear_s1.$method($clear_s2);
+        std_result.map(|s| String::from(s)).collect::<Vec<String>>()
+    }};
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident, char) => {
+        $clear_s1.$method($clear_s2)
     };
 }
 
@@ -122,6 +159,7 @@ macro_rules! time_pair_clear_s2 {
             string_std_result,
             string_fhe_result,
             $return_type,
+            $pattern_type,
             $padding_s1,
             0,
             duration,
@@ -142,7 +180,8 @@ macro_rules! ref_or_clone {
 
 #[macro_export]
 macro_rules! time_pair_string {
-    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident) => {
+    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
+     $return_type: ident, $pattern_type: ident) => {
         time_pair_string!(
             $method,
             $clear_s1,
@@ -150,10 +189,12 @@ macro_rules! time_pair_string {
             $clear_s2,
             $encrypted_s2,
             $return_type,
+            $pattern_type,
             0
         );
     };
-    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident, $padding_s1: expr) => {
+    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
+     $return_type: ident, $pattern_type: ident, $padding_s1: expr ) => {
         let clear_encryption = Encryption::Clear;
         time_pair_string!(
             $method,
@@ -162,13 +203,15 @@ macro_rules! time_pair_string {
             $clear_s2,
             $encrypted_s2,
             $return_type,
+            $pattern_type,
             $padding_s1,
             0,
             clear_encryption
         );
     };
 
-    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident, $padding_s1: expr, $padding_s2: expr) => {
+    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
+     $return_type: ident, $pattern_type: ident, $padding_s1: expr, $padding_s2: expr) => {
         let encrypted_encryption = Encryption::Encrypted;
         time_pair_string!(
             $method,
@@ -177,13 +220,15 @@ macro_rules! time_pair_string {
             $clear_s2,
             $encrypted_s2,
             $return_type,
+            $pattern_type,
             $padding_s1,
             $padding_s2,
             encrypted_encryption
         );
     };
 
-    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident, $return_type: ident, $padding_s1: expr, $padding_s2: expr, $encryption: ident) => {
+    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
+     $return_type: ident, $pattern_type: ident, $padding_s1: expr, $padding_s2: expr, $encryption: ident) => {
         let encrypted_s1 = ref_or_clone!($method, $encrypted_s1);
         //let mut encrypted_s1 = $encrypted_s1.clone();
         let start = std::time::Instant::now();
@@ -193,7 +238,8 @@ macro_rules! time_pair_string {
         };
         let duration = start.elapsed();
         let string_fhe_result = to_string_fhe_result!(fhe_result, $return_type);
-        let string_std_result = to_string_std_result!($method, $clear_s1, $clear_s2, $return_type);
+        let string_std_result =
+            to_string_std_result!($method, $clear_s1, $clear_s2, $return_type, $pattern_type);
         println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
         display_result_pair!(
             $clear_s1,
@@ -201,6 +247,7 @@ macro_rules! time_pair_string {
             string_std_result,
             string_fhe_result,
             $return_type,
+            $pattern_type,
             $padding_s1,
             $padding_s2,
             duration,
@@ -219,7 +266,8 @@ macro_rules! time_pair_string_all_paddings {
             $encrypted_s,
             $clear_pattern,
             $encrypted_pattern,
-            $return_type
+            $return_type,
+            String
         );
         time_pair_string!(
             // Unpadded string, encrypted unpadded pattern
@@ -229,6 +277,7 @@ macro_rules! time_pair_string_all_paddings {
             $clear_pattern,
             $encrypted_pattern,
             $return_type,
+            String,
             0,
             0
         );
@@ -241,6 +290,7 @@ macro_rules! time_pair_string_all_paddings {
                 $clear_pattern,
                 $encrypted_pattern,
                 $return_type,
+                String,
                 $padding_zeros
             );
             time_pair_string!(
@@ -251,6 +301,7 @@ macro_rules! time_pair_string_all_paddings {
                 $clear_pattern,
                 $encrypted_pattern,
                 $return_type,
+                String,
                 $padding_zeros,
                 0
             );
@@ -262,6 +313,7 @@ macro_rules! time_pair_string_all_paddings {
                 $clear_pattern,
                 $encrypted_pattern_padding,
                 $return_type,
+                String,
                 0,
                 $padding_zeros
             );
@@ -273,8 +325,62 @@ macro_rules! time_pair_string_all_paddings {
                 $clear_pattern,
                 $encrypted_pattern_padding,
                 $return_type,
+                String,
                 $padding_zeros,
                 $padding_zeros
+            );
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! time_char_pattern_all_paddings {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident,  $return_type: ident, $padding_zeros: ident) => {
+        time_pair_string!(
+            // Unpadded string, clear pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            char
+        );
+        time_pair_string!(
+            // Unpadded string, encrypted unpadded pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            char,
+            0,
+            0
+        );
+        if $padding_zeros != 0 {
+            time_pair_string!(
+                // Padded string, clear pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                char,
+                $padding_zeros
+            );
+            time_pair_string!(
+                // Padded string, unpadded pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                char,
+                $padding_zeros,
+                0
             );
         }
     };
