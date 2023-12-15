@@ -1,10 +1,255 @@
+/// This file contains macro used to time and compare each function of the FheString API to the
+/// standard library. The first part contains general macro to time function with any number of
+/// arguments and any types of arguments. The second part contains macro specific to functions
+/// taking exaclty two argument such as `add`, `<=` `==`. Some specificity of this case require to
+/// use distinct macros. For instance the name differ between the standard library and the FHE
+/// version `<=` becomes `le` and so on.
+
+/// Identifier used to pattern match in macro definition.
+pub type Clear = ();
+pub type Encrypted = ();
+
+/// Macro to display one or two line for each arguments of the function timed.
+#[macro_export]
+macro_rules! display_arg {
+    (String, $clear_arg: ident, Clear, $padding_zeros: expr, $rank: expr) => {
+        let string_title = format!("  └ {:} clear string", $rank);
+        println!("{: <35} {:?}", string_title, $clear_arg);
+    };
+    (String, $clear_arg: ident, Encrypted, $padding_zeros: expr, $rank: expr) => {
+        let string_title = format!("  └ {:} encrypted string", $rank);
+        println!("{: <35} {:?}", string_title, $clear_arg);
+        println!("    └ {}", padding_to_string($padding_zeros));
+    };
+    (char, $clear_arg: ident, Clear, $padding_zeros: expr, $rank: expr) => {
+        let pattern_title = format!("  └ {:} clear character pattern", $rank);
+        println!("{: <35} {:?}", pattern_title, $clear_arg);
+    };
+    (char, $clear_arg: ident, Encrypted, $padding_zeros: expr, $rank: expr) => {
+        let pattern_title = format!("  └ {:} encrypted character pattern", $rank);
+        println!("{: <35} {:?}", pattern_title, $clear_arg);
+    };
+    (usize, $clear_arg: ident, Clear, $padding_zeros: expr, $rank: expr) => {
+        let pattern_title = format!("  └ {:} clear integer argument", $rank);
+        println!("{: <35} {:?}", pattern_title, $clear_arg);
+    };
+    (usize, $clear_arg: ident, Encrypted, $padding_zeros: expr, $rank: expr) => {
+        let pattern_title = format!("  └ {:} encrypted integer argument", $rank);
+        println!("{: <35} {:?}", pattern_title, $clear_arg);
+    };
+}
+
+pub fn padding_to_string(padding_zeros: usize) -> String {
+    match padding_zeros {
+        0 => String::from("no padding"),
+        _ => format!("{} padding zeros", padding_zeros),
+    }
+}
+
+/// Macro to display the timing result for any number and types of arguments
+#[macro_export]
+macro_rules! display_timing {
+    ($clear_s: ident, $padding_s: expr, $displayable_std_result: ident, $displayable_fhe_result: ident, $return_type: ident, $duration: ident,
+     $(($arg_type: ident, $clear_arg: ident, $encryption: ident, $arg_padding: expr)),*) => {
+	println!("arguments:");
+	println!("{: <35} {:?}", "  └ encrypted string", &$clear_s);
+        let padding_string = padding_to_string($padding_s);
+        println!("    └ {}", padding_string);
+
+	$(
+	   display_arg!($arg_type, $clear_arg, $encryption, $arg_padding, "");
+	)*
+
+	println!("results:");
+        println!("{: <35} {:?}", "  ├ std result:", $displayable_std_result);
+        println!("{: <35} {:?}", "  └ FHE result:", $displayable_fhe_result);
+        println!("time:                               {:?}", $duration);
+    };
+}
+
+/// Put the result from the FHE function in a pretty form before display
+#[macro_export]
+macro_rules! to_string_fhe_result {
+    ($fhe_result: ident, FheString) => {
+        CLIENT_KEY.decrypt_string(&$fhe_result).unwrap()
+    };
+    ($fhe_result: ident, Bool) => {
+        (CLIENT_KEY.decrypt_u8(&$fhe_result) == 1)
+    };
+    ($fhe_result: ident, FheOptionString) => {{
+        if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
+            Some(CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap())
+        } else {
+            None
+        }
+    }};
+    ($fhe_result: ident, FheOptionInt) => {{
+        if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
+            Some(CLIENT_KEY.decrypt_u8(&$fhe_result.1))
+        } else {
+            None
+        }
+    }};
+    ($fhe_result: ident, FheSplit) => {{
+        let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
+        $fhe_result.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
+            .collect::<Vec<String>>()
+    }};
+}
+
+/// Put the result from the function of the std library in a pretty form before display
+#[macro_export]
+macro_rules! displayable_std_result {
+    ($std_result: ident, FheSplit) => {
+        $std_result
+            .map(|s| String::from(s))
+            .collect::<Vec<String>>()
+    };
+    ($std_result: ident, $result_type: ident) => {
+        $std_result
+    };
+}
+
+/// Macro to add a & when references need to be taken as argument instead of values
+#[macro_export]
+macro_rules! ref_or_itself {
+    (String, $arg: ident) => {
+        &$arg
+    };
+    ($arg_type: ident, $arg: ident) => {
+        $arg
+    };
+}
+
+/// Macro used to generate the list of arguments to FHE methods
+#[macro_export]
+macro_rules! pick_arg {
+    ( $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, Clear, $arg_padding: expr) => {
+	&$clear_arg
+    };
+    ( $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr) => {
+	$encrypted_arg
+	match $arg_padding {
+	    0 => &$encrypted_arg,
+	    _ => &$encrypted_arg_padding,
+	}
+    };
+}
+
+/// General macro to time method for a specify encryption and padding for each arguments as well as
+/// a padding for s. TODO, generate all possible combination and call this macros to generate all
+/// timing.
+#[macro_export]
+macro_rules! time_patterns {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_s: expr, $return_type: ident,
+     $(( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr)),*  ) => {
+	{
+	    let encrypted_s = ref_or_clone!($method, $encrypted_s);
+	    let start = std::time::Instant::now();
+	    let fhe_result = SERVER_KEY.$method(
+		encrypted_s,
+		$( // Use rep macro to generate the list of argument to the FHE method
+		    pick_arg!($clear_arg, $encrypted_arg, $encrypted_arg_padding, $encryption, $arg_padding),
+		 )*
+	    );
+	    let duration = start.elapsed();
+	    let string_fhe_result = to_string_fhe_result!(fhe_result, $return_type);
+	   // println!("{:?}", string_fhe_result);
+
+	    let std_result = $clear_s.$method(
+	    	$(
+	    	   ref_or_itself!($arg_type, $clear_arg),
+	    	)*
+	    );
+	    let displayable_std_result = displayable_std_result!(std_result, $return_type);
+
+//    ($clear_s: ident, $displayable_std_result: ident, $displayable_fhe_result: ident, $return_type: ident, $duration: ident,
+	    //   $(($arg_type: ident, $clear_arg: ident, $encryption: ident, $arg_padding: expr)),*)
+	    println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
+	    display_timing!($clear_s, $padding_s, displayable_std_result, string_fhe_result, $return_type, duration,
+	    $(($arg_type, $clear_arg, $encryption, $arg_padding)),*);
+
+	   // println!("{:?}", displayable_std_result);
+	}
+    };
+}
+
+// #[macro_export]  TODO, Macro to generate all combinations of clear / encryption / padding for all
+// arguments by calling time_patterns; macro_rules! time_patterns_all_subcases{
+//     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,
+// $padding_zeros: expr, $return_type: ident,      $(( $arg_type: ident, $clear_arg: ident,
+// $encrypted_arg: ident, $encrypted_arg_padding: ident)),*  ) => {
+
+//     };
+// }
+
+#[macro_export]
+macro_rules! time_char_pattern_all_paddings {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident,  $return_type: ident, $padding_zeros: ident) => {
+        time_pair_string!(
+            // Unpadded string, clear pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            char
+        );
+        time_pair_string!(
+            // Unpadded string, encrypted unpadded pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            char,
+            0,
+            0
+        );
+        if $padding_zeros != 0 {
+            time_pair_string!(
+                // Padded string, clear pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                char,
+                $padding_zeros
+            );
+            time_pair_string!(
+                // Padded string, unpadded pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                char,
+                $padding_zeros,
+                0
+            );
+        }
+    };
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////
+
+/// Second part, timing macros for functions taking exactly two arguments.
+
+/// Type used to pattern match in the macros, specific to the function taking two arguments.
 pub enum Encryption {
     Clear,
     Encrypted,
 }
-pub type Clear = ();
-pub type Encrypted = ();
 
+/// Macro to display one or two line for each arguments of the function timed, specific to functions
+/// taking two arguments.
 #[macro_export]
 macro_rules! print_arg {
     (String, $clear_arg: ident, $encryption: ident, $padding_zeros: expr, $rank: expr) => {
@@ -49,148 +294,9 @@ macro_rules! print_arg {
     };
 }
 
-#[macro_export]
-macro_rules! display_arg {
-    (String, $clear_arg: ident, Clear, $padding_zeros: expr, $rank: expr) => {
-        let string_title = format!("  └ {:} clear string", $rank);
-        println!("{: <35} {:?}", string_title, $clear_arg);
-    };
-    (String, $clear_arg: ident, Encrypted, $padding_zeros: expr, $rank: expr) => {
-        let string_title = format!("  └ {:} encrypted string", $rank);
-        println!("{: <35} {:?}", string_title, $clear_arg);
-        println!("    └ {}", padding_to_string($padding_zeros));
-    };
-    (char, $clear_arg: ident, Clear, $padding_zeros: expr, $rank: expr) => {
-        let pattern_title = format!("  └ {:} clear character pattern", $rank);
-        println!("{: <35} {:?}", pattern_title, $clear_arg);
-    };
-    (char, $clear_arg: ident, Encrypted, $padding_zeros: expr, $rank: expr) => {
-        let pattern_title = format!("  └ {:} encrypted character pattern", $rank);
-        println!("{: <35} {:?}", pattern_title, $clear_arg);
-        //println!("    └ {}", padding_to_string($padding_zeros));
-    };
-    (usize, $clear_arg: ident, Clear, $padding_zeros: expr, $rank: expr) => {
-        let pattern_title = format!("  └ {:} clear integer argument", $rank);
-        println!("{: <35} {:?}", pattern_title, $clear_arg);
-    };
-    (usize, $clear_arg: ident, Encrypted, $padding_zeros: expr, $rank: expr) => {
-        let pattern_title = format!("  └ {:} encrypted integer argument", $rank);
-        println!("{: <35} {:?}", pattern_title, $clear_arg);
-        //println!("    └ {}", padding_to_string($padding_zeros));
-    }; /* (char, $clear_arg: ident, $encryption: ident, $padding_zeros: expr, $rank: expr) => {
-        *     //	let encryption = $encryption;
-        *     match $encryption {
-        *         Encryption::Clear => {
-        *             let pattern_title = format!("  └ {:} clear character pattern", $rank);
-        *             println!("{: <35} {:?}", pattern_title, $clear_arg);
-        *         }
-        *         Encryption::Encrypted => {
-        *             let pattern_title = format!("  └ {:} encrypted character pattern", $rank);
-        *             println!("{: <35} {:?}", pattern_title, $clear_arg);
-        *         }
-        *     }
-        * };
-        * (usize, $clear_arg: ident, $encryption: ident, $padding_zeros: expr, $rank: expr) => {
-        *     //	let encryption = $encryption;
-        *     match $encryption {
-        *         Encryption::Clear => {
-        *             let pattern_title = format!("  └ {:} clear integer argument", $rank);
-        *             println!("{: <35} {:?}", pattern_title, $clear_arg);
-        *         }
-        *         Encryption::Encrypted => {
-        *             let pattern_title = format!("  └ {:} encrypted integer argument", $rank);
-        *             println!("{: <35} {:?}", pattern_title, $clear_arg);
-        *         }
-        *     }
-        * }; */
-}
-
-// pub fn print_string_arg(s: &str, encryption: Encryption, padding_zeros: usize, rank: String) {
-//     match encryption {
-//         Encryption::Clear => {
-//             let string_title = format!("  └ {:} string clear", rank);
-//             println!("{: <35} {:?}", string_title, s);
-//         }
-//         Encryption::Encrypted => {
-//             let string_title = format!("  └ {:} string encrypted", rank);
-//             println!("{: <35} {:?}", string_title, s);
-//             println!("    └ {}", padding_to_string(padding_zeros));
-//         }
-//     }
-// }
-
-// pub fn print_char_arg(c: char, encryption: Encryption, rank: String) {
-//     match encryption {
-//         Encryption::Clear => {
-//             let pattern_title = format!("  └ {:} clear character pattern", rank);
-//             println!("{: <35} {:?}", pattern_title, c);
-//         }
-//         Encryption::Encrypted => {
-//             let pattern_title = format!("  └ {:} encrypted character pattern", rank);
-//             println!("{: <35} {:?}", pattern_title, c);
-//         }
-//     }
-// }
-
-pub fn padding_to_string(padding_zeros: usize) -> String {
-    match padding_zeros {
-        0 => String::from("no padding"),
-        _ => format!("{} padding zeros", padding_zeros),
-    }
-}
-
-// #[macro_export]
-// macro_rules! to_operator {
-//     (add) => {+};
-//     (le) => {<=};
-// }
-
-// #[macro_export]
-// macro_rules! print_second_string_arg {
-//     ($clear_s2: ident, String) => {
-// 	println!("{: <35} {:?}", "  └ second string clear", $clear_pattern);
-//     };
-//     ($clear_s2: ident, "encrypted", FheString) => {
-// 	println!("{: <35} {:?}", "  └ second string encrypted", $clear_pattern);
-// 	println!("    └ {}", padding_to_string($padding_zeros));
-//     };
-// }
-
+/// Macro to display the timing result for functions taking exactly two arguments
 #[macro_export]
 macro_rules! display_result_pair {
-    // ($clear_s1: ident, $clear_s2: ident, $string_std_result: ident, $string_fhe_result: ident,
-    // $return_type: ident, String , $padding_s1: expr, $padding_s2: expr, $duration: ident,
-    // $encryption: expr) => {     println!("arguments:");
-    //     println!("{: <35} {:?}", "  └ first string encrypted", &$clear_s1);
-    //     let padding_string = padding_to_string($padding_s1);
-    //     println!("    └ {}", padding_string);
-    //     print_string_arg($clear_s2, $encryption, $padding_s2, "second".to_string());
-    //     //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
-    //     println!("results:");
-    //     println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
-    //     println!("{: <35} {:?}", "  └ FHE result:", $string_fhe_result);
-    //     // if !$status.is_empty() {
-    //     //     println!("    └ {}", $status);
-    //     // }
-    //     println!("time:                               {:?}", $duration);
-    // };
-
-    // ($clear_s1: ident, $clear_pattern: ident, $string_std_result: ident, $string_fhe_result:
-    // ident, $return_type: ident, char , $padding_s1: expr, $padding_s2: expr, $duration: ident,
-    // $encryption: expr) => {     println!("arguments:");
-    //     println!("{: <35} {:?}", "  └ encrypted string", &$clear_s1);
-    //     let padding_string = padding_to_string($padding_s1);
-    //     println!("    └ {}", padding_string);
-    //     print_char_arg($clear_pattern, $encryption, "".to_string());
-    //     //        println!("{: <35} {:?}", "  └ clear string pattern", $clear_pattern);
-    //     println!("results:");
-    //     println!("{: <35} {:?}", "  ├ std result:", $string_std_result);
-    //     println!("{: <35} {:?}", "  └ FHE result:", $string_fhe_result);
-    //     // if !$status.is_empty() {
-    //     //     println!("    └ {}", $status);
-    //     // }
-    //     println!("time:                               {:?}", $duration);
-    // };
     ($clear_s1: ident, $clear_pattern: ident, $string_std_result: ident, $string_fhe_result: ident, $return_type: ident, $arg_type: ident , $padding_s1: expr, $padding_s2: expr, $duration: ident, $encryption: expr) => {
         println!("arguments:");
         println!("{: <35} {:?}", "  └ encrypted string", &$clear_s1);
@@ -216,61 +322,10 @@ macro_rules! display_result_pair {
     };
 }
 
-#[macro_export]
-macro_rules! display_timing {
-    ($clear_s: ident, $padding_s: expr, $displayable_std_result: ident, $displayable_fhe_result: ident, $return_type: ident, $duration: ident,
-     $(($arg_type: ident, $clear_arg: ident, $encryption: ident, $arg_padding: expr)),*) => {
-	println!("arguments:");
-	println!("{: <35} {:?}", "  └ encrypted string", &$clear_s);
-//	let number_padding = $padding_s1;
-        let padding_string = padding_to_string($padding_s);
-        println!("    └ {}", padding_string);
-
-	$(
-	   display_arg!($arg_type, $clear_arg, $encryption, $arg_padding, "");
-	)*
-
-	println!("results:");
-        println!("{: <35} {:?}", "  ├ std result:", $displayable_std_result);
-        println!("{: <35} {:?}", "  └ FHE result:", $displayable_fhe_result);
-        // if !$status.is_empty() {
-        //     println!("    └ {}", $status);
-        // }
-        println!("time:                               {:?}", $duration);
-    };
-}
-
-#[macro_export]
-macro_rules! to_string_fhe_result {
-    ($fhe_result: ident, FheString) => {
-        CLIENT_KEY.decrypt_string(&$fhe_result).unwrap()
-    };
-    ($fhe_result: ident, Bool) => {
-        (CLIENT_KEY.decrypt_u8(&$fhe_result) == 1)
-    };
-    ($fhe_result: ident, FheOptionString) => {{
-        if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
-            Some(CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap())
-        } else {
-            None
-        }
-    }};
-    ($fhe_result: ident, FheOptionInt) => {{
-        if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
-            Some(CLIENT_KEY.decrypt_u8(&$fhe_result.1))
-        } else {
-            None
-        }
-    }};
-    ($fhe_result: ident, FheSplit) => {{
-        let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
-        $fhe_result.parts[..(clear_len as usize)]
-            .iter()
-            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
-            .collect::<Vec<String>>()
-    }};
-}
-
+/// Put the result from the function of the std library in a pretty form before display.
+/// This macro is specific to the case of functions taking two arguments, in particular
+/// two string arguments such as `==`, `<=` etc. whose  name differ from their FHE variants
+/// `eq`, `le` etc.
 #[macro_export]
 macro_rules! to_string_std_result {
     (add, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {{
@@ -311,43 +366,7 @@ macro_rules! to_string_std_result {
     };
 }
 
-#[macro_export]
-macro_rules! displayable_std_result {
-    ($std_result: ident, FheSplit) => {
-        $std_result
-            .map(|s| String::from(s))
-            .collect::<Vec<String>>()
-    };
-    ($std_result: ident, $result_type: ident) => {
-        $std_result
-    };
-}
-
-#[macro_export]
-macro_rules! time_pair_clear_s2 {
-    ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $return_type: ident, $padding_s1: expr) => {
-        let mut encrypted_s1 = $encrypted_s1.clone();
-        let start = std::time::Instant::now();
-        let fhe_result = SERVER_KEY.$method(encrypted_s1, &$clear_s2);
-        let duration = start.elapsed();
-        let string_fhe_result = to_string_fhe_result!(fhe_result, $return_type);
-        let string_std_result = to_string_std_result!($method, $clear_s1, $clear_s2);
-        println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
-        display_result_pair!(
-            $clear_s1,
-            $clear_s2,
-            string_std_result,
-            string_fhe_result,
-            $return_type,
-            $pattern_type,
-            $padding_s1,
-            0,
-            duration,
-            Encryption::Clear
-        )
-    };
-}
-
+/// Macro to clone the string s instead of reference when necessary (for the `add` function)
 #[macro_export]
 macro_rules! ref_or_clone {
     (add, $encrypted_s1: ident) => {
@@ -358,16 +377,7 @@ macro_rules! ref_or_clone {
     };
 }
 
-#[macro_export]
-macro_rules! ref_or_itself {
-    (String, $arg: ident) => {
-        &$arg
-    };
-    ($arg_type: ident, $arg: ident) => {
-        $arg
-    };
-}
-
+/// Macro to time functions taking one argument in addition of s1
 #[macro_export]
 macro_rules! time_pair_string {
     ($method: ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
@@ -445,52 +455,6 @@ macro_rules! time_pair_string {
         )
     };
 }
-#[macro_export]
-macro_rules! pick_arg {
-    ( $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, Clear, $arg_padding: expr) => {
-	&$clear_arg
-    };
-    ( $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr) => {
-	$encrypted_arg
-	match $arg_padding {
-	    0 => &$encrypted_arg,
-	    _ => &$encrypted_arg_padding,
-	}
-    };
-}
-#[macro_export]
-macro_rules! time_patterns {
-    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_s: expr, $return_type: ident,
-     $(( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr)),*  ) => {
-	{
-	    let encrypted_s = ref_or_clone!($method, $encrypted_s);
-	    let start = std::time::Instant::now();
-	    let fhe_result = SERVER_KEY.$method(
-		encrypted_s,
-		$(
-		    pick_arg!($clear_arg, $encrypted_arg, $encrypted_arg_padding, $encryption, $arg_padding),
-		 )*
-	    );
-	    let duration = start.elapsed();
-	    let string_fhe_result = to_string_fhe_result!(fhe_result, $return_type);
-	   // println!("{:?}", string_fhe_result);
-
-	    let std_result = $clear_s.$method(
-	    	$(
-	    	   ref_or_itself!($arg_type, $clear_arg),
-	    	)*
-	    );
-	    let displayable_std_result = displayable_std_result!(std_result, $return_type);
-
-//    ($clear_s: ident, $displayable_std_result: ident, $displayable_fhe_result: ident, $return_type: ident, $duration: ident,
-  //   $(($arg_type: ident, $clear_arg: ident, $encryption: ident, $arg_padding: expr)),*)
-	    display_timing!($clear_s, $padding_s, displayable_std_result, string_fhe_result, $return_type, duration,
-	    $(($arg_type, $clear_arg, $encryption, $arg_padding)),*);
-
-	   // println!("{:?}", displayable_std_result);
-	}
-    };
-}
 
 #[macro_export]
 macro_rules! time_pair_string_all_paddings {
@@ -564,59 +528,6 @@ macro_rules! time_pair_string_all_paddings {
                 String,
                 $padding_zeros,
                 $padding_zeros
-            );
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! time_char_pattern_all_paddings {
-    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident,  $return_type: ident, $padding_zeros: ident) => {
-        time_pair_string!(
-            // Unpadded string, clear pattern
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            char
-        );
-        time_pair_string!(
-            // Unpadded string, encrypted unpadded pattern
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            char,
-            0,
-            0
-        );
-        if $padding_zeros != 0 {
-            time_pair_string!(
-                // Padded string, clear pattern
-                $method,
-                $clear_s,
-                $encrypted_s_padding,
-                $clear_pattern,
-                $encrypted_pattern,
-                $return_type,
-                char,
-                $padding_zeros
-            );
-            time_pair_string!(
-                // Padded string, unpadded pattern
-                $method,
-                $clear_s,
-                $encrypted_s_padding,
-                $clear_pattern,
-                $encrypted_pattern,
-                $return_type,
-                char,
-                $padding_zeros,
-                0
             );
         }
     };
