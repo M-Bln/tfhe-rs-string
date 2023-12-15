@@ -76,8 +76,8 @@ impl StringServerKey {
 
     pub fn splitn(
         &self,
-        n: &impl FheIntegerArg,
         s: &FheString,
+        n: &impl FheIntegerArg,
         pattern: &impl FhePattern,
     ) -> FheSplit {
         pattern.splitn_string(self, n, s)
