@@ -97,6 +97,24 @@ macro_rules! to_string_fhe_result {
     ($fhe_result: ident, Bool) => {
         (CLIENT_KEY.decrypt_u8(&$fhe_result) == 1)
     };
+    ($fhe_result: ident, FheOptionString) => {
+	{
+	    if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
+		Some(CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap())
+	    } else {
+		None
+	    }
+	}
+    };
+    ($fhe_result: ident, FheOptionInt) => {
+	{
+	    if CLIENT_KEY.decrypt_u8(&$fhe_result.0) == 1 {
+		Some(CLIENT_KEY.decrypt_u8(&$fhe_result.1))
+	    } else {
+		None
+	    }
+	}
+    };
     ($fhe_result: ident, FheSplit) => {{
         let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
         $fhe_result.parts[..(clear_len as usize)]

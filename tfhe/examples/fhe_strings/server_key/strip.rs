@@ -3,12 +3,14 @@ use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
+pub type FheOptionString = (RadixCiphertext, FheString);
+
 impl StringServerKey {
     pub fn strip_prefix(
         &self,
         s: &FheString,
         prefix: &impl FhePattern,
-    ) -> (RadixCiphertext, FheString) {
+    ) ->FheOptionString {
         prefix.strip_prefix_in(self, s)
     }
 
@@ -16,7 +18,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         suffix: &impl FhePattern,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         suffix.strip_suffix_in(self, s)
     }
 
@@ -24,8 +26,8 @@ impl StringServerKey {
         &self,
         s: &FheString,
         suffix: &FheString,
-    ) -> (RadixCiphertext, FheString) {
-        let reversed_result: (RadixCiphertext, FheString) = self.strip_encrypted_prefix(
+    ) -> FheOptionString {
+        let reversed_result: FheOptionString = self.strip_encrypted_prefix(
             &self.reverse_string_content(&s),
             &self.reverse_string_content(&suffix),
         );
@@ -39,7 +41,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         prefix: &impl FheCharPattern,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         match s.len() {
             FheStrLength::Clear(0) => {
                 return (
@@ -74,7 +76,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         prefix: &impl FheCharPattern,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         let is_prefix = prefix.fhe_eq(self, &s.content[0]);
         let radix_first_char =
             self.integer_key
@@ -101,7 +103,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         prefix: &FheString,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         let zero = self.create_zero();
         match (&s.length, &prefix.length) {
             (&FheStrLength::Clear(l), &FheStrLength::Clear(l_prefix)) if l_prefix > l => {
@@ -129,7 +131,7 @@ impl StringServerKey {
         }
     }
 
-    pub fn strip_clear_prefix(&self, s: &FheString, prefix: &str) -> (RadixCiphertext, FheString) {
+    pub fn strip_clear_prefix(&self, s: &FheString, prefix: &str) -> FheOptionString {
         match s.len() {
             FheStrLength::Clear(clear_length) if *clear_length < prefix.len() => {
                 return (self.create_zero(), s.clone())
@@ -147,7 +149,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         prefix: &str,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         if s.content.len() < prefix.len() {
             return (self.create_zero(), s.clone());
         }
@@ -202,7 +204,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         prefix: &FheString,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         let starts_with_prefix = self.starts_with_encrypted_no_init_padding(s, prefix);
         let content = match &prefix.length {
             ClearOrEncrypted::Clear(prefix_length) => self

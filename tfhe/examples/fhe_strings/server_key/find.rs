@@ -3,12 +3,14 @@ use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
+pub type FheOptionInt = (RadixCiphertext, RadixCiphertext);
+
 impl StringServerKey {
     pub fn find(
         &self,
         haystack: &FheString,
         pattern: &impl FhePattern,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         pattern.find_in(self, haystack)
     }
 
@@ -16,7 +18,7 @@ impl StringServerKey {
         &self,
         haystack: &FheString,
         pattern: &impl FhePattern,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         pattern.rfind_in(self, haystack)
     }
 
@@ -24,7 +26,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         char_pattern: &impl FheCharPattern,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (zero.clone(), zero),
@@ -46,7 +48,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         char_pattern: &impl FheCharPattern,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (zero.clone(), zero),
@@ -77,7 +79,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -102,7 +104,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &str,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -124,7 +126,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &str,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -146,7 +148,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
@@ -164,7 +166,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &str,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let (mut index, mut found): (RadixCiphertext, RadixCiphertext) = (zero.clone(), zero);
         for n in 0..s.content.len() {
@@ -184,7 +186,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &str,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let mut index = self.initial_index_rfind(&s.length);
         if pattern.len() == 0 {
@@ -211,7 +213,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &FheString,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -238,7 +240,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &str,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), from.clone()),
@@ -266,7 +268,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &impl FheCharPattern,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         if s.content.len() == 0 {
             return (zero.clone(), zero);
@@ -292,7 +294,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &FheString,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -323,7 +325,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
@@ -350,7 +352,7 @@ impl StringServerKey {
         &self,
         s: &FheString,
         pattern: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let initial_index = self.initial_index_rfind(&s.length);
         let mut index = initial_index.clone();
@@ -377,7 +379,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &FheString,
         to: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let mut index = self.initial_index_rfind(&s.length);
         let mut found = zero;
@@ -401,7 +403,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &FheString,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
@@ -448,7 +450,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &str,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
         if s.content.len() < pattern.len() {
@@ -477,7 +479,7 @@ impl StringServerKey {
         s: &FheString,
         pattern: &impl FheCharPattern,
         from: &RadixCiphertext,
-    ) -> (RadixCiphertext, RadixCiphertext) {
+    ) -> FheOptionInt {
         //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
         if s.content.len() == 0 {
