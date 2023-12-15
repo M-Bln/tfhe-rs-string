@@ -58,9 +58,9 @@ impl FheString {
 }
 
 pub const PARAM_MESSAGE_2_CARRY_2_TEST: ClassicPBSParameters = ClassicPBSParameters {
-    lwe_dimension: LweDimension(2),
+    lwe_dimension: LweDimension(1),
     glwe_dimension: GlweDimension(1),
-    polynomial_size: PolynomialSize(2048),
+    polynomial_size: PolynomialSize(1024),
     lwe_modular_std_dev: StandardDev(0.000007069849454709433),
     glwe_modular_std_dev: StandardDev(0.00000000000000029403601535432533),
     pbs_base_log: DecompositionBaseLog(23),

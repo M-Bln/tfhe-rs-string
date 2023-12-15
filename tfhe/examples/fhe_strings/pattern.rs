@@ -121,7 +121,22 @@ pub trait FhePattern {
         return result;
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext;
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+        server_key.create_zero()
+    }
+    fn eq_ignore_case_string(
+        &self,
+        server_key: &StringServerKey,
+        s: &FheString,
+    ) -> RadixCiphertext {
+        server_key.create_zero()
+    }
+    fn le_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+        server_key.create_zero()
+    }
+    fn ge_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+        server_key.create_zero()
+    }
 }
 
 impl FhePattern for &str {
@@ -197,9 +212,9 @@ impl FhePattern for &str {
         (striped, server_key.reverse_string_content(&reversed_result))
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
-        server_key.eq_clear(s, self)
-    }
+    // fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+    //     server_key.eq_clear(s, self)
+    // }
 
     // fn strip_prefix_in(&self, server_key: &StringServerKey, haystack: &FheString) -> FheString {
     // 	server_key.strip_clear_prefix(haystack, self)
@@ -220,6 +235,14 @@ impl FhePattern for &str {
         strip_clear_prefix,
         (RadixCiphertext, FheString)
     );
+    forward_to_server_key_method!(eq_string, eq_clear, RadixCiphertext);
+
+    // The permutation le <-> ge is to coincides with the order of the arguments when calling
+    // methods
+    forward_to_server_key_method!(le_string, ge_clear, RadixCiphertext);
+    forward_to_server_key_method!(ge_string, le_clear, RadixCiphertext);
+
+    forward_to_server_key_method!(eq_ignore_case_string, eq_ignore_case_clear, RadixCiphertext);
     forward_to_server_key_method!(is_contained_in, contains_clear_string, RadixCiphertext);
     forward_to_server_key_method!(split_string, split_clear, FheSplit);
     forward_to_server_key_method!(split_inclusive_string, split_inclusive_clear, FheSplit);
@@ -304,9 +327,9 @@ impl FhePattern for FheString {
         result
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
-        server_key.eq_encrypted(self, s)
-    }
+    // fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+    //     server_key.eq_encrypted(self, s)
+    // }
 
     fn is_prefix_of_string(
         &self,
@@ -364,6 +387,18 @@ impl FhePattern for FheString {
         strip_prefix_in,
         strip_encrypted_prefix,
         (RadixCiphertext, FheString)
+    );
+    forward_to_server_key_method!(eq_string, eq_encrypted, RadixCiphertext);
+
+    // The permutation le <-> ge is to coincides with the order of the arguments when calling
+    // methods
+    forward_to_server_key_method!(le_string, ge_encrypted, RadixCiphertext);
+    forward_to_server_key_method!(ge_string, le_encrypted, RadixCiphertext);
+
+    forward_to_server_key_method!(
+        eq_ignore_case_string,
+        eq_ignore_case_encrypted,
+        RadixCiphertext
     );
     forward_to_server_key_method!(find_in, find_string, (RadixCiphertext, RadixCiphertext));
     forward_to_server_key_method!(rfind_in, rfind_string, (RadixCiphertext, RadixCiphertext));

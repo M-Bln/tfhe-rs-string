@@ -5,7 +5,7 @@ use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.
-    fn starts_with(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn starts_with(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
         pattern.is_prefix_of_string(self, s)
     }
 

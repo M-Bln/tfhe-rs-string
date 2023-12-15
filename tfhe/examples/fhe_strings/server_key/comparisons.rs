@@ -8,6 +8,15 @@ impl StringServerKey {
         pattern.eq_string(self, s1)
     }
 
+    pub fn ne(&self, s1: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+        self.integer_key
+            .scalar_eq_parallelized(&pattern.eq_string(self, s1), 0)
+    }
+
+    pub fn eq_ignore_case(&self, s1: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+        pattern.eq_ignore_case_string(self, s1)
+    }
+
     /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString`s.
     /// Returns an encrypted value of 1 for true, 0 for false.
     pub fn eq_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
@@ -35,7 +44,7 @@ impl StringServerKey {
 
     /// Checks if s1 and s2 encrypt the same string up to case, for s1 and s2 `FheString`s.
     /// Returns an encrypted value of 1 for true.
-    pub fn eq_ignore_case(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn eq_ignore_case_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         match (&s1.length, &s2.length) {
             (&FheStrLength::Clear(l1), &FheStrLength::Clear(l2)) if l1 != l2 => {
                 return self.create_zero()
@@ -116,7 +125,7 @@ impl StringServerKey {
 
     /// Checks if the string encrypted by s1 is equal to the clear string s2 up to case. Returns an
     /// encrypted value of 1 for true.
-    pub fn eq_clear_ignore_case(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
+    pub fn eq_ignore_case_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
         match s1.length {
             FheStrLength::Clear(l1) if l1 != s2.len() => return self.create_zero(),
             _ if s2.len() > s1.content.len() => return self.create_zero(),
@@ -297,10 +306,30 @@ impl StringServerKey {
     // }
 
     /// Less or equal (<=).
-    /// Check if the string encrypted by s1 is less than or equal to the string encrypted by s2.
+    /// Checks if the string encrypted by s1 is less than or equal to the pattern (clear or
+    /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
+    /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
+    /// value of 0 for false.
+    pub fn le(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+        // The permutation le <-> ge is to be consistent with argument order
+        pattern.ge_string(self, s)
+    }
+
+    /// Greater or equal (>=).
+    /// Checks if the string encrypted by s1 is greater than or equal to the pattern (clear or
+    /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
+    /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
+    /// value of 0 for false.
+    pub fn ge(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+        // The permutation le <-> ge is to be consistent with argument order
+        pattern.le_string(self, s)
+    }
+
+    /// Less or equal (<=).
+    /// Checks if the string encrypted by s1 is less than or equal to the string encrypted by s2.
     /// The order is the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn le(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn le_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         self.compare(s1, s2, std::cmp::Ordering::Less)
     }
 
@@ -308,7 +337,7 @@ impl StringServerKey {
     /// Check if the string encrypted by s1 is greater or equal to the string encrypted by s2.
     /// The order is the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn ge(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn ge_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
         self.compare(s1, s2, std::cmp::Ordering::Greater)
     }
 
@@ -576,39 +605,6 @@ impl StringServerKey {
             lowercase_clear_char,
             std::cmp::Ordering::Equal,
         )
-    }
-
-    /// Return the first element encrypting a non null character in content,
-    /// replace it in content by an encryption of the null character.
-    /// If all character are null, return an encryption of the null character.
-    pub fn pop_first_non_zero_char(&self, content_slice: &mut [FheAsciiChar]) -> FheAsciiChar {
-        let mut previous_is_padding_zero = self.create_true();
-        let mut result = self.create_zero();
-
-        for c in content_slice {
-            let current_is_zero = self.integer_key.scalar_eq_parallelized(&c.0, 0);
-
-            let first_non_null = self.integer_key.bitand_parallelized(
-                &previous_is_padding_zero,
-                &self.integer_key.bitnot_parallelized(&current_is_zero),
-            );
-
-            // Encrypt same value as c if c is the first no null encrypted char,
-            // encrypt zero otherwise
-            let to_sub = self.integer_key.mul_parallelized(&c.0, &first_non_null);
-
-            // Compute the result
-            self.integer_key
-                .add_assign_parallelized(&mut result, &to_sub);
-
-            // Update the value in content
-            self.integer_key.sub_assign_parallelized(&mut c.0, &to_sub);
-
-            // Update previous_is_padding_zero
-            self.integer_key
-                .bitand_assign_parallelized(&mut previous_is_padding_zero, &current_is_zero);
-        }
-        FheAsciiChar(result)
     }
 }
 

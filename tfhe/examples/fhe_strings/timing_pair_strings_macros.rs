@@ -67,22 +67,42 @@ macro_rules! to_string_fhe_result {
     ($fhe_result: ident, Bool) => {
         (CLIENT_KEY.decrypt_u8(&$fhe_result) == 1)
     };
+    ($fhe_result: ident, FheSplit) => {{
+        let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
+        $fhe_result.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
+            .collect::<Vec<String>>()
+    }};
 }
 
 #[macro_export]
 macro_rules! to_string_std_result {
-    (add, $clear_s1: ident, $clear_s2: ident) => {{
+    (add, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {{
         let s1 = $clear_s1.clone();
         s1 + $clear_s2
     }};
-    (le, $clear_s1: ident, $clear_s2: ident) => {
+    (le, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
         ($clear_s1 <= $clear_s2.to_string())
     };
-    (ge, $clear_s1: ident, $clear_s2: ident) => {
+    (ge, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
         ($clear_s1 >= $clear_s2.to_string())
     };
-    (eq, $clear_s1: ident, $clear_s2: ident) => {
+    (eq, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
         ($clear_s1 == $clear_s2.to_string())
+    };
+    (eq_ignore_case, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+        $clear_s1.eq_ignore_ascii_case($clear_s2)
+    };
+    (ne, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+        ($clear_s1 != $clear_s2.to_string())
+    };
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, FheSplit) => {{
+        let std_result = $clear_s1.$method(&$clear_s2);
+        std_result.map(|s| String::from(s)).collect::<Vec<String>>()
+    }};
+    ($method: ident, $clear_s1: ident, $clear_s2: ident, $return_type: ident) => {
+        $clear_s1.$method(&$clear_s2)
     };
 }
 
@@ -173,7 +193,7 @@ macro_rules! time_pair_string {
         };
         let duration = start.elapsed();
         let string_fhe_result = to_string_fhe_result!(fhe_result, $return_type);
-        let string_std_result = to_string_std_result!($method, $clear_s1, $clear_s2);
+        let string_std_result = to_string_std_result!($method, $clear_s1, $clear_s2, $return_type);
         println!("\n\n\n{: <35} {}", "function:", std::stringify!($method));
         display_result_pair!(
             $clear_s1,
@@ -191,8 +211,9 @@ macro_rules! time_pair_string {
 
 #[macro_export]
 macro_rules! time_pair_string_all_paddings {
-    ($method: ident, $clear_s: ident, $encrypted_s: ident, $clear_pattern: ident, $encrypted_pattern: ident, $return_type: ident, $padding_zeros: ident) => {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident, $return_type: ident, $padding_zeros: ident) => {
         time_pair_string!(
+            // Unpadded string, clear pattern
             $method,
             $clear_s,
             $encrypted_s,
@@ -201,25 +222,7 @@ macro_rules! time_pair_string_all_paddings {
             $return_type
         );
         time_pair_string!(
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            $padding_zeros
-        );
-        time_pair_string!(
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            $padding_zeros,
-            0
-        );
-        time_pair_string!(
+            // Unpadded string, encrypted unpadded pattern
             $method,
             $clear_s,
             $encrypted_s,
@@ -227,18 +230,53 @@ macro_rules! time_pair_string_all_paddings {
             $encrypted_pattern,
             $return_type,
             0,
-            $padding_zeros
+            0
         );
-        time_pair_string!(
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            $padding_zeros,
-            $padding_zeros
-        );
+        if $padding_zeros != 0 {
+            time_pair_string!(
+                // Padded string, clear pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                $padding_zeros
+            );
+            time_pair_string!(
+                // Padded string, unpadded pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                $padding_zeros,
+                0
+            );
+            time_pair_string!(
+                // Unpadded string, padded pattern
+                $method,
+                $clear_s,
+                $encrypted_s,
+                $clear_pattern,
+                $encrypted_pattern_padding,
+                $return_type,
+                0,
+                $padding_zeros
+            );
+            time_pair_string!(
+                // Padded string, padded pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern_padding,
+                $return_type,
+                $padding_zeros,
+                $padding_zeros
+            );
+        }
     };
 }
 /* ident, $clear_s1: ident, $encrypted_s1: ident, $clear_s2: ident, $encrypted_s2: ident,
