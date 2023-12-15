@@ -5,7 +5,7 @@ mod change_padding;
 mod comparisons;
 mod contains;
 mod ends_with;
-mod find;
+pub mod find;
 pub mod is_empty;
 mod length_arithmetic;
 mod repeat;
@@ -17,7 +17,7 @@ mod split_ascii_whitespace;
 mod split_inclusive;
 mod split_terminator;
 mod starts_with;
-mod strip;
+pub mod strip;
 mod substring;
 mod trim;
 

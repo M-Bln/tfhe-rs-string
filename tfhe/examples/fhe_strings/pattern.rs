@@ -1,6 +1,9 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::server_key::split::FheSplit;
+use crate::server_key::strip::FheOptionString;
+use crate::server_key::find::FheOptionInt;
+
 use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
@@ -54,13 +57,13 @@ pub trait FhePattern {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, FheString);
+    ) -> FheOptionString;
 
     fn strip_suffix_in(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         let (striped, reversed_result) =
             self.strip_prefix_in(server_key, &server_key.reverse_string_content(haystack));
         (striped, server_key.reverse_string_content(&reversed_result))
@@ -74,13 +77,13 @@ pub trait FhePattern {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext);
+    ) -> FheOptionInt;
 
     fn rfind_in(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, RadixCiphertext);
+    ) -> FheOptionInt;
 
     fn split_string(&self, server_key: &StringServerKey, s: &FheString) -> FheSplit;
 
@@ -204,7 +207,7 @@ impl FhePattern for &str {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         let reversed_string = self.chars().rev().collect::<String>();
         let reversed_self = reversed_string.as_str();
         let (striped, reversed_result) =
@@ -223,17 +226,17 @@ impl FhePattern for &str {
     forward_to_server_key_method!(
         find_in,
         find_clear_string,
-        (RadixCiphertext, RadixCiphertext)
+        FheOptionInt
     );
     forward_to_server_key_method!(
         rfind_in,
         rfind_clear_string,
-        (RadixCiphertext, RadixCiphertext)
+        FheOptionInt
     );
     forward_to_server_key_method!(
         strip_prefix_in,
         strip_clear_prefix,
-        (RadixCiphertext, FheString)
+        FheOptionString
     );
     forward_to_server_key_method!(eq_string, eq_clear, RadixCiphertext);
 
@@ -372,7 +375,7 @@ impl FhePattern for FheString {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> (RadixCiphertext, FheString) {
+    ) -> FheOptionString {
         let (striped, reversed_result) = server_key
             .reverse_string_content(self)
             .strip_prefix_in(server_key, &server_key.reverse_string_content(haystack));
@@ -386,7 +389,7 @@ impl FhePattern for FheString {
     forward_to_server_key_method!(
         strip_prefix_in,
         strip_encrypted_prefix,
-        (RadixCiphertext, FheString)
+        FheOptionString
     );
     forward_to_server_key_method!(eq_string, eq_encrypted, RadixCiphertext);
 
@@ -400,8 +403,8 @@ impl FhePattern for FheString {
         eq_ignore_case_encrypted,
         RadixCiphertext
     );
-    forward_to_server_key_method!(find_in, find_string, (RadixCiphertext, RadixCiphertext));
-    forward_to_server_key_method!(rfind_in, rfind_string, (RadixCiphertext, RadixCiphertext));
+    forward_to_server_key_method!(find_in, find_string, FheOptionInt);
+    forward_to_server_key_method!(rfind_in, rfind_string, FheOptionInt);
     forward_to_server_key_method!(is_contained_in, contains_string, RadixCiphertext);
     forward_to_server_key_method!(split_string, split_encrypted, FheSplit);
     forward_to_server_key_method!(rsplit_string, rsplit_encrypted, FheSplit);
@@ -515,10 +518,10 @@ impl<T: FheCharPattern> FhePattern for T {
     forward_to_server_key_method!(
         strip_prefix_in,
         strip_char_prefix,
-        (RadixCiphertext, FheString)
+        FheOptionString
     );
-    forward_to_server_key_method!(find_in, find_char, (RadixCiphertext, RadixCiphertext));
-    forward_to_server_key_method!(rfind_in, rfind_char, (RadixCiphertext, RadixCiphertext));
+    forward_to_server_key_method!(find_in, find_char, FheOptionInt);
+    forward_to_server_key_method!(rfind_in, rfind_char, FheOptionInt);
     forward_to_server_key_method!(split_string, split_char, FheSplit);
     forward_to_server_key_method!(rsplit_string, rsplit_char, FheSplit);
     forward_to_server_key_method!(split_inclusive_string, split_inclusive_char, FheSplit);

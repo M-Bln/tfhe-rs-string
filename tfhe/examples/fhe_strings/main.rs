@@ -14,6 +14,7 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 //use crate::{time_function};
 use crate::server_key::is_empty::FheBool;
+//use crate::server_key::strip::FheOptionString;
 use clap::Parser;
 use lazy_static::lazy_static;
 use timing_pair_strings_macros::{padding_to_string, print_char_arg, print_string_arg, Encryption};
@@ -260,6 +261,12 @@ fn main() {
     time_pairs!(ends_with, Bool);
     time_pairs!(contains, Bool);
 
+    time_pairs!(strip_prefix, FheOptionString);
+    time_pairs!(strip_suffix, FheOptionString);
+
+    time_pairs!(find, FheOptionInt);
+    time_pairs!(rfind, FheOptionInt);
+    
     time_pairs!(split, FheSplit);
     time_pairs!(split_inclusive, FheSplit);
     time_pairs!(split_terminator, FheSplit);
@@ -287,6 +294,12 @@ fn main() {
             time_char_pattern!(starts_with, Bool);
             time_char_pattern!(ends_with, Bool);
             time_char_pattern!(contains, Bool);
+
+	    time_char_pattern!(find, FheOptionInt);
+	    time_char_pattern!(rfind, FheOptionInt);
+	    
+	    time_char_pattern!(strip_prefix, FheOptionString);
+	    time_char_pattern!(strip_suffix, FheOptionString);
 
             time_char_pattern!(split, FheSplit);
             time_char_pattern!(split_inclusive, FheSplit);
