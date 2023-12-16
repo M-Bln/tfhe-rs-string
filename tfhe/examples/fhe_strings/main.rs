@@ -104,26 +104,26 @@ fn main() {
     //     (RadixCiphertext, FheString)
     // );
 
-    // apply_time_function_twice!(trim);
-    // apply_time_function_twice!(trim_start);
-    // apply_time_function_twice!(trim_end);
-    // apply_time_function_twice!(to_lowercase);
-    // apply_time_function_twice!(to_uppercase);
+    apply_time_function_twice!(trim);
+    apply_time_function_twice!(trim_start);
+    apply_time_function_twice!(trim_end);
+    apply_time_function_twice!(to_lowercase);
+    apply_time_function_twice!(to_uppercase);
 
-    // time_len!(len, encrypted_s, clear_s);
-    // time_is_empty!(is_empty, encrypted_s, clear_s);
+    time_len!(len, encrypted_s, clear_s);
+    time_is_empty!(is_empty, encrypted_s, clear_s);
 
-    // if padding_zeros != 0 {
-    //     time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
-    //     time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
-    // }
-    // time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
-    // time_fhe_split!(
-    //     split_ascii_whitespace,
-    //     encrypted_s_padding,
-    //     clear_s,
-    //     padding_zeros
-    // );
+    if padding_zeros != 0 {
+        time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
+        time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
+    }
+    time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
+    time_fhe_split!(
+        split_ascii_whitespace,
+        encrypted_s_padding,
+        clear_s,
+        padding_zeros
+    );
 
     // time_pair_string!(
     //     add,
@@ -153,29 +153,29 @@ fn main() {
     // FheSplit, 		   (String, clear_pattern, encrypted_pattern, encrypted_pattern_padded, Clear,
     // 0));
 
-    // time_pairs!(add, FheString);
+    time_pairs!(add, FheString);
 
-    // time_pairs!(eq, Bool);
-    // time_pairs!(eq_ignore_case, Bool);
-    // time_pairs!(ne, Bool);
-    // time_pairs!(le, Bool);
-    // time_pairs!(ge, Bool);
+    time_pairs!(eq, Bool);
+    time_pairs!(eq_ignore_case, Bool);
+    time_pairs!(ne, Bool);
+    time_pairs!(le, Bool);
+    time_pairs!(ge, Bool);
 
-    // time_pairs!(starts_with, Bool);
-    // time_pairs!(ends_with, Bool);
-    // time_pairs!(contains, Bool);
+    time_pairs!(starts_with, Bool);
+    time_pairs!(ends_with, Bool);
+    time_pairs!(contains, Bool);
 
-    // time_pairs!(strip_prefix, FheOptionString);
-    // time_pairs!(strip_suffix, FheOptionString);
+    time_pairs!(strip_prefix, FheOptionString);
+    time_pairs!(strip_suffix, FheOptionString);
 
-    // time_pairs!(find, FheOptionInt);
-    // time_pairs!(rfind, FheOptionInt);
+    time_pairs!(find, FheOptionInt);
+    time_pairs!(rfind, FheOptionInt);
 
-    // time_pairs!(split, FheSplit);
-    // time_pairs!(split_inclusive, FheSplit);
-    // time_pairs!(split_terminator, FheSplit);
-    // time_pairs!(rsplit, FheSplit);
-    // time_pairs!(rsplit_terminator, FheSplit);
+    time_pairs!(split, FheSplit);
+    time_pairs!(split_inclusive, FheSplit);
+    time_pairs!(split_terminator, FheSplit);
+    time_pairs!(rsplit, FheSplit);
+    time_pairs!(rsplit_terminator, FheSplit);
     match arguments.char_pattern {
         Some(clear_char_pattern) => {
             let encrypted_char_pattern = CLIENT_KEY.encrypt_ascii_char(clear_char_pattern as u8);
@@ -227,62 +227,91 @@ fn main() {
             match arguments.replace_pattern {
                 Some(replace_pattern) => {
                     let clear_replace_pattern = replace_pattern.as_str();
-                    time_patterns!(
-                        replace,
-                        clear_s,
-                        encrypted_s,
-                        encrypted_s_padding,
-                        padding_zeros,
-                        FheString,
-                        (
-                            String,
-                            clear_pattern,
-                            encrypted_pattern,
-                            encrypted_pattern_padded,
-                            Clear,
-                            0
-                        ),
-                        (
-                            String,
-                            clear_replace_pattern,
-                            encrypted_pattern,
-                            encrypted_pattern_padded,
-                            Clear,
-                            0
-                        )
-                    );
-                    time_patterns!(
-                        replacen,
-                        clear_s,
-                        encrypted_s,
-                        encrypted_s_padding,
-                        padding_zeros,
-                        FheString,
-                        (
-                            String,
-                            clear_pattern,
-                            encrypted_pattern,
-                            encrypted_pattern_padded,
-                            Clear,
-                            0
-                        ),
-                        (
-                            String,
-                            clear_replace_pattern,
-                            encrypted_pattern,
-                            encrypted_pattern_padded,
-                            Clear,
-                            0
-                        ),
-                        (
-                            usize,
-                            clear_integer_arg,
-                            encrypted_integer_arg,
-                            encrypted_integer_arg,
-                            Clear,
-                            0
-                        )
-                    );
+		    let encrypted_replace_pattern = CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
+		    let encrypted_replace_pattern_padding = CLIENT_KEY.encrypt_str_padding(clear_replace_pattern, padding_zeros).unwrap();
+		    time_replace_all_cases!(
+			replace,
+			clear_s,
+			encrypted_s,
+			encrypted_s_padding,
+			padding_zeros,
+			(
+			    String, clear_pattern, encrypted_pattern, encrypted_pattern_padded
+			),
+			(
+			    String, clear_replace_pattern, encrypted_replace_pattern, encrypted_replace_pattern_padding
+			)
+		    );
+		    time_replacen_all_cases!(
+			replacen,
+			clear_s,
+			encrypted_s,
+			encrypted_s_padding,
+			padding_zeros,
+			(
+			    String, clear_pattern, encrypted_pattern, encrypted_pattern_padded
+			),
+			(
+			    String, clear_replace_pattern, encrypted_replace_pattern, encrypted_replace_pattern_padding
+			),
+			(clear_integer_arg, encrypted_integer_arg)
+		    );
+                    // time_patterns!(
+                    //     replace,
+                    //     clear_s,
+                    //     encrypted_s,
+                    //     encrypted_s_padding,
+                    //     padding_zeros,
+                    //     FheString,
+                    //     (
+                    //         String,
+                    //         clear_pattern,
+                    //         encrypted_pattern,
+                    //         encrypted_pattern_padded,
+                    //         Clear,
+                    //         0
+                    //     ),
+                    //     (
+                    //         String,
+                    //         clear_replace_pattern,
+                    //         encrypted_pattern,
+                    //         encrypted_pattern_padded,
+                    //         Clear,
+                    //         0
+                    //     )
+                    // );
+                    // time_patterns!(
+                    //     replacen,
+                    //     clear_s,
+                    //     encrypted_s,
+                    //     encrypted_s_padding,
+                    //     padding_zeros,
+                    //     FheString,
+                    //     (
+                    //         String,
+                    //         clear_pattern,
+                    //         encrypted_pattern,
+                    //         encrypted_pattern_padded,
+                    //         Clear,
+                    //         0
+                    //     ),
+                    //     (
+                    //         String,
+                    //         clear_replace_pattern,
+                    //         encrypted_pattern,
+                    //         encrypted_pattern_padded,
+                    //         Clear,
+                    //         0
+                    //     ),
+                    //     (
+                    //         usize,
+                    //         clear_integer_arg,
+                    //         encrypted_integer_arg,
+                    //         encrypted_integer_arg,
+                    //         Clear,
+                    //         0
+                    //     )
+                    // );
                 }
                 _ => (),
             }
@@ -325,6 +354,20 @@ fn main() {
                     encrypted_pattern_padded
                 )
             );
+	    time_splitn_all_cases!(
+                rsplitn,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                padding_zeros,
+                (clear_integer_arg, encrypted_integer_arg),
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                )
+            );
             // macro_rules! time_integer_arg {
             //     ($method: ident, $return_type: ident) => {
             //         time_integer_arg_all_paddings!(
@@ -342,30 +385,30 @@ fn main() {
 
             // time_integer_arg!(repeat, FheString);
 
-            // time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
-            // time_repeat_clear(
-            //     &clear_s,
-            //     &encrypted_s_padding,
-            //     clear_integer_arg,
-            //     padding_zeros,
-            // );
+            time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
+            time_repeat_clear(
+                &clear_s,
+                &encrypted_s_padding,
+                clear_integer_arg,
+                padding_zeros,
+            );
 
-            // time_repeat_encrypted(
-            //     &clear_s,
-            //     &encrypted_s,
-            //     clear_integer_arg,
-            //     arguments.max_number_repeatition,
-            //     &encrypted_integer_arg,
-            //     0,
-            // );
-            // time_repeat_encrypted(
-            //     &clear_s,
-            //     &encrypted_s_padding,
-            //     clear_integer_arg,
-            //     arguments.max_number_repeatition,
-            //     &encrypted_integer_arg,
-            //     padding_zeros,
-            // );
+            time_repeat_encrypted(
+                &clear_s,
+                &encrypted_s,
+                clear_integer_arg,
+                arguments.max_number_repeatition,
+                &encrypted_integer_arg,
+                0,
+            );
+            time_repeat_encrypted(
+                &clear_s,
+                &encrypted_s_padding,
+                clear_integer_arg,
+                arguments.max_number_repeatition,
+                &encrypted_integer_arg,
+                padding_zeros,
+            );
         }
         _ => (),
     }
