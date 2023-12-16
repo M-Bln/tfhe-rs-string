@@ -49,7 +49,7 @@ mod tests {
     use crate::server_key::is_empty::FheBool;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
-    use tfhe::integer::RadixCiphertext;
+    use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
@@ -66,13 +66,13 @@ mod tests {
     #[test]
     fn test_is_empty_clear() {
         let encrypted_str = CLIENT_KEY.encrypt_str_padding("", 1).unwrap();
-        let result: RadixCiphertext = match SERVER_KEY.is_empty(&encrypted_str) {
+        let result: BooleanBlock = match SERVER_KEY.is_empty(&encrypted_str) {
             FheBool::Encrypted(encrypted_res) => encrypted_res,
             _ => {
                 panic!();
             }
         };
-        let clear_result = CLIENT_KEY.decrypt_u8(&result);
+        let clear_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&result));
         assert_eq!(clear_result, 1);
     }
 }

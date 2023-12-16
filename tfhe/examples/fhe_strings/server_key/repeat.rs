@@ -1,7 +1,7 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
     // pub fn repeat(&self, s: &FheString, n: &impl FheIntegerArg) -> FheString {
@@ -32,8 +32,8 @@ impl StringServerKey {
 
         for i in 0..n_max {
             for c in &s.content {
-                let repeat_again: RadixCiphertext =
-                    self.integer_key.scalar_gt_parallelized(&n, i as u64);
+                let repeat_again: BooleanBlock =
+                    self.integer_key.scalar_gt_parallelized(n, i as u64);
                 let new_encrypted_char = FheAsciiChar(self.integer_key.cmux_parallelized(
                     &repeat_again,
                     &c.0,

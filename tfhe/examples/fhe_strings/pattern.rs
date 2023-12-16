@@ -277,7 +277,7 @@ impl FhePattern for FheString {
             }
             Padding::Final => {
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
-                    let match_or_end_needle = server_key.integer_key.boolean_bitor_parallelized(
+                    let match_or_end_needle = server_key.integer_key.boolean_bitor(
                         &server_key.eq_char(&haystack[n], &self.content[n]),
                         &server_key.eq_clear_char(&self.content[n], 0),
                     );
@@ -295,7 +295,7 @@ impl FhePattern for FheString {
             _ => {
                 let unpadded_needle = server_key.push_padding_to_end(self);
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
-                    let match_or_end_needle = server_key.integer_key.boolean_bitor_parallelized(
+                    let match_or_end_needle = server_key.integer_key.boolean_bitor(
                         &server_key.eq_char(&haystack[n], &unpadded_needle.content[n]),
                         &server_key.eq_clear_char(&unpadded_needle.content[n], 0),
                     );

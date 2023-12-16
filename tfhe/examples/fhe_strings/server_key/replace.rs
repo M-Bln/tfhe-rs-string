@@ -165,14 +165,14 @@ impl StringServerKey {
     pub fn erase_after(&self, mut s: FheString, result_length: FheStrLength) -> FheString {
         let zero = self.create_zero();
         s.length = result_length;
-        match &s.length {
+        match s.len() {
             FheStrLength::Encrypted(encrypted_length) => {
                 for i in 0..s.content.len() {
                     s.content[i] = FheAsciiChar(
                         self.integer_key.cmux_parallelized(
                             &self
                                 .integer_key
-                                .scalar_le_parallelized(&encrypted_length, i as u32),
+                                .scalar_le_parallelized(encrypted_length, i as u32),
                             &zero,
                             &s.content[i].0,
                         ),
