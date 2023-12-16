@@ -3,7 +3,7 @@ use crate::client_key::ConversionError;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
     pub fn split_terminator(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
@@ -120,29 +120,29 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(s); // The result has at least 1 part if not empty.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
                                                                //let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let mut trailing_empty_string = self.create_zero();
+        let mut trailing_empty_string = self.create_false();
         for n in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             start_part = self.add_length_to_radix(&end_part, &pattern.length);
             trailing_empty_string = match &s.length {
-                FheStrLength::Clear(clear_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Clear(clear_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
                         .scalar_eq_parallelized(&start_part, *clear_length as u64),
                 ),
-                FheStrLength::Encrypted(encrypted_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Encrypted(encrypted_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
@@ -151,7 +151,7 @@ impl StringServerKey {
             }
         }
         self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &trailing_empty_string);
+            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -167,30 +167,30 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(s); // The result has at least 1 part if not empty.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let mut trailing_empty_string = self.create_zero();
+        let mut trailing_empty_string = self.create_false();
         for n in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_clear_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             start_part = self
                 .integer_key
                 .scalar_add_parallelized(&end_part, pattern.len() as u8);
             trailing_empty_string = match &s.length {
-                FheStrLength::Clear(clear_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Clear(clear_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
                         .scalar_eq_parallelized(&start_part, *clear_length as u64),
                 ),
-                FheStrLength::Encrypted(encrypted_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Encrypted(encrypted_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
@@ -199,7 +199,7 @@ impl StringServerKey {
             };
         }
         self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &trailing_empty_string);
+            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -219,29 +219,29 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(s); // The result has at least 1 part if not empty.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
                                                                //        let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let mut trailing_empty_string = self.create_zero();
+        let mut trailing_empty_string = self.create_false();
         for n in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_char_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             start_part = self.integer_key.scalar_add_parallelized(&end_part, 1);
             trailing_empty_string = match &s.length {
-                FheStrLength::Clear(clear_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Clear(clear_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
                         .scalar_eq_parallelized(&start_part, *clear_length as u64),
                 ),
-                FheStrLength::Encrypted(encrypted_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Encrypted(encrypted_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
@@ -250,7 +250,7 @@ impl StringServerKey {
             };
         }
         self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &trailing_empty_string);
+            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -270,15 +270,15 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(s); // The result has at least 1 part if not empty.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
                                                                //        let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let empty_pattern = self.is_empty_encrypted(&pattern);
-        let mut trailing_empty_string = zero.clone();
+        let mut trailing_empty_string = self.create_false();
         for n in 0..maximum_number_of_parts {
-            let found: RadixCiphertext;
+            let found: BooleanBlock;
             let end_part: RadixCiphertext;
             if n >= 1 {
                 // When the patern is empty, the search must start at `start_part` plus 1.
@@ -287,7 +287,7 @@ impl StringServerKey {
                     pattern,
                     &self
                         .integer_key
-                        .add_parallelized(&start_part, &empty_pattern),
+                        .add_parallelized(&start_part, &self.bool_to_radix(&empty_pattern)),
                 );
             } else {
                 (found, end_part) =
@@ -296,19 +296,19 @@ impl StringServerKey {
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             start_part = self.add_length_to_radix(&end_part, &pattern.length);
 
             trailing_empty_string = match &s.length {
-                FheStrLength::Clear(clear_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Clear(clear_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
                         .scalar_eq_parallelized(&start_part, *clear_length as u64),
                 ),
-                FheStrLength::Encrypted(encrypted_length) => self.integer_key.bitor_parallelized(
+                FheStrLength::Encrypted(encrypted_length) => self.integer_key.boolean_bitor(
                     &trailing_empty_string,
                     &self
                         .integer_key
@@ -323,7 +323,7 @@ impl StringServerKey {
             &number_parts,
         );
         self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &trailing_empty_string);
+            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -354,7 +354,7 @@ impl StringServerKey {
             let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
             parts.push(FheString {
                 padding: Padding::Final,
-                length: ClearOrEncrypted::Encrypted(current_char_non_null),
+                length: ClearOrEncrypted::Encrypted(self.bool_to_radix(&current_char_non_null)),
                 content: vec![c.clone()],
             })
         }
