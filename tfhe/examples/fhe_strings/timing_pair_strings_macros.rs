@@ -127,14 +127,14 @@ macro_rules! ref_or_itself {
 #[macro_export]
 macro_rules! pick_arg {
     ( $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, Clear, $arg_padding: expr) => {
-	&$clear_arg
+        &$clear_arg
     };
     ( $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr) => {
-	$encrypted_arg
-	match $arg_padding {
-	    0 => &$encrypted_arg,
-	    _ => &$encrypted_arg_padding,
-	}
+        //$encrypted_arg
+        match $arg_padding {
+            0 => &$encrypted_arg,
+            _ => &$encrypted_arg_padding,
+        }
     };
 }
 
@@ -146,7 +146,10 @@ macro_rules! time_patterns {
     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_s: expr, $return_type: ident,
      $(( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr)),*  ) => {
 	{
-	    let encrypted_s = ref_or_clone!($method, $encrypted_s);
+	    let encrypted_s = match $padding_s {
+		0 =>  ref_or_clone!($method, $encrypted_s),
+		_ =>  ref_or_clone!($method, $encrypted_s_padding),
+	    };
 	    let start = std::time::Instant::now();
 	    let fhe_result = SERVER_KEY.$method(
 		encrypted_s,
@@ -176,6 +179,148 @@ macro_rules! time_patterns {
     };
 }
 
+#[macro_export]
+macro_rules! map_push_front {
+    ($new_head: expr, $( ($(list_element: expr),*) ),*) => {
+	$(
+	   ($new_head $(, list_element),*)
+	),*
+    };
+}
+
+// ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_s:
+// expr, $return_type: ident,  $(( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident,
+// $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr)),*  )
+
+// #[macro_export]
+// macro_rules! map_time_patterns {
+//     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  0,
+// $return_type: ident, $(($arg_list: expr)),+) => { 	$(
+// 	    time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding, 0, $return_type,
+// $arg_list); 	)+
+//     };
+//     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,
+// $padding_zeros: expr, $return_type: ident, $(($arg_list: expr)),+) => { 	$(
+// 	    time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding, 0, $return_type,
+// $arg_list); 	    time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding,
+// $padding_zeros, $return_type, $arg_list); 	)+
+//     };
+// }
+
+#[macro_export]
+macro_rules! map_time_patterns {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  0, $return_type: ident, $(
+	( $( ( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr) ),+)
+    ),+) => {
+	$(
+	    time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding, 0, $return_type, $(
+		( $arg_type, $clear_arg, $encrypted_arg, $encrypted_arg_padding, $encryption, $arg_padding)
+	    ),+ );
+	)+
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr, $return_type: ident, $(
+	( $( ( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr) ),+)
+    ),+) => {
+	$(
+	    time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding, 0, $return_type, $(
+		( $arg_type, $clear_arg, $encrypted_arg, $encrypted_arg_padding, $encryption, $arg_padding)
+	    ),+ );
+	    time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding, $padding_zeros, $return_type , $(
+		( $arg_type, $clear_arg, $encrypted_arg, $encrypted_arg_padding, $encryption, $arg_padding)
+	    ),+ );
+	)+
+    };
+}
+
+// ( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident,
+// $encryption: ident, $arg_padding: expr)
+
+
+// #[macro_export]
+// macro_rules! all_arguments_from_type {
+//     (0, String, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident) => {
+// 	    (String, $clear_arg, $encrypted_arg, $encrypted_arg_padding, Clear, 0),
+// 	    (String, $clear_arg, $encrypted_arg, $encrypted_arg_padding, Encrypted, 0)
+//     };
+//     ($padding_zeros: expr, String, $clear_arg: ident, $encrypted_arg: ident,
+// $encrypted_arg_padding: ident) => { 	((String, $clear_arg, $encrypted_arg, $encrypted_arg_padding,
+// Clear, 0), 	(String, $clear_arg, $encrypted_arg, $encrypted_arg_padding, Encrypted, 0),
+// 	("String", $clear_arg, $encrypted_arg, $encrypted_arg_padding, Encrypted, $padding_zeros))
+//     };
+//     ($padding_zeros: expr, $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident,
+// $encrypted_arg_padding: ident) => { 	($arg_type, $clear_arg, $encrypted_arg,
+// $encrypted_arg_padding, Clear, 0), 	($arg_type, $clear_arg, $encrypted_arg,
+// $encrypted_arg_padding, Encrypted, 0)     };
+// }
+
+// #[macro_export]
+// macro_rules! create_arguments_list {
+//     (0,  ( String, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident),      $($arg_tuple: expr),+) => {
+// 	map_push_front!(( String, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident, Clear, 0), 			create_arguments_list!($padding_zeros,
+// $($arg_tuple: expr),+)), 	map_push_front!(( $first_arg_type: ident, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident, Encrypted, 0),
+// 			create_arguments_list!($padding_zeros, $($arg_tuple: expr),+))
+//     };
+//     (0,  ( String, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident)) => { 	(( String, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident, Clear, 0)), 	 (( String,
+// $first_clear_arg: ident, $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident,
+// Encrypted, 0))     };
+//     ($padding_zero: expr,  ( String, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident)) => { 	(( String, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident, Clear, 0)), 	(( String,
+// $first_clear_arg: ident, $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident,
+// Encrypted, 0)), 	(( String, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident, Encrypted, $paddiing_zeros))     };
+//     ($padding_zeros: expr,  ( $first_arg_type: ident, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident),      $($arg_tuple: expr),+) =>
+// { 	map_push_front!(( $first_arg_type: ident, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident, Clear, 0), 			create_arguments_list!($padding_zeros,
+// $($arg_tuple: expr),+)), 	map_push_front!(( $first_arg_type: ident, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident, Encrypted, 0),
+// 			create_arguments_list!($padding_zeros, $($arg_tuple: expr),+))
+//     };
+//     ($padding_zeros: expr,  ( $first_arg_type: ident, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident)) => { 	(( $first_arg_type:
+// ident, $first_clear_arg: ident, $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident,
+// Clear, 0)), 	 (( $first_arg_type: ident, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident, Encrypted, 0))     };
+//     ($padding_zeros: expr) => {};
+// }
+
+// #[macro_export]
+// macro_rules!  time_patterns_all_cases {
+//     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,
+// $return_type: ident,     $padding_zeros: expr,
+//      $($arg_tuple: expr),+) => {
+//  	map_time_patterns!($method, $clear_s, $encrypted_s, $encrypted_s_padding, $padding_zeros,
+// $return_type ,create_arguments_list!($padding_zeros, $($arg_tuple),+););     };
+// }
+
+//
+
+// #[macro_export]
+// macro_rules! map_time_patterns_ident {
+//     () => {map_time_patterns};
+// }
+
+//($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,
+//($method: $padding_zeros: expr, $return_type: ident, $($arg_list: expr),+)
+
+// ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_s:
+// expr, $return_type: ident,  $(( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident,
+// $encrypted_arg_padding: ident, $encryption: ident, $arg_padding: expr)),*  ) #[macro_export]
+// macro_rules! create_arguments_list {
+//     ($padding_zeros: expr, ( $first_arg_type: ident, $first_clear_arg: ident,
+// $first_encrypted_arg: ident, $first_encrypted_arg_padding: ident),      $(( $arg_type: ident,
+// $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident)),+) => {
+// 	( $first_arg_type: ident, $first_clear_arg: ident, $first_encrypted_arg: ident,
+// $first_encrypted_arg_padding: ident, Clear, 0), 	create_arguments_list!($padding_zeros,
+// $padding_zeros, $(($arg_type, $clear_arg, $encrypted_arg, $encrypted_arg_padding)),+ )     };
+// }
+
 // #[macro_export]  TODO, Macro to generate all combinations of clear / encryption / padding for all
 // arguments by calling time_patterns; macro_rules! time_patterns_all_subcases{
 //     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,
@@ -184,59 +329,6 @@ macro_rules! time_patterns {
 
 //     };
 // }
-
-#[macro_export]
-macro_rules! time_char_pattern_all_paddings {
-    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident,  $return_type: ident, $padding_zeros: ident) => {
-        time_pair_string!(
-            // Unpadded string, clear pattern
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            char
-        );
-        time_pair_string!(
-            // Unpadded string, encrypted unpadded pattern
-            $method,
-            $clear_s,
-            $encrypted_s,
-            $clear_pattern,
-            $encrypted_pattern,
-            $return_type,
-            char,
-            0,
-            0
-        );
-        if $padding_zeros != 0 {
-            time_pair_string!(
-                // Padded string, clear pattern
-                $method,
-                $clear_s,
-                $encrypted_s_padding,
-                $clear_pattern,
-                $encrypted_pattern,
-                $return_type,
-                char,
-                $padding_zeros
-            );
-            time_pair_string!(
-                // Padded string, unpadded pattern
-                $method,
-                $clear_s,
-                $encrypted_s_padding,
-                $clear_pattern,
-                $encrypted_pattern,
-                $return_type,
-                char,
-                $padding_zeros,
-                0
-            );
-        }
-    };
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 
@@ -530,5 +622,826 @@ macro_rules! time_pair_string_all_paddings {
                 $padding_zeros
             );
         }
+    };
+}
+
+#[macro_export]
+macro_rules! time_char_pattern_all_paddings {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident, $clear_pattern: ident, $encrypted_pattern: ident,  $return_type: ident, $padding_zeros: ident) => {
+        time_pair_string!(
+            // Unpadded string, clear pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            char
+        );
+        time_pair_string!(
+            // Unpadded string, encrypted unpadded pattern
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $clear_pattern,
+            $encrypted_pattern,
+            $return_type,
+            char,
+            0,
+            0
+        );
+        if $padding_zeros != 0 {
+            time_pair_string!(
+                // Padded string, clear pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                char,
+                $padding_zeros
+            );
+            time_pair_string!(
+                // Padded string, unpadded pattern
+                $method,
+                $clear_s,
+                $encrypted_s_padding,
+                $clear_pattern,
+                $encrypted_pattern,
+                $return_type,
+                char,
+                $padding_zeros,
+                0
+            );
+        }
+    };
+}
+
+
+
+/// Dispatching macro to time all cases of encryption and padding
+
+#[macro_export]
+macro_rules! time_splitn_all_cases {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  0,
+     ($clear_integer: ident, $encrypted_integer:ident),
+     ($arg_type: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            0,
+            FheSplit,
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            )
+        );
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
+     ($clear_integer: ident, $encrypted_integer:ident),
+     (String, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            0,
+            FheSplit,
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            )
+        );
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            $padding_zeros,
+            FheSplit,
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                )
+            )
+        );
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
+     ($clear_integer: ident, $encrypted_integer:ident),
+     ($arg_type: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            0,
+            FheSplit,
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            )
+        );
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            $padding_zeros,
+            FheSplit,
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            )
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! time_replace_all_cases {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  0,
+     ($old_arg_type: ident, $old_clear_pattern: ident, $old_encrypted_pattern: ident, $old_encrypted_pattern_padding: ident),
+     ($arg_type: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            0,
+            FheString,
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+	    (
+		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
+	    )
+	    
+        );
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
+     (String, $old_clear_pattern: ident, $old_encrypted_pattern: ident, $old_encrypted_pattern_padding: ident),
+     (String, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            $padding_zeros,
+            FheString,
+            (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+            (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+	    (
+		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)
+	    ),
+	    (
+		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros)	    
+	    )	
+	    
+        );
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
+     ($old_arg_type: ident, $old_clear_pattern: ident, $old_encrypted_pattern: ident, $old_encrypted_pattern_padding: ident),
+     ($arg_type: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            $padding_zeros,
+            FheString,
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            ),
+	    (
+		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
+	    )
+	    
+        );
+    };
+}
+
+
+#[macro_export]
+macro_rules! time_replacen_all_cases {
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  0,
+     ($old_arg_type: ident, $old_clear_pattern: ident, $old_encrypted_pattern: ident, $old_encrypted_pattern_padding: ident),
+     ($arg_type: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident),
+     ($clear_integer: ident, $encrypted_integer:ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            0,
+            FheString,
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+	    (
+		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+	    (
+		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    )
+	    
+        );
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
+     (String, $old_clear_pattern: ident, $old_encrypted_pattern: ident, $old_encrypted_pattern_padding: ident),
+     (String, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident),
+     ($clear_integer: ident, $encrypted_integer:ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            $padding_zeros,
+            FheString,
+            (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+            (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+	    (
+		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+            (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+	    (
+		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    ),
+	    (
+		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    ),
+	    (
+                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
+                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    )
+        );
+    };
+    ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
+     ($old_arg_type: ident, $old_clear_pattern: ident, $old_encrypted_pattern: ident, $old_encrypted_pattern_padding: ident),
+     ($arg_type: ident, $clear_pattern: ident, $encrypted_pattern: ident, $encrypted_pattern_padding: ident),
+     ($clear_integer: ident, $encrypted_integer:ident)) => {
+        map_time_patterns!(
+            $method,
+            $clear_s,
+            $encrypted_s,
+            $encrypted_s_padding,
+            $padding_zeros,
+            FheString,
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+            ),
+	    (
+		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+            (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            ),
+	    (
+		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    ),
+	    (
+                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
+                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
+		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+	    )
+        );
     };
 }

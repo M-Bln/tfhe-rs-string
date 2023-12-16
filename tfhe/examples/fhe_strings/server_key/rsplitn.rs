@@ -19,8 +19,8 @@ impl StringServerKey {
 
     pub fn rsplitn(
         &self,
+	s: &FheString,
         n: &impl FheIntegerArg,
-        s: &FheString,
         pattern: &impl FhePattern,
     ) -> FheSplit {
         pattern.rsplitn_string(self, n, s)
