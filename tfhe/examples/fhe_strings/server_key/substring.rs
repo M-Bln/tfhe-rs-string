@@ -2,7 +2,7 @@ use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString,
 use crate::client_key::ConversionError;
 use crate::server_key::split::ResultFheString;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
     /// This function create a copy of the substring of `s` between the `start`-th character
@@ -25,14 +25,14 @@ impl StringServerKey {
         let mut range_is_included = self.create_true();
 
         // Compare range to string length.
-        match &s.length {
+        match &s.len() {
             ClearOrEncrypted::Clear(length) if end > *length => {
                 return Err(ConversionError::OutOfRange)
             }
             ClearOrEncrypted::Encrypted(encrypted_length) => {
                 range_is_included = self
                     .integer_key
-                    .scalar_ge_parallelized(&encrypted_length, end as u64);
+                    .scalar_ge_parallelized(encrypted_length, end as u64);
             }
             _ => (),
         }
@@ -76,7 +76,7 @@ impl StringServerKey {
         // The range is included if `start` <= `end` and `end` <= `s.len`
         let range_is_included = self
             .integer_key
-            .bitand_parallelized(&end_is_included, &start_before_end);
+            .boolean_bitand(&end_is_included, &start_before_end);
 
         match s.padding {
             Padding::None | Padding::Final => (
@@ -124,7 +124,7 @@ impl StringServerKey {
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         for (n, c) in s.content.iter().enumerate() {
             // Check if the index `n` is in the range `start`-`end`.
-            let in_range: RadixCiphertext = self.integer_key.bitand_parallelized(
+            let in_range: BooleanBlock = self.integer_key.boolean_bitand(
                 &self.integer_key.scalar_le_parallelized(start, n as u64),
                 &self.integer_key.scalar_gt_parallelized(end, n as u64),
             );
@@ -159,7 +159,7 @@ impl StringServerKey {
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         for (n, c) in s.content.iter().enumerate() {
             // Check if the index `n` is in the range `start`-`end`.
-            let in_range: RadixCiphertext =
+            let in_range: BooleanBlock =
                 self.integer_key.scalar_le_parallelized(start, n as u64);
 
             // If `n` is in range, take the content of `s` otherwise take a null character.

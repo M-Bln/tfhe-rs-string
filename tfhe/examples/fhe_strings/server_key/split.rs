@@ -5,7 +5,7 @@ use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
-pub type ResultFheString = (RadixCiphertext, FheString);
+pub type ResultFheString = (BooleanBlock, FheString);
 
 pub struct FheSplit {
     pub parts: Vec<FheString>,
