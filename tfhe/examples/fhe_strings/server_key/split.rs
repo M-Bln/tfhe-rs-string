@@ -618,7 +618,7 @@ impl StringServerKey {
         let empty_pattern = self.is_empty_encrypted(&pattern);
 
         for i in 0..maximum_number_of_parts {
-            let found: BooleanBlock;
+            let mut found: BooleanBlock;
             let mut end_part: RadixCiphertext;
             if i >= 1 {
                 // When the patern is empty, the search must start at `start_part` plus 1.

@@ -111,6 +111,7 @@ impl StringServerKey {
         condition: &BooleanBlock,
         if_string: &FheString,
     ) -> FheString {
+	let radix_condition = self.bool_to_radix(&condition);
         let mut content_result: Vec<FheAsciiChar> = Vec::with_capacity(if_string.content.len());
         let zero = self.create_zero();
         for c in if_string.content.iter() {
@@ -121,10 +122,10 @@ impl StringServerKey {
         let encrypted_length_result = match if_string.len() {
             FheStrLength::Clear(clear_length) => self
                 .integer_key
-                .scalar_mul_parallelized(&condition.into_radix(NUMBER_BLOCKS, &self.integer_key), *clear_length as u32),
+                .scalar_mul_parallelized(&radix_condition, *clear_length as u32),
             FheStrLength::Encrypted(encrypted_length) => self
                 .integer_key
-                .mul_parallelized(&condition.into_radix(NUMBER_BLOCKS, &self.integer_key), encrypted_length),
+                .mul_parallelized(&radix_condition, encrypted_length),
         };
         let padding_result = match if_string.padding {
             Padding::None => Padding::Final,

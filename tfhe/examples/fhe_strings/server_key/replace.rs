@@ -165,7 +165,7 @@ impl StringServerKey {
     pub fn erase_after(&self, mut s: FheString, result_length: FheStrLength) -> FheString {
         let zero = self.create_zero();
         s.length = result_length;
-        match s.len() {
+        match &s.length {
             FheStrLength::Encrypted(encrypted_length) => {
                 for i in 0..s.content.len() {
                     s.content[i] = FheAsciiChar(

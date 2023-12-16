@@ -408,7 +408,7 @@ macro_rules! test_splitn_string_pattern {
 
 	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_0_clear_string_" $pattern_arg>]() {
-		let integer_arg : usize = $integer_arg;
+	//	let integer_arg : usize = $integer_arg;
     		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
 		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
@@ -427,7 +427,7 @@ macro_rules! test_splitn_string_pattern {
 
 	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_random_padding_2_clear_string_" $pattern_arg>]() {
-		let integer_arg : usize = $integer_arg;
+	//	let integer_arg : usize = $integer_arg;
     		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		let encrypted_integer = CLIENT_KEY.encrypt_u8($integer_arg);
@@ -447,7 +447,7 @@ macro_rules! test_splitn_string_pattern {
 
 	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_0_" $pattern_arg "_padding_0">]() {
-		let integer_arg : usize = $integer_arg;
+	//	let integer_arg : usize = $integer_arg;
     		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
     		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
@@ -468,7 +468,7 @@ macro_rules! test_splitn_string_pattern {
 
 	    #[test]
     	    fn [<"test_" $method "_" $integer_arg "_encrypted_" $string_arg "_padding_2_" $pattern_arg "_padding_0">]() {
-		let integer_arg : usize = $integer_arg;
+	//	let integer_arg : usize = $integer_arg;
     		let std_result = $string_arg.$method($integer_arg, $pattern_arg);
                 let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
     		let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
