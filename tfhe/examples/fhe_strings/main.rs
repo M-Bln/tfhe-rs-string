@@ -80,20 +80,20 @@ fn main() {
         };
     }
 
-    time_patterns_all_cases!(
-        split,
-        clear_s,
-        encrypted_s,
-        encrypted_s_padding,
-        FheSplit,
-        padding_zeros,
-        (
-            String,
-            clear_pattern,
-            encrypted_pattern,
-            encrypted_pattern_padded
-        )
-    );
+    // time_patterns_all_cases!(
+    //     split,
+    //     clear_s,
+    //     encrypted_s,
+    //     encrypted_s_padding,
+    //     FheSplit,
+    //     padding_zeros,
+    //     (
+    //         String,
+    //         clear_pattern,
+    //         encrypted_pattern,
+    //         encrypted_pattern_padded
+    //     )
+    // );
 
     // apply_time_function_string_pattern_padding_combinations_return_type!(
     //     strip_prefix,
@@ -287,28 +287,42 @@ fn main() {
                 _ => (),
             }
 
-            time_patterns!(
+            // time_patterns!(
+            //     splitn,
+            //     clear_s,
+            //     encrypted_s,
+            //     encrypted_s_padding,
+            //     padding_zeros,
+            //     FheSplit,
+            //     (
+            //         usize,
+            //         clear_integer_arg,
+            //         encrypted_integer_arg,
+            //         encrypted_integer_arg,
+            //         Clear,
+            //         0
+            //     ),
+            //     (
+            //         String,
+            //         clear_pattern,
+            //         encrypted_pattern,
+            //         encrypted_pattern_padded,
+            //         Clear,
+            //         0
+            //     )
+            // );
+            time_splitn_all_cases!(
                 splitn,
                 clear_s,
                 encrypted_s,
                 encrypted_s_padding,
                 padding_zeros,
-                FheSplit,
-                (
-                    usize,
-                    clear_integer_arg,
-                    encrypted_integer_arg,
-                    encrypted_integer_arg,
-                    Clear,
-                    0
-                ),
+                (clear_integer_arg, encrypted_integer_arg),
                 (
                     String,
                     clear_pattern,
                     encrypted_pattern,
-                    encrypted_pattern_padded,
-                    Clear,
-                    0
+                    encrypted_pattern_padded
                 )
             );
             // macro_rules! time_integer_arg {
