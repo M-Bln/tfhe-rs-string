@@ -1,6 +1,6 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
     /// Return the `n`-th (encrypted) character of an encrypted string for `n` a clear index. Null
@@ -43,7 +43,7 @@ impl StringServerKey {
 
             // Increment `current_index` if the current char is non null
             let current_char_non_null: RadixCiphertext =
-                self.integer_key.scalar_ne_parallelized(&c.0, 0);
+                self.integer_key.scalar_ne_parallelized(&c.0, 0).into_radix(NUMBER_BLOCKS, &self.integer_key);
             self.integer_key
                 .add_assign_parallelized(&mut current_index, &current_char_non_null);
         }
@@ -73,7 +73,7 @@ impl StringServerKey {
 
             // Increment `current_index` if the current char is non null
             let current_char_non_null: RadixCiphertext =
-                self.integer_key.scalar_ne_parallelized(&c.0, 0);
+                self.integer_key.scalar_ne_parallelized(&c.0, 0).into_radix(NUMBER_BLOCKS, &self.integer_key);
             self.integer_key
                 .add_assign_parallelized(&mut current_index, &current_char_non_null);
         }
@@ -108,7 +108,7 @@ impl StringServerKey {
     /// string.
     pub fn cmux_empty_string(
         &self,
-        condition: &RadixCiphertext,
+        condition: &BooleanBlock,
         if_string: &FheString,
     ) -> FheString {
         let mut content_result: Vec<FheAsciiChar> = Vec::with_capacity(if_string.content.len());
@@ -121,10 +121,10 @@ impl StringServerKey {
         let encrypted_length_result = match if_string.len() {
             FheStrLength::Clear(clear_length) => self
                 .integer_key
-                .scalar_mul_parallelized(condition, *clear_length as u32),
+                .scalar_mul_parallelized(&condition.into_radix(NUMBER_BLOCKS, &self.integer_key), *clear_length as u32),
             FheStrLength::Encrypted(encrypted_length) => self
                 .integer_key
-                .mul_parallelized(condition, encrypted_length),
+                .mul_parallelized(&condition.into_radix(NUMBER_BLOCKS, &self.integer_key), encrypted_length),
         };
         let padding_result = match if_string.padding {
             Padding::None => Padding::Final,

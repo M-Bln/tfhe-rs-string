@@ -1,15 +1,28 @@
-use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
 use crate::client_key::ConversionError;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 pub const ASCII_WHITE_SPACE: u8 = 32;
 
 impl StringServerKey {
-    pub fn create_true(&self) -> RadixCiphertext {
-        self.integer_key
-            .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), 1)
+    pub fn create_true(&self) -> BooleanBlock {
+        BooleanBlock::convert(&self.integer_key
+            .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix::<RadixCiphertext>(4), 1), &self.integer_key)
     }
+
+    pub fn create_false(&self) -> BooleanBlock {
+        BooleanBlock::convert(&self.integer_key.create_trivial_zero_radix::<RadixCiphertext>(4), &self.integer_key)
+    }
+
+    pub fn bool_to_radix(&self, fhe_bool: &BooleanBlock) -> RadixCiphertext {
+	fhe_bool.into_radix::<RadixCiphertext>(NUMBER_BLOCKS, &self.integer_key)
+    }
+
+    pub fn radix_to_bool(&self, radix: &RadixCiphertext) -> BooleanBlock {
+	BooleanBlock::convert(radix, &self.integer_key)
+    }
+    
 
     pub fn create_zero(&self) -> RadixCiphertext {
         self.integer_key.create_trivial_zero_radix(4)

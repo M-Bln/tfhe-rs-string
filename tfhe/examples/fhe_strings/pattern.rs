@@ -1,11 +1,11 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
 use crate::integer_arg::FheIntegerArg;
 use crate::server_key::find::FheOptionInt;
 use crate::server_key::split::FheSplit;
 use crate::server_key::strip::FheOptionString;
 
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 /// Creates a method with 3 arguments `&self, server_key, s`, that just calls a specified method
 /// of `server_key`.
@@ -37,19 +37,19 @@ pub trait FhePattern {
         &self,
         server_key: &StringServerKey,
         haystack: &[FheAsciiChar],
-    ) -> RadixCiphertext;
+    ) -> BooleanBlock;
 
     fn is_prefix_of_string(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext;
+    ) -> BooleanBlock;
 
     fn is_suffix_of_string(
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         self.is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
     }
 
@@ -105,10 +105,10 @@ pub trait FhePattern {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
-        let mut result = server_key.create_zero();
+    ) -> BooleanBlock {
+        let mut result = server_key.create_false();
         for i in 0..haystack.content.len() {
-            server_key.integer_key.bitor_assign_parallelized(
+            server_key.integer_key.boolean_bitor_assign(
                 &mut result,
                 &self.is_prefix_of_slice(server_key, &haystack.content[i..]),
             );
@@ -116,21 +116,21 @@ pub trait FhePattern {
         return result;
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
-        server_key.create_zero()
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+        server_key.create_false()
     }
     fn eq_ignore_case_string(
         &self,
         server_key: &StringServerKey,
         s: &FheString,
-    ) -> RadixCiphertext {
-        server_key.create_zero()
+    ) -> BooleanBlock {
+        server_key.create_false()
     }
-    fn le_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
-        server_key.create_zero()
+    fn le_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+        server_key.create_false()
     }
-    fn ge_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
-        server_key.create_zero()
+    fn ge_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+        server_key.create_false()
     }
 }
 
@@ -148,16 +148,20 @@ impl FhePattern for &str {
         &self,
         server_key: &StringServerKey,
         haystack: &[FheAsciiChar],
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         let mut result = server_key.create_true();
         if self.len() > haystack.len() {
-            return server_key.create_zero();
+            return server_key.create_false();
         }
         for n in 0..std::cmp::min(haystack.len(), self.len()) {
-            server_key.integer_key.bitand_assign_parallelized(
-                &mut result,
-                &server_key.eq_clear_char(&haystack[n], self.as_bytes()[n]),
-            )
+	    result = server_key.integer_key.boolean_bitand(
+		&result,
+		&server_key.eq_clear_char(&haystack[n], self.as_bytes()[n]),
+	    );
+            // server_key.integer_key.boolean_bitand_assign(
+            //     &mut result,
+            //     &server_key.bool_to_radix(&server_key.eq_clear_char(&haystack[n], self.as_bytes()[n])),
+            
         }
         result
     }
@@ -166,12 +170,12 @@ impl FhePattern for &str {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match &haystack.len() {
             FheStrLength::Clear(haystack_length) if *haystack_length < self.len() => {
-                return server_key.create_zero()
+                return server_key.create_false()
             }
-            _ if haystack.content.len() < self.len() => return server_key.create_zero(),
+            _ if haystack.content.len() < self.len() => return server_key.create_false(),
             _ => (),
         }
         match haystack.padding {
@@ -189,7 +193,7 @@ impl FhePattern for &str {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         let reversed_string = self.chars().rev().collect::<String>();
         let reversed_self = reversed_string.as_str();
         reversed_self.is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
@@ -207,7 +211,7 @@ impl FhePattern for &str {
         (striped, server_key.reverse_string_content(&reversed_result))
     }
 
-    // fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+    // fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
     //     server_key.eq_clear(s, self)
     // }
 
@@ -218,15 +222,15 @@ impl FhePattern for &str {
     forward_to_server_key_method!(find_in, find_clear_string, FheOptionInt);
     forward_to_server_key_method!(rfind_in, rfind_clear_string, FheOptionInt);
     forward_to_server_key_method!(strip_prefix_in, strip_clear_prefix, FheOptionString);
-    forward_to_server_key_method!(eq_string, eq_clear, RadixCiphertext);
+    forward_to_server_key_method!(eq_string, eq_clear, BooleanBlock);
 
     // The permutation le <-> ge is to coincides with the order of the arguments when calling
     // methods
-    forward_to_server_key_method!(le_string, ge_clear, RadixCiphertext);
-    forward_to_server_key_method!(ge_string, le_clear, RadixCiphertext);
+    forward_to_server_key_method!(le_string, ge_clear, BooleanBlock);
+    forward_to_server_key_method!(ge_string, le_clear, BooleanBlock);
 
-    forward_to_server_key_method!(eq_ignore_case_string, eq_ignore_case_clear, RadixCiphertext);
-    forward_to_server_key_method!(is_contained_in, contains_clear_string, RadixCiphertext);
+    forward_to_server_key_method!(eq_ignore_case_string, eq_ignore_case_clear, BooleanBlock);
+    forward_to_server_key_method!(is_contained_in, contains_clear_string, BooleanBlock);
     forward_to_server_key_method!(split_string, split_clear, FheSplit);
     forward_to_server_key_method!(split_inclusive_string, split_inclusive_clear, FheSplit);
     forward_to_server_key_method!(split_terminator_string, split_terminator_clear, FheSplit);
@@ -250,10 +254,10 @@ impl FhePattern for FheString {
         &self,
         server_key: &StringServerKey,
         haystack: &[FheAsciiChar],
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match &self.len() {
             FheStrLength::Clear(needle_length) if needle_length > &haystack.len() => {
-                return server_key.create_zero()
+                return server_key.create_false()
             }
             _ => (),
         }
@@ -265,7 +269,7 @@ impl FhePattern for FheString {
         match self.padding {
             Padding::None => {
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
-                    server_key.integer_key.bitand_assign_parallelized(
+                    server_key.integer_key.boolean_bitand_assign(
                         &mut result,
                         &server_key.eq_char(&haystack[n], &self.content[n]),
                     )
@@ -273,16 +277,16 @@ impl FhePattern for FheString {
             }
             Padding::Final => {
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
-                    let match_or_end_needle = server_key.integer_key.bitor_parallelized(
+                    let match_or_end_needle = server_key.integer_key.boolean_bitor_parallelized(
                         &server_key.eq_char(&haystack[n], &self.content[n]),
                         &server_key.eq_clear_char(&self.content[n], 0),
                     );
                     server_key
                         .integer_key
-                        .bitand_assign_parallelized(&mut result, &match_or_end_needle)
+                        .boolean_bitand_assign(&mut result, &match_or_end_needle)
                 }
                 if haystack.len() < max_needle_length {
-                    server_key.integer_key.bitand_assign_parallelized(
+                    server_key.integer_key.boolean_bitand_assign(
                         &mut result,
                         &server_key.eq_clear_char(&self.content[haystack.len()], 0),
                     )
@@ -291,16 +295,16 @@ impl FhePattern for FheString {
             _ => {
                 let unpadded_needle = server_key.push_padding_to_end(self);
                 for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
-                    let match_or_end_needle = server_key.integer_key.bitor_parallelized(
+                    let match_or_end_needle = server_key.integer_key.boolean_bitor_parallelized(
                         &server_key.eq_char(&haystack[n], &unpadded_needle.content[n]),
                         &server_key.eq_clear_char(&unpadded_needle.content[n], 0),
                     );
                     server_key
                         .integer_key
-                        .bitand_assign_parallelized(&mut result, &match_or_end_needle)
+                        .boolean_bitand_assign(&mut result, &match_or_end_needle)
                 }
                 if haystack.len() < max_needle_length {
-                    server_key.integer_key.bitand_assign_parallelized(
+                    server_key.integer_key.boolean_bitand_assign(
                         &mut result,
                         &server_key.eq_clear_char(&unpadded_needle.content[haystack.len()], 0),
                     )
@@ -310,7 +314,7 @@ impl FhePattern for FheString {
         result
     }
 
-    // fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
+    // fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
     //     server_key.eq_encrypted(self, s)
     // }
 
@@ -318,15 +322,15 @@ impl FhePattern for FheString {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match &(self.len(), haystack.len()) {
             (FheStrLength::Clear(needle_length), FheStrLength::Clear(haystack_length))
                 if *needle_length > *haystack_length =>
             {
-                return server_key.create_zero()
+                return server_key.create_false()
             }
             (FheStrLength::Clear(needle_length), _) if *needle_length > haystack.content.len() => {
-                return server_key.create_zero()
+                return server_key.create_false()
             }
             _ => (),
         }
@@ -345,7 +349,7 @@ impl FhePattern for FheString {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         server_key
             .reverse_string_content(self)
             .is_prefix_of_string(server_key, &server_key.reverse_string_content(haystack))
@@ -367,21 +371,21 @@ impl FhePattern for FheString {
     // }
 
     forward_to_server_key_method!(strip_prefix_in, strip_encrypted_prefix, FheOptionString);
-    forward_to_server_key_method!(eq_string, eq_encrypted, RadixCiphertext);
+    forward_to_server_key_method!(eq_string, eq_encrypted, BooleanBlock);
 
     // The permutation le <-> ge is to coincides with the order of the arguments when calling
     // methods
-    forward_to_server_key_method!(le_string, ge_encrypted, RadixCiphertext);
-    forward_to_server_key_method!(ge_string, le_encrypted, RadixCiphertext);
+    forward_to_server_key_method!(le_string, ge_encrypted, BooleanBlock);
+    forward_to_server_key_method!(ge_string, le_encrypted, BooleanBlock);
 
     forward_to_server_key_method!(
         eq_ignore_case_string,
         eq_ignore_case_encrypted,
-        RadixCiphertext
+        BooleanBlock
     );
     forward_to_server_key_method!(find_in, find_string, FheOptionInt);
     forward_to_server_key_method!(rfind_in, rfind_string, FheOptionInt);
-    forward_to_server_key_method!(is_contained_in, contains_string, RadixCiphertext);
+    forward_to_server_key_method!(is_contained_in, contains_string, BooleanBlock);
     forward_to_server_key_method!(split_string, split_encrypted, FheSplit);
     forward_to_server_key_method!(rsplit_string, rsplit_encrypted, FheSplit);
     forward_to_server_key_method!(split_inclusive_string, split_inclusive_encrypted, FheSplit);
@@ -401,7 +405,7 @@ impl FhePattern for FheString {
 }
 
 pub trait FheCharPattern {
-    fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> RadixCiphertext;
+    fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> BooleanBlock;
 
     fn insert_in(&self, server_key: &StringServerKey, fhe_split: &FheSplit) -> FheString;
 
@@ -411,16 +415,16 @@ pub trait FheCharPattern {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
-        let mut result = server_key.create_zero();
+    ) -> BooleanBlock {
+        let mut result = server_key.create_false();
         let mut previous_char_is_null = server_key.create_true();
         for c in &haystack.content {
             let char_is_match = self.fhe_eq(server_key, &c);
-            server_key.integer_key.bitor_assign_parallelized(
+            server_key.integer_key.boolean_bitor_assign(
                 &mut result,
                 &server_key
                     .integer_key
-                    .bitand_parallelized(&char_is_match, &previous_char_is_null),
+                    .boolean_bitand(&char_is_match, &previous_char_is_null),
             );
             previous_char_is_null = server_key.eq_clear_char(&c, 0);
         }
@@ -431,18 +435,18 @@ pub trait FheCharPattern {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
-        let mut result = server_key.create_zero();
+    ) -> BooleanBlock {
+        let mut result = server_key.create_false();
         let mut before_first_char = server_key.create_true();
         for c in &haystack.content {
             let char_is_match = self.fhe_eq(server_key, c);
             let match_first_char = server_key
                 .integer_key
-                .bitand_parallelized(&before_first_char, &char_is_match);
+                .boolean_bitand(&before_first_char, &char_is_match);
             server_key
                 .integer_key
-                .bitor_assign_parallelized(&mut result, &match_first_char);
-            server_key.integer_key.bitand_assign_parallelized(
+                .boolean_bitor_assign(&mut result, &match_first_char);
+            server_key.integer_key.boolean_bitand_assign(
                 &mut before_first_char,
                 &server_key.integer_key.scalar_eq_parallelized(&c.0, 0),
             );
@@ -456,8 +460,8 @@ impl<T: FheCharPattern> FhePattern for T {
         FheCharPattern::insert_in(self, server_key, fhe_split)
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> RadixCiphertext {
-        server_key.create_zero()
+    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+        server_key.create_false()
     }
 
     fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {
@@ -468,9 +472,9 @@ impl<T: FheCharPattern> FhePattern for T {
         &self,
         server_key: &StringServerKey,
         haystack_slice: &[FheAsciiChar],
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         if haystack_slice.len() == 0 {
-            return server_key.create_zero();
+            return server_key.create_false();
         }
         self.fhe_eq(server_key, &haystack_slice[0])
     }
@@ -479,7 +483,7 @@ impl<T: FheCharPattern> FhePattern for T {
         &self,
         server_key: &StringServerKey,
         haystack: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match haystack.padding {
             Padding::None | Padding::Final => {
                 self.is_prefix_of_slice(server_key, &haystack.content)
@@ -505,7 +509,7 @@ impl<T: FheCharPattern> FhePattern for T {
 }
 
 impl FheCharPattern for char {
-    fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> RadixCiphertext {
+    fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> BooleanBlock {
         server_key.eq_clear_char(c, *self as u8)
     }
 
@@ -520,7 +524,7 @@ impl FheCharPattern for char {
 }
 
 impl FheCharPattern for FheAsciiChar {
-    fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> RadixCiphertext {
+    fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> BooleanBlock {
         server_key.eq_char(c, &self)
     }
 
