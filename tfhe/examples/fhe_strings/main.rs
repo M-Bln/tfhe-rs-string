@@ -40,7 +40,7 @@ struct Arguments {
     #[arg(short, long)]
     integer_arg: Option<usize>,
 
-    /// Padding
+    /// Maximum number of repeatition when calling repeat with an encrypted integer arg
     #[clap(default_value_t = 5, short, long)]
     max_number_repeatition: usize,
 
@@ -79,6 +79,21 @@ fn main() {
             }
         };
     }
+
+    time_patterns_all_cases!(
+        split,
+        clear_s,
+        encrypted_s,
+        encrypted_s_padding,
+        FheSplit,
+        padding_zeros,
+        (
+            String,
+            clear_pattern,
+            encrypted_pattern,
+            encrypted_pattern_padded
+        )
+    );
 
     // apply_time_function_string_pattern_padding_combinations_return_type!(
     //     strip_prefix,
@@ -199,6 +214,11 @@ fn main() {
         None => (),
     }
 
+    // match padding_zeros {
+    // 	7 => {println!("{:?}", all_arguments_from_type!(0, String, clear_pattern, encrypted_pattern,
+    // encrypted_pattern_padded));}, 	_ =>{println!("{:?}",
+    // all_arguments_from_type!(padding_zeros, String, clear_pattern, encrypted_pattern,
+    // encrypted_pattern_padded));} }
     match arguments.integer_arg {
         Some(clear_integer_arg) => {
             // let clear_integer_arg = integer_arg as u32;
