@@ -1,5 +1,9 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::RadixClientKey;
+use crate::integer::server_key::radix_parallel::sub::SignedOperation;
+use crate::integer::{
+    BooleanBlock, IntegerKeyKind, RadixClientKey, ServerKey, SignedRadixCiphertext,
+};
+use crate::shortint::ciphertext::NoiseLevel;
 use crate::shortint::parameters::*;
 use itertools::{iproduct, izip};
 use paste::paste;
@@ -7,9 +11,9 @@ use rand::rngs::ThreadRng;
 use rand::Rng;
 
 /// Number of loop iteration within randomized tests
-const NB_TEST: usize = 30;
+const NB_TESTS: usize = 30;
 
-const NB_TEST_SMALLER: usize = 10;
+const NB_TESTS_SMALLER: usize = 10;
 const NB_CTXT: usize = 4;
 
 macro_rules! create_parametrized_test{
@@ -44,21 +48,38 @@ macro_rules! create_parametrized_test{
 //     Helper functions
 //================================================================================
 
+fn signed_add_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
+    signed_overflowing_add_under_modulus(lhs, rhs, modulus).0
+}
+
 // Adds two signed number modulo the given modulus
 //
 // This is to 'simulate' i8, i16, ixy using i64 integers
 //
 // lhs and rhs must be in [-modulus..modulus[
-fn signed_add_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
+fn signed_overflowing_add_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> (i64, bool) {
     assert!(modulus > 0);
-    let mut res = lhs + rhs;
+    assert!((-modulus..modulus).contains(&lhs));
+
+    // The code below requires rhs and lhs to be in range -modulus..modulus
+    // in scalar tests, rhs may exceed modulus
+    // so we truncate it (is the fhe ops does)
+    let (mut res, mut overflowed) = if (-modulus..modulus).contains(&rhs) {
+        (lhs + rhs, false)
+    } else {
+        // 2*modulus to get all the bits
+        (lhs + (rhs % (2 * modulus)), true)
+    };
+
     if res < -modulus {
         // rem_euclid(modulus) would also work
         res = modulus + (res - -modulus);
+        overflowed = true;
     } else if res > modulus - 1 {
         res = -modulus + (res - modulus);
+        overflowed = true;
     }
-    res
+    (res, overflowed)
 }
 
 fn signed_neg_under_modulus(lhs: i64, modulus: i64) -> i64 {
@@ -79,15 +100,35 @@ fn signed_neg_under_modulus(lhs: i64, modulus: i64) -> i64 {
 //
 // lhs and rhs must be in [-modulus..modulus[
 fn signed_sub_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
+    signed_overflowing_sub_under_modulus(lhs, rhs, modulus).0
+}
+
+fn signed_overflowing_sub_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> (i64, bool) {
+    // Technically we should be able to call overflowing_add_under_modulus(lhs, -rhs, ...)
+    // but due to -rhs being a 'special case' when rhs == -modulus, we have to
+    // so the impl here
     assert!(modulus > 0);
-    let mut res = lhs - rhs;
+    assert!((-modulus..modulus).contains(&lhs));
+
+    // The code below requires rhs and lhs to be in range -modulus..modulus
+    // in scalar tests, rhs may exceed modulus
+    // so we truncate it (is the fhe ops does)
+    let (mut res, mut overflowed) = if (-modulus..modulus).contains(&rhs) {
+        (lhs - rhs, false)
+    } else {
+        // 2*modulus to get all the bits
+        (lhs - (rhs % (2 * modulus)), true)
+    };
+
     if res < -modulus {
         // rem_euclid(modulus) would also work
         res = modulus + (res - -modulus);
+        overflowed = true;
     } else if res > modulus - 1 {
         res = -modulus + (res - modulus);
+        overflowed = true;
     }
-    res
+    (res, overflowed)
 }
 
 fn signed_mul_under_modulus(lhs: i64, rhs: i64, modulus: i64) -> i64 {
@@ -311,13 +352,13 @@ create_parametrized_test!(integer_signed_encrypt_decrypt);
 create_parametrized_test!(integer_signed_encrypt_decrypt_128_bits);
 
 fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
-    let (cks, _) = KEY_CACHE.get_from_params(param);
+    let (cks, _) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
     let num_block =
         (128f64 / (cks.parameters().message_modulus().0 as f64).log(2.0)).ceil() as usize;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i128>();
 
         let ct = cks.encrypt_signed_radix(clear, num_block);
@@ -328,13 +369,13 @@ fn integer_signed_encrypt_decrypt_128_bits(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen_range(i64::MIN..=0) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
@@ -346,7 +387,7 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
         assert_eq!(clear, dec);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen_range(0..=i64::MAX) % modulus;
 
         let ct = cks.encrypt_signed_radix(clear, NB_CTXT);
@@ -364,8 +405,32 @@ fn integer_signed_encrypt_decrypt(param: impl Into<PBSParameters>) {
 //================================================================================
 
 create_parametrized_test!(integer_signed_unchecked_add);
+create_parametrized_test!(integer_signed_unchecked_overflowing_add);
+create_parametrized_test!(integer_signed_unchecked_overflowing_add_parallelized {
+    // Requires 4 bits, so 1_1 parameters are not supported
+    // until they get their own version of the algorithm
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
 create_parametrized_test!(integer_signed_unchecked_neg);
 create_parametrized_test!(integer_signed_unchecked_sub);
+create_parametrized_test!(integer_signed_unchecked_overflowing_sub);
+create_parametrized_test!(integer_signed_unchecked_overflowing_sub_parallelized {
+    // Requires 4 bits, so 1_1 parameters are not supported
+    // until they get their own version of the algorithm
+    PARAM_MESSAGE_2_CARRY_2_KS_PBS,
+    PARAM_MESSAGE_3_CARRY_3_KS_PBS,
+    PARAM_MESSAGE_4_CARRY_4_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_2_CARRY_2_GROUP_3_KS_PBS,
+    PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
+});
 create_parametrized_test!(integer_signed_unchecked_mul);
 create_parametrized_test!(integer_signed_unchecked_bitand);
 create_parametrized_test!(integer_signed_unchecked_bitor);
@@ -441,7 +506,7 @@ create_parametrized_test!(integer_signed_unchecked_div_rem_floor {
 create_parametrized_test!(integer_signed_unchecked_absolute_value);
 
 fn integer_signed_unchecked_add(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -464,7 +529,8 @@ fn integer_signed_unchecked_add(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -475,11 +541,157 @@ fn integer_signed_unchecked_add(param: impl Into<PBSParameters>) {
     }
 }
 
+fn signed_unchecked_overflowing_add_test_case<P, F>(param: P, signed_overflowing_add: F)
+where
+    P: Into<PBSParameters>,
+    F: for<'a> Fn(
+        &'a ServerKey,
+        &'a SignedRadixCiphertext,
+        &'a SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock),
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+    let hardcoded_values = [
+        (-modulus, -1),
+        (modulus - 1, 1),
+        (-1, -modulus),
+        (1, modulus - 1),
+    ];
+    for (clear_0, clear_1) in hardcoded_values {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let (ct_res, result_overflowed) =
+            sks.signed_overflowing_scalar_add_parallelized(&ctxt_0, clear_1);
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let (ct_res, result_overflowed) = signed_overflowing_add(&sks, &ctxt_0, &ctxt_1);
+        let (tmp_ct, tmp_o) = signed_overflowing_add(&sks, &ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+    }
+
+    // Test with trivial inputs, as it was bugged at some point
+    let values = [
+        (rng.gen::<i64>() % modulus, 0i64),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+    ];
+    for (clear_0, clear_1) in values {
+        let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+        let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) = signed_overflowing_add(&sks, &a, &b);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+    }
+}
+
+fn integer_signed_unchecked_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    // Calls the low level function like this so we are sure the sequential version is tested
+    let func = |sks: &ServerKey,
+                lhs: &SignedRadixCiphertext,
+                rhs: &SignedRadixCiphertext|
+     -> (SignedRadixCiphertext, BooleanBlock) {
+        sks.unchecked_signed_overflowing_add_or_sub(lhs, rhs, SignedOperation::Addition)
+    };
+    signed_unchecked_overflowing_add_test_case(param, func);
+}
+
+fn integer_signed_unchecked_overflowing_add_parallelized<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    // Calls the low level function like this so we are sure the parallel version is tested
+    //
+    // However this only supports param X_X where X >= 2
+    let func = |sks: &ServerKey,
+                lhs: &SignedRadixCiphertext,
+                rhs: &SignedRadixCiphertext|
+     -> (SignedRadixCiphertext, BooleanBlock) {
+        sks.unchecked_signed_overflowing_add_or_sub_parallelized_impl(
+            lhs,
+            rhs,
+            SignedOperation::Addition,
+        )
+    };
+    signed_unchecked_overflowing_add_test_case(param, func);
+}
+
 // There is no unchecked_neg_parallelized,
 // but test the non parallel version here anyway
 // as it is used in other parallel ops (e.g: sub)
 fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -501,7 +713,7 @@ fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
         assert_eq!(clear_result, -modulus);
     }
 
-    for (clear_0, _) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, _) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus) {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
 
         let ct_res = sks.unchecked_neg(&ctxt_0);
@@ -509,10 +721,18 @@ fn integer_signed_unchecked_neg(param: impl Into<PBSParameters>) {
         let clear_res = signed_neg_under_modulus(clear_0, modulus);
         assert_eq!(clear_res, dec_res);
     }
+
+    // negation of trivial 0
+    {
+        let ctxt_0 = sks.create_trivial_radix(0i64, NB_CTXT);
+        let ct_res = sks.unchecked_neg(&ctxt_0);
+        let dec_res: i64 = cks.decrypt_signed_radix(&ct_res);
+        assert_eq!(0, dec_res);
+    }
 }
 
 fn integer_signed_unchecked_sub(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -535,7 +755,8 @@ fn integer_signed_unchecked_sub(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -546,14 +767,148 @@ fn integer_signed_unchecked_sub(param: impl Into<PBSParameters>) {
     }
 }
 
-fn integer_signed_unchecked_mul(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+fn signed_unchecked_overflowing_sub_test_case<P, F>(param: P, signed_overflowing_sub: F)
+where
+    P: Into<PBSParameters>,
+    F: for<'a> Fn(
+        &'a ServerKey,
+        &'a SignedRadixCiphertext,
+        &'a SignedRadixCiphertext,
+    ) -> (SignedRadixCiphertext, BooleanBlock),
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    let hardcoded_values = [
+        (-modulus, 1),
+        (modulus - 1, -1),
+        (1, -modulus),
+        (-1, modulus - 1),
+    ];
+    for (clear_0, clear_1) in hardcoded_values {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let (ct_res, result_overflowed) =
+            sks.signed_overflowing_scalar_sub_parallelized(&ctxt_0, clear_1);
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+    }
+
+    for _ in 0..NB_TESTS {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let (ct_res, result_overflowed) = signed_overflowing_sub(&sks, &ctxt_0, &ctxt_1);
+        let (tmp_ct, tmp_o) = signed_overflowing_sub(&sks, &ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+    }
+
+    // Test with trivial inputs, as it was bugged at some point
+    let values = [
+        (rng.gen::<i64>() % modulus, 0i64),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+        (rng.gen::<i64>() % modulus, rng.gen::<i64>() % modulus),
+    ];
+    for (clear_0, clear_1) in values {
+        let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+        let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) = signed_overflowing_sub(&sks, &a, &b);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+    }
+}
+
+fn integer_signed_unchecked_overflowing_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    signed_unchecked_overflowing_sub_test_case(param, ServerKey::unchecked_signed_overflowing_sub);
+}
+
+fn integer_signed_unchecked_overflowing_sub_parallelized<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    // Call _impl so we are sure the parallel version is tested
+    //
+    // However this only supports param X_X where X >= 4
+    signed_unchecked_overflowing_sub_test_case(
+        param,
+        ServerKey::unchecked_signed_overflowing_sub_parallelized_impl,
+    );
+}
+
+fn integer_signed_unchecked_mul(param: impl Into<PBSParameters>) {
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+
+    let mut rng = rand::thread_rng();
+
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -565,13 +920,14 @@ fn integer_signed_unchecked_mul(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_bitand(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -583,13 +939,14 @@ fn integer_signed_unchecked_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_bitor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -601,13 +958,14 @@ fn integer_signed_unchecked_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TEST>(&mut rng, modulus) {
+    for (clear_0, clear_1) in create_iterator_of_signed_random_pairs::<NB_TESTS>(&mut rng, modulus)
+    {
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
         let ctxt_1 = cks.encrypt_signed_radix(clear_1, NB_CTXT);
 
@@ -619,7 +977,7 @@ fn integer_signed_unchecked_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -645,7 +1003,7 @@ fn integer_signed_unchecked_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
@@ -661,7 +1019,7 @@ fn integer_signed_unchecked_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -672,7 +1030,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -712,7 +1070,7 @@ fn integer_signed_unchecked_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -723,7 +1081,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -764,7 +1122,7 @@ fn integer_signed_unchecked_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -775,7 +1133,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -815,7 +1173,7 @@ fn integer_signed_unchecked_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
@@ -826,7 +1184,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -862,7 +1220,7 @@ where
 }
 
 fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -884,7 +1242,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
     }
 
     // Div is the slowest operation
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = loop {
             let value = rng.gen::<i64>() % modulus;
@@ -915,7 +1273,7 @@ fn integer_signed_unchecked_div_rem(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_div_rem_floor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1005,7 +1363,7 @@ create_parametrized_test!(integer_signed_smart_neg);
 create_parametrized_test!(integer_signed_smart_absolute_value);
 
 fn integer_signed_smart_add(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1013,7 +1371,7 @@ fn integer_signed_smart_add(param: impl Into<PBSParameters>) {
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen_range(-modulus..modulus);
         let clear_1 = rng.gen_range(-modulus..modulus);
 
@@ -1026,7 +1384,7 @@ fn integer_signed_smart_add(param: impl Into<PBSParameters>) {
         assert_eq!(clear, dec_res);
 
         // add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.smart_add_parallelized(&mut ct_res, &mut ctxt_0);
             clear = signed_add_under_modulus(clear, clear_0, modulus);
 
@@ -1042,14 +1400,14 @@ fn integer_signed_smart_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<i64>() % modulus;
 
         let mut ctxt = cks.encrypt_signed(clear);
@@ -1059,7 +1417,7 @@ where
         let dec: i64 = cks.decrypt_signed(&ct_res);
         assert_eq!(clear_res, dec);
 
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.smart_neg_parallelized(&mut ct_res);
             clear_res = signed_neg_under_modulus(clear_res, modulus);
 
@@ -1071,7 +1429,7 @@ where
 }
 
 fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1085,7 +1443,7 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let clear_to_add = rng.gen::<i64>() % modulus;
 
@@ -1105,8 +1463,10 @@ fn integer_signed_smart_absolute_value(param: impl Into<PBSParameters>) {
 //================================================================================
 
 create_parametrized_test!(integer_signed_default_add);
+create_parametrized_test!(integer_signed_default_overflowing_add);
 create_parametrized_test!(integer_signed_default_neg);
 create_parametrized_test!(integer_signed_default_sub);
+create_parametrized_test!(integer_signed_default_overflowing_sub);
 create_parametrized_test!(integer_signed_default_mul);
 create_parametrized_test!(integer_signed_default_bitnot);
 create_parametrized_test!(integer_signed_default_bitand);
@@ -1162,7 +1522,7 @@ fn integer_signed_default_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1174,7 +1534,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1190,7 +1550,7 @@ where
 
         // println!("clear_0 = {}, clear_1 = {}", clear_0, clear_1);
         // add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.add_parallelized(&ct_res, &ctxt_0);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_add_under_modulus(clear, clear_0, modulus);
@@ -1203,11 +1563,132 @@ where
     }
 }
 
+fn integer_signed_default_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let (ct_res, result_overflowed) = sks.signed_overflowing_add_parallelized(&ctxt_0, &ctxt_1);
+        let (tmp_ct, tmp_o) = sks.signed_overflowing_add_parallelized(&ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_suv for ({clear_0} + {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+
+        for _ in 0..NB_TESTS_SMALLER {
+            // Add non zero scalar to have non clean ciphertexts
+            let clear_2 = random_non_zero_value(&mut rng, modulus);
+            let clear_3 = random_non_zero_value(&mut rng, modulus);
+
+            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+            let ctxt_1 = sks.unchecked_scalar_add(&ctxt_1, clear_3);
+
+            let clear_lhs = signed_add_under_modulus(clear_0, clear_2, modulus);
+            let clear_rhs = signed_add_under_modulus(clear_1, clear_3, modulus);
+
+            let d0: i64 = cks.decrypt_signed(&ctxt_0);
+            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+            let d1: i64 = cks.decrypt_signed(&ctxt_1);
+            assert_eq!(d1, clear_rhs, "Failed sanity decryption check");
+
+            let (ct_res, result_overflowed) =
+                sks.signed_overflowing_add_parallelized(&ctxt_0, &ctxt_1);
+            assert!(ct_res.block_carries_are_empty());
+
+            let (expected_result, expected_overflowed) =
+                signed_overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
+
+            let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+            );
+            assert_eq!(
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+            );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+        }
+    }
+
+    // Test with trivial inputs, as it was bugged at some point
+    for _ in 0..4 {
+        // Reduce maximum value of random number such that at least the last block is a trivial 0
+        // (This is how the reproducing case was found)
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+        let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.signed_overflowing_add_parallelized(&a, &b);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+}
+
 fn integer_signed_default_neg<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1234,7 +1715,7 @@ where
         assert_eq!(clear_result, dec);
     }
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear = rng.gen::<i64>() % modulus;
 
         let ctxt = cks.encrypt_signed(clear);
@@ -1255,7 +1736,7 @@ fn integer_signed_default_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1267,7 +1748,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1282,7 +1763,7 @@ where
         clear = signed_sub_under_modulus(clear_0, clear_1, modulus);
 
         // sub multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.sub_parallelized(&ct_res, &ctxt_0);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_sub_under_modulus(clear, clear_0, modulus);
@@ -1295,11 +1776,132 @@ where
     }
 }
 
+fn integer_signed_default_overflowing_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+        let ctxt_1 = cks.encrypt_signed(clear_1);
+
+        let (ct_res, result_overflowed) = sks.signed_overflowing_sub_parallelized(&ctxt_0, &ctxt_1);
+        let (tmp_ct, tmp_o) = sks.signed_overflowing_sub_parallelized(&ctxt_0, &ctxt_1);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_suv for ({clear_0} - {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+
+        for _ in 0..NB_TESTS_SMALLER {
+            // Add non zero scalar to have non clean ciphertexts
+            let clear_2 = random_non_zero_value(&mut rng, modulus);
+            let clear_3 = random_non_zero_value(&mut rng, modulus);
+
+            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+            let ctxt_1 = sks.unchecked_scalar_add(&ctxt_1, clear_3);
+
+            let clear_lhs = signed_add_under_modulus(clear_0, clear_2, modulus);
+            let clear_rhs = signed_add_under_modulus(clear_1, clear_3, modulus);
+
+            let d0: i64 = cks.decrypt_signed(&ctxt_0);
+            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+            let d1: i64 = cks.decrypt_signed(&ctxt_1);
+            assert_eq!(d1, clear_rhs, "Failed sanity decryption check");
+
+            let (ct_res, result_overflowed) =
+                sks.signed_overflowing_sub_parallelized(&ctxt_0, &ctxt_1);
+            assert!(ct_res.block_carries_are_empty());
+
+            let (expected_result, expected_overflowed) =
+                signed_overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+
+            let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+            );
+            assert_eq!(
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+            );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+        }
+    }
+
+    // Test with trivial inputs, as it was bugged at some point
+    for _ in 0..4 {
+        // Reduce maximum value of random number such that at least the last block is a trivial 0
+        // (This is how the reproducing case was found)
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+        let b: SignedRadixCiphertext = sks.create_trivial_radix(clear_1, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.signed_overflowing_sub_parallelized(&a, &b);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+}
+
 fn integer_signed_default_mul<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1311,7 +1913,7 @@ where
 
     let mut clear;
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1326,7 +1928,7 @@ where
         clear = signed_mul_under_modulus(clear_0, clear_1, modulus);
 
         // mul multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             ct_res = sks.mul_parallelized(&ct_res, &ctxt_0);
             assert!(ct_res.block_carries_are_empty());
             clear = signed_mul_under_modulus(clear, clear_0, modulus);
@@ -1340,14 +1942,14 @@ where
 }
 
 fn integer_signed_default_bitnot(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
 
         let ctxt_0 = cks.encrypt_signed_radix(clear_0, NB_CTXT);
@@ -1363,14 +1965,14 @@ fn integer_signed_default_bitnot(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_bitand(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let mut clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1407,14 +2009,14 @@ fn integer_signed_default_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_bitor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let mut clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1451,14 +2053,14 @@ fn integer_signed_default_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let mut clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1495,7 +2097,7 @@ fn integer_signed_default_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -1510,7 +2112,7 @@ fn integer_signed_default_absolute_value(param: impl Into<PBSParameters>) {
         assert_eq!(dec_res, -modulus);
     }
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear_0 = rng.gen::<i64>() % modulus;
         let clear_to_add = rng.gen::<i64>() % modulus;
 
@@ -1532,7 +2134,7 @@ fn integer_signed_default_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1545,7 +2147,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -1615,7 +2217,7 @@ fn integer_signed_default_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1628,7 +2230,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -1698,7 +2300,7 @@ fn integer_signed_default_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1711,7 +2313,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -1784,7 +2386,7 @@ fn integer_signed_default_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -1797,7 +2399,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -1882,7 +2484,7 @@ create_parametrized_test!(integer_signed_unchecked_scalar_div_rem);
 create_parametrized_test!(integer_signed_unchecked_scalar_div_rem_floor);
 
 fn integer_signed_unchecked_scalar_add(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1904,7 +2506,7 @@ fn integer_signed_unchecked_scalar_add(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1918,7 +2520,7 @@ fn integer_signed_unchecked_scalar_add(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_sub(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -1940,7 +2542,7 @@ fn integer_signed_unchecked_scalar_sub(param: impl Into<PBSParameters>) {
         assert_eq!(clear_res, expected_clear);
     }
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1954,13 +2556,13 @@ fn integer_signed_unchecked_scalar_sub(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_mul(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1974,13 +2576,13 @@ fn integer_signed_unchecked_scalar_mul(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_bitand(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -1994,13 +2596,13 @@ fn integer_signed_unchecked_scalar_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_bitor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2014,13 +2616,13 @@ fn integer_signed_unchecked_scalar_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2034,7 +2636,7 @@ fn integer_signed_unchecked_scalar_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2043,7 +2645,7 @@ fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) 
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2070,7 +2672,7 @@ fn integer_signed_unchecked_scalar_rotate_left(param: impl Into<PBSParameters>) 
 }
 
 fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2079,7 +2681,7 @@ fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>)
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2106,7 +2708,7 @@ fn integer_signed_unchecked_scalar_rotate_right(param: impl Into<PBSParameters>)
 }
 
 fn integer_signed_unchecked_scalar_left_shift(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2115,7 +2717,7 @@ fn integer_signed_unchecked_scalar_left_shift(param: impl Into<PBSParameters>) {
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2142,7 +2744,7 @@ fn integer_signed_unchecked_scalar_left_shift(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_right_shift(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2151,7 +2753,7 @@ fn integer_signed_unchecked_scalar_right_shift(param: impl Into<PBSParameters>) 
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear = rng.gen::<i64>() % modulus;
         let clear_shift = rng.gen::<u32>();
 
@@ -2178,7 +2780,7 @@ fn integer_signed_unchecked_scalar_right_shift(param: impl Into<PBSParameters>) 
 }
 
 fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2228,7 +2830,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
         {
             let neg_clear_0 = rng.gen_range(-modulus..=0);
             let ctxt_0 = cks.encrypt_signed_radix(neg_clear_0, NB_CTXT);
-            println!("{} / {}", neg_clear_0, d);
+            println!("{neg_clear_0} / {d}");
             let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
             let q: i64 = cks.decrypt_signed_radix(&q_res);
             let r: i64 = cks.decrypt_signed_radix(&r_res);
@@ -2239,7 +2841,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
         {
             let pos_clear_0 = rng.gen_range(0..modulus);
             let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-            println!("{} / {}", pos_clear_0, d);
+            println!("{pos_clear_0} / {d}");
             let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
             let q: i64 = cks.decrypt_signed_radix(&q_res);
             let r: i64 = cks.decrypt_signed_radix(&r_res);
@@ -2265,7 +2867,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
             {
                 let pos_clear_0 = rng.gen_range(0..modulus);
                 let ctxt_0 = cks.encrypt_signed_radix(pos_clear_0, NB_CTXT);
-                println!("{} / {}", pos_clear_0, d);
+                println!("{pos_clear_0} / {d}");
                 let (q_res, r_res) = sks.unchecked_signed_scalar_div_rem_parallelized(&ctxt_0, d);
                 let q: i64 = cks.decrypt_signed_radix(&q_res);
                 let r: i64 = cks.decrypt_signed_radix(&r_res);
@@ -2323,7 +2925,7 @@ fn integer_signed_unchecked_scalar_div_rem(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>) {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
 
     let mut rng = rand::thread_rng();
 
@@ -2434,6 +3036,8 @@ fn integer_signed_unchecked_scalar_div_rem_floor(param: impl Into<PBSParameters>
 //================================================================================
 
 create_parametrized_test!(integer_signed_default_scalar_add);
+create_parametrized_test!(integer_signed_default_overflowing_scalar_add);
+create_parametrized_test!(integer_signed_default_overflowing_scalar_sub);
 create_parametrized_test!(integer_signed_default_scalar_bitand);
 create_parametrized_test!(integer_signed_default_scalar_bitor);
 create_parametrized_test!(integer_signed_default_scalar_bitxor);
@@ -2447,7 +3051,7 @@ fn integer_signed_default_scalar_add<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2459,7 +3063,7 @@ where
 
     let mut rng = rand::thread_rng();
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2471,7 +3075,7 @@ where
         clear = signed_add_under_modulus(clear_0, clear_1, modulus);
 
         // add multiple times to raise the degree
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let tmp = sks.scalar_add_parallelized(&ct_res, clear_1);
             ct_res = sks.scalar_add_parallelized(&ct_res, clear_1);
             assert!(ct_res.block_carries_are_empty());
@@ -2484,15 +3088,361 @@ where
     }
 }
 
+pub(crate) fn integer_signed_default_overflowing_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    let hardcoded_values = [
+        (-modulus, -1),
+        (modulus - 1, 1),
+        (-1, -modulus),
+        (1, modulus - 1),
+    ];
+    for (clear_0, clear_1) in hardcoded_values {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let (ct_res, result_overflowed) =
+            sks.signed_overflowing_scalar_add_parallelized(&ctxt_0, clear_1);
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+    }
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let (ct_res, result_overflowed) =
+            sks.signed_overflowing_scalar_add_parallelized(&ctxt_0, clear_1);
+        let (tmp_ct, tmp_o) = sks.signed_overflowing_scalar_add_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add for ({clear_0} + {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+
+        for _ in 0..NB_TESTS_SMALLER {
+            // Add non zero scalar to have non clean ciphertexts
+            let clear_2 = random_non_zero_value(&mut rng, modulus);
+            let clear_rhs = random_non_zero_value(&mut rng, modulus);
+
+            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+            let (clear_lhs, _) = signed_overflowing_add_under_modulus(clear_0, clear_2, modulus);
+            let d0: i64 = cks.decrypt_signed(&ctxt_0);
+            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+
+            let (ct_res, result_overflowed) =
+                sks.signed_overflowing_scalar_add_parallelized(&ctxt_0, clear_rhs);
+            assert!(ct_res.block_carries_are_empty());
+            let (expected_result, expected_overflowed) =
+                signed_overflowing_add_under_modulus(clear_lhs, clear_rhs, modulus);
+
+            let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+            );
+            assert_eq!(
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_add, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+            );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+        }
+    }
+
+    // Test with trivial inputs
+    for _ in 0..4 {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.signed_overflowing_scalar_add_parallelized(&a, clear_1);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+
+    // Test with scalar that is bigger than ciphertext modulus
+    for _ in 0..2 {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen_range(modulus..=i64::MAX);
+
+        let a = cks.encrypt_signed(clear_0);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.signed_overflowing_scalar_add_parallelized(&a, clear_1);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_add_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_add, for ({clear_0} + {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert!(decrypted_overflowed); // Actually we know its an overflow case
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+}
+
+pub(crate) fn integer_signed_default_overflowing_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
+    let cks = RadixClientKey::from((cks, NB_CTXT));
+
+    sks.set_deterministic_pbs_execution(true);
+
+    let mut rng = rand::thread_rng();
+
+    // message_modulus^vec_length
+    let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
+
+    let hardcoded_values = [
+        (-modulus, 1),
+        (modulus - 1, -1),
+        (1, -modulus),
+        (-1, modulus - 1),
+    ];
+    for (clear_0, clear_1) in hardcoded_values {
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let (ct_res, result_overflowed) =
+            sks.signed_overflowing_scalar_sub_parallelized(&ctxt_0, clear_1);
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+    }
+
+    for _ in 0..NB_TESTS_SMALLER {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let ctxt_0 = cks.encrypt_signed(clear_0);
+
+        let (ct_res, result_overflowed) =
+            sks.signed_overflowing_scalar_sub_parallelized(&ctxt_0, clear_1);
+        let (tmp_ct, tmp_o) = sks.signed_overflowing_scalar_sub_parallelized(&ctxt_0, clear_1);
+        assert!(ct_res.block_carries_are_empty());
+        assert_eq!(ct_res, tmp_ct, "Failed determinism check");
+        assert_eq!(tmp_o, result_overflowed, "Failed determinism check");
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+        let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+             expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub for ({clear_0} - {clear_1}) % {modulus} \
+             expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(result_overflowed.0.degree.get(), 1);
+        assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+
+        for _ in 0..NB_TESTS_SMALLER {
+            // Add non zero scalar to have non clean ciphertexts
+            let clear_2 = random_non_zero_value(&mut rng, modulus);
+            let clear_rhs = random_non_zero_value(&mut rng, modulus);
+
+            let ctxt_0 = sks.unchecked_scalar_add(&ctxt_0, clear_2);
+            let (clear_lhs, _) = signed_overflowing_add_under_modulus(clear_0, clear_2, modulus);
+            let d0: i64 = cks.decrypt_signed(&ctxt_0);
+            assert_eq!(d0, clear_lhs, "Failed sanity decryption check");
+
+            let (ct_res, result_overflowed) =
+                sks.signed_overflowing_scalar_sub_parallelized(&ctxt_0, clear_rhs);
+            assert!(ct_res.block_carries_are_empty());
+            let (expected_result, expected_overflowed) =
+                signed_overflowing_sub_under_modulus(clear_lhs, clear_rhs, modulus);
+
+            let decrypted_result: i64 = cks.decrypt_signed(&ct_res);
+            let decrypted_overflowed = cks.decrypt_bool(&result_overflowed);
+            assert_eq!(
+                decrypted_result, expected_result,
+                "Invalid result for sub, for ({clear_lhs} + {clear_rhs}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+            );
+            assert_eq!(
+                decrypted_overflowed,
+                expected_overflowed,
+                "Invalid overflow flag result for overflowing_sub, for ({clear_lhs} - {clear_rhs}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+            );
+            assert_eq!(result_overflowed.0.degree.get(), 1);
+            assert_eq!(result_overflowed.0.noise_level(), NoiseLevel::NOMINAL);
+        }
+    }
+
+    // Test with trivial inputs
+    for _ in 0..4 {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen::<i64>() % modulus;
+
+        let a: SignedRadixCiphertext = sks.create_trivial_radix(clear_0, NB_CTXT);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.signed_overflowing_scalar_sub_parallelized(&a, clear_1);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for add, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+
+    // Test with scalar that is bigger than ciphertext modulus
+    for _ in 0..2 {
+        let clear_0 = rng.gen::<i64>() % modulus;
+        let clear_1 = rng.gen_range(modulus..=i64::MAX);
+
+        let a = cks.encrypt_signed(clear_0);
+
+        let (encrypted_result, encrypted_overflow) =
+            sks.signed_overflowing_scalar_sub_parallelized(&a, clear_1);
+
+        let (expected_result, expected_overflowed) =
+            signed_overflowing_sub_under_modulus(clear_0, clear_1, modulus);
+
+        let decrypted_result: i64 = cks.decrypt_signed(&encrypted_result);
+        let decrypted_overflowed = cks.decrypt_bool(&encrypted_overflow);
+        assert_eq!(
+            decrypted_result, expected_result,
+            "Invalid result for sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected {expected_result}, got {decrypted_result}"
+        );
+        assert_eq!(
+            decrypted_overflowed,
+            expected_overflowed,
+            "Invalid overflow flag result for overflowing_sub, for ({clear_0} - {clear_1}) % {modulus} \
+                expected overflow flag {expected_overflowed}, got {decrypted_overflowed}"
+        );
+        assert!(decrypted_overflowed); // Actually we know its an overflow case
+        assert_eq!(encrypted_overflow.0.degree.get(), 1);
+        assert_eq!(encrypted_overflow.0.noise_level(), NoiseLevel::ZERO);
+    }
+}
+
 fn integer_signed_default_scalar_bitand(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2521,14 +3471,14 @@ fn integer_signed_default_scalar_bitand(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_scalar_bitor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2557,14 +3507,14 @@ fn integer_signed_default_scalar_bitor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_scalar_bitxor(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
 
     let modulus = (cks.parameters().message_modulus().0.pow(NB_CTXT as u32) / 2) as i64;
 
-    for _ in 0..NB_TEST {
+    for _ in 0..NB_TESTS {
         let clear_0 = rng.gen::<i64>() % modulus;
         let clear_1 = rng.gen::<i64>() % modulus;
 
@@ -2593,7 +3543,7 @@ fn integer_signed_default_scalar_bitxor(param: impl Into<PBSParameters>) {
 }
 
 fn integer_signed_default_scalar_div_rem(param: impl Into<PBSParameters>) {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     sks.set_deterministic_pbs_execution(true);
 
     let mut rng = rand::thread_rng();
@@ -2648,7 +3598,7 @@ fn integer_signed_default_scalar_left_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2661,7 +3611,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -2710,7 +3660,7 @@ fn integer_signed_default_scalar_right_shift<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2723,7 +3673,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -2772,7 +3722,7 @@ fn integer_signed_default_scalar_rotate_left<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2785,7 +3735,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);
@@ -2836,7 +3786,7 @@ fn integer_signed_default_scalar_rotate_right<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
+    let (cks, mut sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     sks.set_deterministic_pbs_execution(true);
@@ -2849,7 +3799,7 @@ where
     assert!((modulus as u64).is_power_of_two());
     let nb_bits = modulus.ilog2() + 1; // We are using signed numbers
 
-    for _ in 0..NB_TEST_SMALLER {
+    for _ in 0..NB_TESTS_SMALLER {
         let mut clear = rng.gen::<i64>() % modulus;
 
         let offset = random_non_zero_value(&mut rng, modulus);

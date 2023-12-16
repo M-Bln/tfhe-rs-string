@@ -4,6 +4,7 @@
 //! available homomorphic integer operations.
 mod add;
 mod bitwise_op;
+mod bivariate_pbs;
 mod comp_op;
 mod div_mod;
 mod mul;
@@ -16,13 +17,14 @@ mod shift;
 mod sub;
 
 pub mod compressed;
+pub use bivariate_pbs::{
+    BivariateLookupTableMutView, BivariateLookupTableOwned, BivariateLookupTableView,
+};
 pub use compressed::{CompressedServerKey, ShortintCompressedBootstrappingKey};
 
 #[cfg(test)]
 mod tests;
 
-use super::parameters::CiphertextConformanceParams;
-use super::PBSOrder;
 use crate::core_crypto::algorithms::*;
 use crate::core_crypto::commons::parameters::{
     DecompositionBaseLog, DecompositionLevelCount, GlweSize, LweDimension, PolynomialSize,
@@ -30,28 +32,67 @@ use crate::core_crypto::commons::parameters::{
 };
 use crate::core_crypto::commons::traits::*;
 use crate::core_crypto::entities::*;
-use crate::shortint::ciphertext::{Ciphertext, Degree};
+use crate::core_crypto::fft_impl::fft64::crypto::bootstrap::FourierLweBootstrapKey;
+use crate::core_crypto::fft_impl::fft64::math::fft::Fft;
+use crate::shortint::ciphertext::{Ciphertext, Degree, MaxDegree, MaxNoiseLevel, NoiseLevel};
 use crate::shortint::client_key::ClientKey;
-use crate::shortint::engine::ShortintEngine;
-use crate::shortint::parameters::{CarryModulus, CiphertextModulus, MessageModulus};
+use crate::shortint::engine::{fill_accumulator, ShortintEngine};
+use crate::shortint::parameters::{
+    CarryModulus, CiphertextConformanceParams, CiphertextModulus, MessageModulus,
+};
+use crate::shortint::PBSOrder;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display, Formatter};
-
-/// Maximum value that the degree can reach.
-#[derive(Debug, PartialEq, Eq, Copy, Clone, Serialize, Deserialize)]
-pub struct MaxDegree(pub usize);
 
 /// Error returned when the carry buffer is full.
 #[derive(Debug)]
 pub enum CheckError {
-    CarryFull,
+    CarryFull {
+        degree: Degree,
+        max_degree: MaxDegree,
+    },
+    NoiseTooBig {
+        noise_level: NoiseLevel,
+        max_noise_level: MaxNoiseLevel,
+    },
+    UnscaledScaledOverlap {
+        unscaled_degree: Degree,
+        scale: u8,
+    },
 }
 
 impl Display for CheckError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            CheckError::CarryFull => {
-                write!(f, "The carry buffer is full")
+            Self::CarryFull { degree, max_degree } => {
+                write!(
+                    f,
+                    "The degree (={}) should not exceed {}",
+                    degree.get(),
+                    max_degree.get(),
+                )
+            }
+            Self::NoiseTooBig {
+                noise_level,
+                max_noise_level,
+            } => {
+                write!(
+                    f,
+                    "The noise (={}) should not exceed {}",
+                    noise_level.get(),
+                    max_noise_level.get(),
+                )
+            }
+            Self::UnscaledScaledOverlap {
+                unscaled_degree,
+                scale,
+            } => {
+                write!(
+                    f,
+                    "The scale (={}) should be bigger than the unscaled degree (={})",
+                    scale,
+                    unscaled_degree.get(),
+                )
             }
         }
     }
@@ -85,10 +126,8 @@ impl Serialize for ShortintBootstrappingKey {
         S: serde::Serializer,
     {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => {
-                SerializableShortintBootstrappingKey::Classic(bsk.as_view())
-            }
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => SerializableShortintBootstrappingKey::Classic(bsk.as_view()),
+            Self::MultiBit {
                 fourier_bsk: bsk,
                 deterministic_execution,
                 ..
@@ -109,9 +148,7 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
         let deser_sk = SerializableShortintBootstrappingKey::deserialize(deserializer)?;
 
         match deser_sk {
-            SerializableShortintBootstrappingKey::Classic(bsk) => {
-                Ok(ShortintBootstrappingKey::Classic(bsk))
-            }
+            SerializableShortintBootstrappingKey::Classic(bsk) => Ok(Self::Classic(bsk)),
             SerializableShortintBootstrappingKey::MultiBit {
                 fourier_bsk,
                 deterministic_execution,
@@ -126,7 +163,7 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
                         fourier_bsk.grouping_factor(),
                     )
                 });
-                Ok(ShortintBootstrappingKey::MultiBit {
+                Ok(Self::MultiBit {
                     fourier_bsk,
                     thread_count,
                     deterministic_execution,
@@ -139,8 +176,8 @@ impl<'de> Deserialize<'de> for ShortintBootstrappingKey {
 impl ShortintBootstrappingKey {
     pub fn input_lwe_dimension(&self) -> LweDimension {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.input_lwe_dimension(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.input_lwe_dimension(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.input_lwe_dimension(),
         }
@@ -148,8 +185,8 @@ impl ShortintBootstrappingKey {
 
     pub fn polynomial_size(&self) -> PolynomialSize {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.polynomial_size(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.polynomial_size(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.polynomial_size(),
         }
@@ -157,8 +194,8 @@ impl ShortintBootstrappingKey {
 
     pub fn glwe_size(&self) -> GlweSize {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.glwe_size(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.glwe_size(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.glwe_size(),
         }
@@ -166,8 +203,8 @@ impl ShortintBootstrappingKey {
 
     pub fn decomposition_base_log(&self) -> DecompositionBaseLog {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.decomposition_base_log(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.decomposition_base_log(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_base_log(),
         }
@@ -175,8 +212,8 @@ impl ShortintBootstrappingKey {
 
     pub fn decomposition_level_count(&self) -> DecompositionLevelCount {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.decomposition_level_count(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.decomposition_level_count(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.decomposition_level_count(),
         }
@@ -184,8 +221,8 @@ impl ShortintBootstrappingKey {
 
     pub fn output_lwe_dimension(&self) -> LweDimension {
         match self {
-            ShortintBootstrappingKey::Classic(inner) => inner.output_lwe_dimension(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(inner) => inner.output_lwe_dimension(),
+            Self::MultiBit {
                 fourier_bsk: inner, ..
             } => inner.output_lwe_dimension(),
         }
@@ -193,8 +230,8 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => bsk.as_view().data().len(),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => bsk.as_view().data().len(),
+            Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => bsk.as_view().data().len(),
         }
@@ -202,8 +239,8 @@ impl ShortintBootstrappingKey {
 
     pub fn bootstrapping_key_size_bytes(&self) -> usize {
         match self {
-            ShortintBootstrappingKey::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(bsk) => std::mem::size_of_val(bsk.as_view().data()),
+            Self::MultiBit {
                 fourier_bsk: bsk, ..
             } => std::mem::size_of_val(bsk.as_view().data()),
         }
@@ -215,8 +252,8 @@ impl ShortintBootstrappingKey {
     /// Note: the classic PBS algorithm is always deterministic.
     pub fn deterministic_pbs_execution(&self) -> bool {
         match self {
-            ShortintBootstrappingKey::Classic(_) => true,
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(_) => true,
+            Self::MultiBit {
                 deterministic_execution,
                 ..
             } => *deterministic_execution,
@@ -230,8 +267,8 @@ impl ShortintBootstrappingKey {
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         match self {
             // Classic PBS is already deterministic no matter what
-            ShortintBootstrappingKey::Classic(_) => (),
-            ShortintBootstrappingKey::MultiBit {
+            Self::Classic(_) => (),
+            Self::MultiBit {
                 deterministic_execution,
                 ..
             } => *deterministic_execution = new_deterministic_execution,
@@ -253,6 +290,7 @@ pub struct ServerKey {
     pub carry_modulus: CarryModulus,
     // Maximum number of operations that can be done before emptying the operation buffer
     pub max_degree: MaxDegree,
+    pub max_noise_level: MaxNoiseLevel,
     // Modulus use for computations on the ciphertext
     pub ciphertext_modulus: CiphertextModulus,
     pub pbs_order: PBSOrder,
@@ -274,25 +312,14 @@ impl ServerKey {
             ct_params,
             message_modulus: self.message_modulus,
             carry_modulus: self.carry_modulus,
-            degree: Degree(self.message_modulus.0 - 1),
+            degree: Degree::new(self.message_modulus.0 - 1),
             pbs_order: self.pbs_order,
+            noise_level: NoiseLevel::NOMINAL,
         }
     }
 }
 
-/// Returns whether it is possible to pack lhs and rhs into a unique
-/// ciphertext without exceeding the max storable value using the formula:
-/// `unique_ciphertext = (lhs * factor) + rhs`
-fn ciphertexts_can_be_packed_without_exceeding_space(
-    lhs: &Ciphertext,
-    rhs: &Ciphertext,
-    factor: usize,
-) -> bool {
-    let final_degree = (lhs.degree.0 * factor) + rhs.degree.0;
-    final_degree < lhs.carry_modulus.0 * lhs.message_modulus.0
-}
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[must_use]
 pub struct LookupTable<C: Container<Element = u64>> {
     pub acc: GlweCiphertext<C>,
@@ -302,26 +329,6 @@ pub struct LookupTable<C: Container<Element = u64>> {
 pub type LookupTableOwned = LookupTable<Vec<u64>>;
 pub type LookupTableMutView<'a> = LookupTable<&'a mut [u64]>;
 pub type LookupTableView<'a> = LookupTable<&'a [u64]>;
-
-#[must_use]
-pub struct BivariateLookupTable<C: Container<Element = u64>> {
-    // A bivariate lookup table is an univariate loolookup table
-    // where the message space is shared to encode
-    // 2 values
-    pub acc: LookupTable<C>,
-    // By how much we shift the lhs in the LUT
-    pub ct_right_modulus: MessageModulus,
-}
-
-pub type BivariateLookupTableOwned = BivariateLookupTable<Vec<u64>>;
-pub type BivariateLookupTableMutView<'a> = BivariateLookupTable<&'a mut [u64]>;
-pub type BivariateLookupTableView<'a> = BivariateLookupTable<&'a [u64]>;
-
-impl<C: Container<Element = u64>> BivariateLookupTable<C> {
-    pub fn is_bivariate_pbs_possible(&self, lhs: &Ciphertext, rhs: &Ciphertext) -> bool {
-        ciphertexts_can_be_packed_without_exceeding_space(lhs, rhs, self.ct_right_modulus.0)
-    }
-}
 
 impl ServerKey {
     /// Generate a server key.
@@ -338,16 +345,14 @@ impl ServerKey {
     /// // Generate the server key:
     /// let sks = ServerKey::new(&cks);
     /// ```
-    pub fn new(cks: &ClientKey) -> ServerKey {
-        ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks).unwrap())
+    pub fn new(cks: &ClientKey) -> Self {
+        ShortintEngine::with_thread_local_mut(|engine| engine.new_server_key(cks))
     }
 
     /// Generate a server key with a chosen maximum degree
-    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> ServerKey {
+    pub fn new_with_max_degree(cks: &ClientKey, max_degree: MaxDegree) -> Self {
         ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .new_server_key_with_max_degree(cks, max_degree)
-                .unwrap()
+            engine.new_server_key_with_max_degree(cks, max_degree)
         })
     }
 
@@ -368,7 +373,6 @@ impl ServerKey {
     ///
     /// // Generate the lookup table for the function f: x -> x*x mod 4
     /// let f = |x: u64| x.pow(2) % 4;
-    ///
     /// let acc = sks.generate_lookup_table(f);
     /// let ct_res = sks.apply_lookup_table(&ct, &acc);
     ///
@@ -380,159 +384,51 @@ impl ServerKey {
     where
         F: Fn(u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_lookup_table(self, f).unwrap()
-        })
+        let mut acc = GlweCiphertext::new(
+            0,
+            self.bootstrapping_key.glwe_size(),
+            self.bootstrapping_key.polynomial_size(),
+            self.ciphertext_modulus,
+        );
+        let max_value = fill_accumulator(&mut acc, self, f);
+
+        LookupTableOwned {
+            acc,
+            degree: Degree::new(max_value as usize),
+        }
     }
 
-    pub fn generate_lookup_table_bivariate_with_factor<F>(
-        &self,
-        f: F,
-        left_message_scaling: MessageModulus,
-    ) -> BivariateLookupTableOwned
+    /// Given a function as input, constructs the lookup table working on the message bits
+    /// Carry bits are ignored
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use tfhe::shortint::gen_keys;
+    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
+    ///
+    /// // Generate the client key and the server key:
+    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
+    ///
+    /// let msg = 3;
+    ///
+    /// let ct = cks.encrypt(msg);
+    ///
+    /// // Generate the lookup table on message for the function f: x -> x*x
+    /// let f = |x: u64| x.pow(2);
+    ///
+    /// let acc = sks.generate_msg_lookup_table(f, ct.message_modulus);
+    /// let ct_res = sks.apply_lookup_table(&ct, &acc);
+    ///
+    /// let dec = cks.decrypt(&ct_res);
+    /// // 3^2 mod 4 = 1
+    /// assert_eq!(dec, f(msg) % 4);
+    /// ```
+    pub fn generate_msg_lookup_table<F>(&self, f: F, modulus: MessageModulus) -> LookupTableOwned
     where
-        F: Fn(u64, u64) -> u64,
+        F: Fn(u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .generate_lookup_table_bivariate_with_factor(self, f, left_message_scaling)
-                .unwrap()
-        })
-    }
-
-    /// Constructs the lookup table for a given bivariate function as input.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg_1 = 3;
-    /// let msg_2 = 2;
-    ///
-    /// let mut ct1 = cks.encrypt(msg_1);
-    /// let mut ct2 = cks.encrypt(msg_2);
-    ///
-    /// let f = |x, y| (x + y) % 4;
-    ///
-    /// let acc = sks.generate_lookup_table_bivariate(f);
-    /// assert!(acc.is_bivariate_pbs_possible(&ct1, &ct2));
-    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
-    ///
-    /// let dec = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, f(msg_1, msg_2));
-    /// ```
-    pub fn generate_lookup_table_bivariate<F>(&self, f: F) -> BivariateLookupTableOwned
-    where
-        F: Fn(u64, u64) -> u64,
-    {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.generate_lookup_table_bivariate(self, f).unwrap()
-        })
-    }
-
-    /// Compute a keyswitch and programmable bootstrap.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg: u64 = 3;
-    /// let msg2: u64 = 2;
-    /// let ct1 = cks.encrypt(msg);
-    /// let ct2 = cks.encrypt(msg2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    ///
-    /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
-    /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
-    /// let ct_res = sks.unchecked_apply_lookup_table_bivariate(&ct1, &ct2, &acc);
-    ///
-    /// let dec = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, (msg * msg2 * msg) % modulus);
-    /// ```
-    pub fn unchecked_apply_lookup_table_bivariate(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-        acc: &BivariateLookupTableOwned,
-    ) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
-                .unwrap()
-        })
-    }
-
-    pub fn unchecked_apply_lookup_table_bivariate_assign(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-        acc: &BivariateLookupTableOwned,
-    ) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
-                .unwrap()
-        })
-    }
-
-    /// Compute a keyswitch and programmable bootstrap.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use tfhe::shortint::gen_keys;
-    /// use tfhe::shortint::parameters::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
-    ///
-    /// // Generate the client key and the server key:
-    /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_KS_PBS);
-    ///
-    /// let msg: u64 = 3;
-    /// let msg2: u64 = 2;
-    /// let mut ct1 = cks.encrypt(msg);
-    /// let mut ct2 = cks.encrypt(msg2);
-    /// let modulus = cks.parameters.message_modulus().0 as u64;
-    ///
-    /// // Generate the lookup table for the function f: x, y -> (x * y * x) mod 4
-    /// let acc = sks.generate_lookup_table_bivariate(|x, y| x * y * x % modulus);
-    /// let ct_res = sks.smart_apply_lookup_table_bivariate(&mut ct1, &mut ct2, &acc);
-    ///
-    /// let dec = cks.decrypt(&ct_res);
-    /// assert_eq!(dec, (msg * msg2 * msg) % modulus);
-    /// ```
-    pub fn smart_apply_lookup_table_bivariate(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-        acc: &BivariateLookupTableOwned,
-    ) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_apply_lookup_table_bivariate(self, ct_left, ct_right, acc)
-                .unwrap()
-        })
-    }
-
-    pub fn smart_apply_lookup_table_bivariate_assign(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-        acc: &BivariateLookupTableOwned,
-    ) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_apply_lookup_table_bivariate_assign(self, ct_left, ct_right, acc)
-                .unwrap()
-        })
+        self.generate_lookup_table(|x| f(x % modulus.0 as u64) % modulus.0 as u64)
     }
 
     /// Compute a keyswitch and programmable bootstrap.
@@ -558,87 +454,55 @@ impl ServerKey {
     /// // (3*3*3) mod 4 = 3
     /// assert_eq!(dec, (msg * msg * msg) % modulus);
     /// ```
-    pub fn apply_lookup_table(&self, ct_in: &Ciphertext, acc: &LookupTableOwned) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.apply_lookup_table(self, ct_in, acc).unwrap()
-        })
+    pub fn apply_lookup_table(&self, ct: &Ciphertext, acc: &LookupTableOwned) -> Ciphertext {
+        let mut ct_res = ct.clone();
+
+        self.apply_lookup_table_assign(&mut ct_res, acc);
+
+        ct_res
     }
 
-    pub fn apply_lookup_table_assign(&self, ct_in: &mut Ciphertext, acc: &LookupTableOwned) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.apply_lookup_table_assign(self, ct_in, acc).unwrap()
-        })
+    pub fn apply_lookup_table_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
+        match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => {
+                // This updates the ciphertext degree
+                self.keyswitch_programmable_bootstrap_assign(ct, acc);
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                // This updates the ciphertext degree
+                self.programmable_bootstrap_keyswitch_assign(ct, acc);
+            }
+        };
     }
-
-    /// Generic programmable bootstrap where messages are concatenated into one ciphertext to
-    /// evaluate a bivariate function. This is used to apply many binary operations (comparisons,
-    /// multiplications, division).
-    pub fn unchecked_evaluate_bivariate_function<F>(
-        &self,
-        ct_left: &Ciphertext,
-        ct_right: &Ciphertext,
-        f: F,
-    ) -> Ciphertext
+    /// Applies the given function to the message of a ciphertext
+    /// The input is reduced to the message space before the funciton application
+    /// Thee output of the function is also rduced to the message space such that the carry bits are
+    /// clean on the output
+    pub fn evaluate_msg_univariate_function_assign<F>(&self, ct: &mut Ciphertext, f: F)
     where
-        F: Fn(u64, u64) -> u64,
+        F: Fn(u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_evaluate_bivariate_function(self, ct_left, ct_right, f)
-                .unwrap()
-        })
+        // Generate the lookup table for the function
+        let lookup_table = self.generate_msg_lookup_table(f, self.message_modulus);
+
+        self.apply_lookup_table_assign(ct, &lookup_table);
     }
 
-    pub fn unchecked_evaluate_bivariate_function_assign<F>(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &Ciphertext,
-        f: F,
-    ) where
-        F: Fn(u64, u64) -> u64,
-    {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .unchecked_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
-                .unwrap()
-        })
-    }
-
-    /// Verify if a functional bivariate pbs can be applied on ct_left and ct_right.
-    pub fn is_functional_bivariate_pbs_possible(&self, ct1: &Ciphertext, ct2: &Ciphertext) -> bool {
-        ciphertexts_can_be_packed_without_exceeding_space(ct1, ct2, ct2.degree.0 + 1)
-    }
-
-    pub fn smart_evaluate_bivariate_function_assign<F>(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-        f: F,
-    ) where
-        F: Fn(u64, u64) -> u64,
-    {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_evaluate_bivariate_function_assign(self, ct_left, ct_right, f)
-                .unwrap()
-        })
-    }
-
-    pub fn smart_evaluate_bivariate_function<F>(
-        &self,
-        ct_left: &mut Ciphertext,
-        ct_right: &mut Ciphertext,
-        f: F,
-    ) -> Ciphertext
+    /// Applies the given function to the message of a ciphertext
+    /// The input is reduced to the message space before the funciton application
+    /// Thee output of the function is also rduced to the message space such that the carry bits are
+    /// clean on the output
+    pub fn evaluate_msg_univariate_function<F>(&self, ct: &Ciphertext, f: F) -> Ciphertext
     where
-        F: Fn(u64, u64) -> u64,
+        F: Fn(u64) -> u64,
     {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .smart_evaluate_bivariate_function(self, ct_left, ct_right, f)
-                .unwrap()
-        })
+        let mut ct_res = ct.clone();
+
+        self.evaluate_msg_univariate_function_assign(&mut ct_res, f);
+
+        ct_res
     }
+
     /// Replace the input encrypted message by the value of its carry buffer.
     ///
     /// # Example
@@ -673,9 +537,11 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.carry_extract_assign(self, ct).unwrap()
-        })
+        let modulus = ct.message_modulus.0 as u64;
+
+        let lookup_table = self.generate_lookup_table(|x| x / modulus);
+
+        self.apply_lookup_table_assign(ct, &lookup_table);
     }
 
     /// Extract a new ciphertext encrypting the input carry buffer.
@@ -712,7 +578,9 @@ impl ServerKey {
     /// assert_eq!(2, res);
     /// ```
     pub fn carry_extract(&self, ct: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.carry_extract(self, ct).unwrap())
+        let mut result = ct.clone();
+        self.carry_extract_assign(&mut result);
+        result
     }
 
     /// Clears the carry buffer of the input ciphertext.
@@ -749,9 +617,9 @@ impl ServerKey {
     /// assert_eq!(1, res);
     /// ```
     pub fn message_extract_assign(&self, ct: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.message_extract_assign(self, ct).unwrap()
-        })
+        let acc = self.generate_msg_lookup_table(|x| x, ct.message_modulus);
+
+        self.apply_lookup_table_assign(ct, &acc);
     }
 
     /// Extract a new ciphertext containing only the message i.e., with a cleared carry buffer.
@@ -788,7 +656,9 @@ impl ServerKey {
     /// assert_eq!(1, res);
     /// ```
     pub fn message_extract(&self, ct: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| engine.message_extract(self, ct).unwrap())
+        let mut result = ct.clone();
+        self.message_extract_assign(&mut result);
+        result
     }
 
     /// Compute a trivial shortint ciphertext with the dimension of the big LWE secret key from a
@@ -812,17 +682,57 @@ impl ServerKey {
     /// assert_eq!(1, ct_res);
     /// ```
     pub fn create_trivial(&self, value: u64) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine
-                .create_trivial(self, value, self.ciphertext_modulus)
-                .unwrap()
-        })
+        let modular_value = value as usize % self.message_modulus.0;
+        self.unchecked_create_trivial(modular_value as u64)
+    }
+
+    pub fn unchecked_create_trivial(&self, value: u64) -> Ciphertext {
+        let lwe_size = match self.pbs_order {
+            PBSOrder::KeyswitchBootstrap => {
+                self.bootstrapping_key.output_lwe_dimension().to_lwe_size()
+            }
+            PBSOrder::BootstrapKeyswitch => {
+                self.bootstrapping_key.input_lwe_dimension().to_lwe_size()
+            }
+        };
+
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+
+        let shifted_value = value * delta;
+
+        let encoded = Plaintext(shifted_value);
+
+        let ct = allocate_and_trivially_encrypt_new_lwe_ciphertext(
+            lwe_size,
+            encoded,
+            self.ciphertext_modulus,
+        );
+
+        let degree = Degree::new(value as usize);
+
+        Ciphertext::new(
+            ct,
+            degree,
+            NoiseLevel::ZERO,
+            self.message_modulus,
+            self.carry_modulus,
+            self.pbs_order,
+        )
     }
 
     pub fn create_trivial_assign(&self, ct: &mut Ciphertext, value: u64) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.create_trivial_assign(self, ct, value).unwrap()
-        })
+        let modular_value = value as usize % self.message_modulus.0;
+
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+
+        let shifted_value = (modular_value as u64) * delta;
+
+        let encoded = Plaintext(shifted_value);
+
+        trivially_encrypt_lwe_ciphertext(&mut ct.ct, encoded);
+
+        ct.degree = Degree::new(modular_value);
+        ct.set_noise_level(NoiseLevel::ZERO);
     }
 
     pub fn bootstrapping_key_size_elements(&self) -> usize {
@@ -847,7 +757,178 @@ impl ServerKey {
 
     pub fn set_deterministic_pbs_execution(&mut self, new_deterministic_execution: bool) {
         self.bootstrapping_key
-            .set_deterministic_pbs_execution(new_deterministic_execution)
+            .set_deterministic_pbs_execution(new_deterministic_execution);
+    }
+
+    fn trivial_pbs_assign(&self, ct: &mut Ciphertext, acc: &LookupTableOwned) {
+        assert_eq!(ct.noise_level(), NoiseLevel::ZERO);
+        let modulus_sup = self.message_modulus.0 * self.carry_modulus.0;
+        let delta = (1_u64 << 63) / (self.message_modulus.0 * self.carry_modulus.0) as u64;
+        let ct_value = *ct.ct.get_body().data / delta;
+
+        let box_size = self.bootstrapping_key.polynomial_size().0 / modulus_sup;
+        let result = if ct_value >= modulus_sup as u64 {
+            // padding bit is 1
+            let ct_value = ct_value % modulus_sup as u64;
+            let index_in_lut = ct_value as usize * box_size;
+            acc.acc.get_body().as_ref()[index_in_lut].wrapping_neg()
+        } else {
+            let index_in_lut = ct_value as usize * box_size;
+            acc.acc.get_body().as_ref()[index_in_lut]
+        };
+        *ct.ct.get_mut_body().data = result;
+        ct.degree = acc.degree;
+    }
+
+    pub(crate) fn keyswitch_programmable_bootstrap_assign(
+        &self,
+        ct: &mut Ciphertext,
+        acc: &LookupTableOwned,
+    ) {
+        if ct.is_trivial() {
+            self.trivial_pbs_assign(ct, acc);
+            return;
+        }
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            // Compute the programmable bootstrapping with fixed test polynomial
+            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+
+            // Compute a key switch
+            keyswitch_lwe_ciphertext(
+                &self.key_switching_key,
+                &ct.ct,
+                &mut ciphertext_buffers.buffer_lwe_after_ks,
+            );
+
+            match &self.bootstrapping_key {
+                ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                    let fft = Fft::new(fourier_bsk.polynomial_size());
+                    let fft = fft.as_view();
+                    buffers.resize(
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                            fourier_bsk.glwe_size(),
+                            fourier_bsk.polynomial_size(),
+                            fft,
+                        )
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                    );
+                    let stack = buffers.stack();
+
+                    // Compute a bootstrap
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &ciphertext_buffers.buffer_lwe_after_ks,
+                        &mut ct.ct,
+                        &acc.acc,
+                        fourier_bsk,
+                        fft,
+                        stack,
+                    );
+                }
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution,
+                } => {
+                    if *deterministic_execution {
+                        multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                            &ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut ct.ct,
+                            &acc.acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    } else {
+                        multi_bit_programmable_bootstrap_lwe_ciphertext(
+                            &ciphertext_buffers.buffer_lwe_after_ks,
+                            &mut ct.ct,
+                            &acc.acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    }
+                }
+            };
+        });
+
+        ct.degree = acc.degree;
+        ct.set_noise_level(NoiseLevel::NOMINAL);
+    }
+
+    pub(crate) fn programmable_bootstrap_keyswitch_assign(
+        &self,
+        ct: &mut Ciphertext,
+        acc: &LookupTableOwned,
+    ) {
+        if ct.is_trivial() {
+            self.trivial_pbs_assign(ct, acc);
+            return;
+        }
+
+        ShortintEngine::with_thread_local_mut(|engine| {
+            let (mut ciphertext_buffers, buffers) = engine.get_buffers(self);
+
+            match &self.bootstrapping_key {
+                ShortintBootstrappingKey::Classic(fourier_bsk) => {
+                    let fft = Fft::new(fourier_bsk.polynomial_size());
+                    let fft = fft.as_view();
+                    buffers.resize(
+                        programmable_bootstrap_lwe_ciphertext_mem_optimized_requirement::<u64>(
+                            fourier_bsk.glwe_size(),
+                            fourier_bsk.polynomial_size(),
+                            fft,
+                        )
+                        .unwrap()
+                        .unaligned_bytes_required(),
+                    );
+                    let stack = buffers.stack();
+
+                    // Compute a bootstrap
+                    programmable_bootstrap_lwe_ciphertext_mem_optimized(
+                        &ct.ct,
+                        &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                        &acc.acc,
+                        fourier_bsk,
+                        fft,
+                        stack,
+                    );
+                }
+                ShortintBootstrappingKey::MultiBit {
+                    fourier_bsk,
+                    thread_count,
+                    deterministic_execution,
+                } => {
+                    if *deterministic_execution {
+                        multi_bit_deterministic_programmable_bootstrap_lwe_ciphertext(
+                            &ct.ct,
+                            &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                            &acc.acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    } else {
+                        multi_bit_programmable_bootstrap_lwe_ciphertext(
+                            &ct.ct,
+                            &mut ciphertext_buffers.buffer_lwe_after_pbs,
+                            &acc.acc,
+                            fourier_bsk,
+                            *thread_count,
+                        );
+                    }
+                }
+            };
+
+            // Compute a key switch
+            keyswitch_lwe_ciphertext(
+                &self.key_switching_key,
+                &ciphertext_buffers.buffer_lwe_after_pbs,
+                &mut ct.ct,
+            );
+        });
+
+        ct.degree = acc.degree;
+        ct.set_noise_level(NoiseLevel::NOMINAL);
     }
 }
 
@@ -926,14 +1007,95 @@ impl From<CompressedServerKey> for ServerKey {
             },
         );
 
+        let max_noise_level = MaxNoiseLevel::from_msg_carry_modulus(message_modulus, carry_modulus);
+
         Self {
             key_switching_key,
             bootstrapping_key,
             message_modulus,
             carry_modulus,
             max_degree,
+            max_noise_level,
             ciphertext_modulus,
             pbs_order,
         }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct CiphertextNoiseDegree {
+    pub noise_level: NoiseLevel,
+    pub degree: Degree,
+}
+
+impl Ciphertext {
+    pub fn noise_degree(&self) -> CiphertextNoiseDegree {
+        CiphertextNoiseDegree {
+            noise_level: self.noise_level(),
+            degree: self.degree,
+        }
+    }
+    pub fn noise_degree_if_bootstrapped(&self) -> CiphertextNoiseDegree {
+        CiphertextNoiseDegree {
+            noise_level: NoiseLevel::NOMINAL,
+            degree: Degree::new(self.degree.get().min(self.message_modulus.0 - 1)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct SmartCleaningOperation {
+    bootstrap_left: bool,
+    bootstrap_right: bool,
+}
+
+impl SmartCleaningOperation {
+    fn number_of_pbs(self) -> usize {
+        usize::from(self.bootstrap_left) + usize::from(self.bootstrap_right)
+    }
+}
+
+impl ServerKey {
+    /// Before doing an operations on 2 inputs which validity is described by
+    /// `is_operation_possible`, one or both the inputs may need to be cleaned (carry removal and
+    /// noise reinitilization) with a PBS
+    /// Among possible cleanings this functions returns one of the ones that has the lowest number
+    /// of PBS
+    pub(crate) fn binary_smart_op_optimal_cleaning_strategy(
+        &self,
+        ct_left: &Ciphertext,
+        ct_right: &Ciphertext,
+        is_operation_possible: impl Fn(&Self, CiphertextNoiseDegree, CiphertextNoiseDegree) -> bool
+            + Copy,
+    ) -> Option<SmartCleaningOperation> {
+        [false, true]
+            .into_iter()
+            .flat_map(move |bootstrap_left| {
+                let left_noise_degree = if bootstrap_left {
+                    ct_left.noise_degree_if_bootstrapped()
+                } else {
+                    ct_left.noise_degree()
+                };
+
+                [false, true]
+                    .into_iter()
+                    .filter_map(move |bootstrap_right| {
+                        let right_noise_degree = if bootstrap_right {
+                            ct_right.noise_degree_if_bootstrapped()
+                        } else {
+                            ct_right.noise_degree()
+                        };
+
+                        if is_operation_possible(self, left_noise_degree, right_noise_degree) {
+                            Some(SmartCleaningOperation {
+                                bootstrap_left,
+                                bootstrap_right,
+                            })
+                        } else {
+                            None
+                        }
+                    })
+            })
+            .min_by_key(|op| op.number_of_pbs())
     }
 }

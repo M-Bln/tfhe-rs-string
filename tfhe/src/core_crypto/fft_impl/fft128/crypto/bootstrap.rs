@@ -163,7 +163,7 @@ impl Fourier128LweBootstrapKey<ABox<[f64]>> {
         polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
-    ) -> Fourier128LweBootstrapKey<ABox<[f64]>> {
+    ) -> Self {
         let container_len = polynomial_size.to_fourier_polynomial_size().0
             * input_lwe_dimension.0
             * decomposition_level_count.0
@@ -212,7 +212,7 @@ where
                 fourier_ggsw.fill_with_forward_fourier(&standard_ggsw, fft);
             }
         }
-        implementation(self.as_mut_view(), coef_bsk.as_view(), fft)
+        implementation(self.as_mut_view(), coef_bsk.as_view(), fft);
     }
 }
 
@@ -279,7 +279,7 @@ where
                     polynomial_wrapping_monic_monomial_div_assign(
                         &mut poly,
                         MonomialDegree(monomial_degree),
-                    )
+                    );
                 });
 
             // We initialize the ct_0 used for the successive cmuxes
@@ -333,7 +333,7 @@ where
                     .for_each(|x| *x = signed_decomposer.closest_representable(*x));
             }
         }
-        implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack)
+        implementation(self.as_view(), lut.as_mut_view(), lwe.as_view(), fft, stack);
     }
 
     pub fn bootstrap<Scalar, ContLweOut, ContLweIn, ContAcc>(
@@ -358,6 +358,8 @@ where
             fft: Fft128View<'_>,
             stack: PodStack<'_>,
         ) {
+            // We type check dynamically with TypeId
+            #[allow(clippy::transmute_undefined_repr)]
             if TypeId::of::<Scalar>() == TypeId::of::<u128>() {
                 let mut lwe_out: LweCiphertext<&mut [u128]> = unsafe { transmute(lwe_out) };
                 let lwe_in: LweCiphertext<&[u128]> = unsafe { transmute(lwe_in) };
@@ -388,7 +390,7 @@ where
             accumulator.as_view(),
             fft,
             stack,
-        )
+        );
     }
 }
 
@@ -451,7 +453,7 @@ where
         ContLweIn: Container<Element = Scalar>,
         ContAcc: Container<Element = Scalar>,
     {
-        self.bootstrap(lwe_out, lwe_in, accumulator, fft.as_view(), stack)
+        self.bootstrap(lwe_out, lwe_in, accumulator, fft.as_view(), stack);
     }
 
     fn fill_with_forward_fourier_scratch(fft: &Self::Fft) -> Result<StackReq, SizeOverflow> {

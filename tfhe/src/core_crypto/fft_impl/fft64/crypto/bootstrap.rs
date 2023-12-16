@@ -149,7 +149,7 @@ impl FourierLweBootstrapKey<ABox<[c64]>> {
         polynomial_size: PolynomialSize,
         decomposition_base_log: DecompositionBaseLog,
         decomposition_level_count: DecompositionLevelCount,
-    ) -> FourierLweBootstrapKey<ABox<[c64]>> {
+    ) -> Self {
         let boxed = avec![
             c64::default();
             polynomial_size.to_fourier_polynomial_size().0
@@ -267,7 +267,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
 
                 let mut tmp_poly = Polynomial::from_container(&mut *tmp_poly);
                 tmp_poly.as_mut().copy_from_slice(poly.as_ref());
-                polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree)
+                polynomial_wrapping_monic_monomial_div(&mut poly, &tmp_poly, monomial_degree);
             });
 
         // We initialize the ct_0 used for the successive cmuxes
@@ -308,7 +308,7 @@ impl<'a> FourierLweBootstrapKeyView<'a> {
                 add_external_product_assign(
                     ct0.as_mut_view(),
                     bootstrap_key_ggsw,
-                    ct1.as_mut_view(),
+                    ct1.as_view(),
                     fft,
                     stack.rb_mut(),
                 );
@@ -432,6 +432,6 @@ where
             accumulator.as_view(),
             fft.as_view(),
             stack,
-        )
+        );
     }
 }

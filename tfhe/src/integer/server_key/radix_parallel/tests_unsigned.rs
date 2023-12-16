@@ -1,5 +1,5 @@
 use crate::integer::keycache::KEY_CACHE;
-use crate::integer::{RadixCiphertext, RadixClientKey, ServerKey};
+use crate::integer::{IntegerKeyKind, RadixCiphertext, RadixClientKey, ServerKey};
 use crate::shortint::parameters::*;
 use paste::paste;
 use rand::Rng;
@@ -9,7 +9,7 @@ use super::tests_cases_unsigned::*;
 
 /// Smaller number of loop iteration within randomized test,
 /// meant for test where the function tested is more expensive
-const NB_TEST_SMALLER: usize = 10;
+const NB_TESTS_SMALLER: usize = 10;
 const NB_CTXT: usize = 4;
 
 macro_rules! create_parametrized_test{
@@ -107,9 +107,10 @@ create_parametrized_test!(integer_default_div {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
 create_parametrized_test!(integer_smart_add);
-create_parametrized_test!(integer_smart_add_sequence_multi_thread);
-create_parametrized_test!(integer_smart_add_sequence_single_thread);
+create_parametrized_test!(integer_smart_sum_ciphertexts_slice);
+create_parametrized_test!(integer_default_sum_ciphertexts_vec);
 create_parametrized_test!(integer_default_add);
+create_parametrized_test!(integer_default_overflowing_add);
 create_parametrized_test!(integer_default_add_work_efficient {
     // This algorithm requires 3 bits
     PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -120,15 +121,6 @@ create_parametrized_test!(integer_default_add_work_efficient {
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_2_KS_PBS,
     PARAM_MULTI_BIT_MESSAGE_3_CARRY_3_GROUP_3_KS_PBS
 });
-// These tests are slow and not very interesting nor efficient, keep small sizes
-create_parametrized_test!(integer_default_add_sequence_multi_thread {
-    PARAM_MESSAGE_1_CARRY_1_KS_PBS
-});
-// Other tests are pretty slow, and the code is the same as a smart add but slower
-#[test]
-fn test_integer_default_add_sequence_single_thread_param_message_2_carry_2_ks_pbs() {
-    integer_default_add_sequence_single_thread(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
-}
 create_parametrized_test!(integer_smart_bitand);
 create_parametrized_test!(integer_smart_bitor);
 create_parametrized_test!(integer_smart_bitxor);
@@ -229,8 +221,10 @@ create_parametrized_test!(integer_smart_mul);
 create_parametrized_test!(integer_default_mul);
 create_parametrized_test!(integer_smart_scalar_sub);
 create_parametrized_test!(integer_default_scalar_sub);
+create_parametrized_test!(integer_default_overflowing_scalar_sub);
 create_parametrized_test!(integer_smart_scalar_add);
 create_parametrized_test!(integer_default_scalar_add);
+create_parametrized_test!(integer_default_overflowing_scalar_add);
 create_parametrized_test!(integer_smart_if_then_else);
 create_parametrized_test!(integer_default_if_then_else);
 create_parametrized_test!(integer_trim_radix_msb_blocks_handles_dirty_inputs);
@@ -281,7 +275,7 @@ where
     F: Fn(&ServerKey, &RadixCiphertext) -> RadixCiphertext,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: &'a RadixCiphertext) -> RadixCiphertext {
@@ -296,12 +290,12 @@ where
     F: Fn(&ServerKey, &'a mut RadixCiphertext),
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: &'a mut RadixCiphertext) {
         let sks = self.sks.as_ref().expect("setup was not properly called");
-        (self.func)(sks, input)
+        (self.func)(sks, input);
     }
 }
 
@@ -310,7 +304,7 @@ where
     F: Fn(&ServerKey, &mut RadixCiphertext) -> RadixCiphertext,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: &'a mut RadixCiphertext) -> RadixCiphertext {
@@ -325,7 +319,7 @@ where
     F: Fn(&ServerKey, I1, I2) -> O,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: (I1, I2)) -> O {
@@ -340,7 +334,7 @@ where
     F: Fn(&ServerKey, I1, I2, I3) -> O,
 {
     fn setup(&mut self, _cks: &RadixClientKey, sks: Arc<ServerKey>) {
-        self.sks = Some(sks)
+        self.sks = Some(sks);
     }
 
     fn execute(&mut self, input: (I1, I2, I3)) -> O {
@@ -569,11 +563,11 @@ where
     smart_rem_test(param, executor);
 }
 
-fn integer_smart_add_sequence_multi_thread<P>(param: P)
+fn integer_smart_sum_ciphertexts_slice<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     //RNG
@@ -583,7 +577,7 @@ where
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
     for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TEST_SMALLER {
+        for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
@@ -595,11 +589,7 @@ where
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            let ct_res = sks
-                .smart_binary_op_seq_parallelized(&mut ctxts, |sks, a, b| {
-                    sks.smart_add_parallelized(a, b)
-                })
-                .unwrap();
+            let ct_res = sks.smart_sum_ciphertexts_parallelized(&mut ctxts).unwrap();
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
@@ -608,11 +598,11 @@ where
     }
 }
 
-fn integer_smart_add_sequence_single_thread<P>(param: P)
+fn integer_default_sum_ciphertexts_vec<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
-    let (cks, sks) = KEY_CACHE.get_from_params(param);
+    let (cks, sks) = KEY_CACHE.get_from_params(param, IntegerKeyKind::Radix);
     let cks = RadixClientKey::from((cks, NB_CTXT));
 
     //RNG
@@ -621,30 +611,20 @@ where
     // message_modulus^vec_length
     let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
 
-    for len in [1, 2, 15, 16, 17] {
-        for _ in 0..NB_TEST_SMALLER {
+    for len in [1, 2, 15, 16, 17, 64, 65] {
+        for _ in 0..NB_TESTS_SMALLER {
             let clears = (0..len)
                 .map(|_| rng.gen::<u64>() % modulus)
                 .collect::<Vec<_>>();
 
             // encryption of integers
-            let mut ctxts = clears
+            let ctxts = clears
                 .iter()
                 .copied()
                 .map(|clear| cks.encrypt(clear))
                 .collect::<Vec<_>>();
 
-            let threadpool = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .build()
-                .unwrap();
-
-            let ct_res = threadpool.install(|| {
-                sks.smart_binary_op_seq_parallelized(&mut ctxts, |sks, a, b| {
-                    sks.smart_add_parallelized(a, b)
-                })
-                .unwrap()
-            });
+            let ct_res = sks.sum_ciphertexts_parallelized(&ctxts).unwrap();
             let ct_res: u64 = cks.decrypt(&ct_res);
             let clear = clears.iter().sum::<u64>() % modulus;
 
@@ -715,6 +695,14 @@ where
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::add_parallelized);
     default_add_test(param, executor);
+}
+
+fn integer_default_overflowing_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor = CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_add_parallelized);
+    default_overflowing_add_test(param, executor);
 }
 
 fn integer_default_sub<P>(param: P)
@@ -830,96 +818,6 @@ where
     default_if_then_else_test(param, executor);
 }
 
-fn integer_default_add_sequence_multi_thread<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for len in [1, 2, 15, 16, 17, 64, 65] {
-        for _ in 0..NB_TEST_SMALLER {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let ct_res = sks
-                .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
-                .unwrap();
-            let tmp_ct = sks
-                .default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
-                .unwrap();
-            assert!(ct_res.block_carries_are_empty());
-            assert_eq!(ct_res, tmp_ct);
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
-        }
-    }
-}
-
-fn integer_default_add_sequence_single_thread<P>(param: P)
-where
-    P: Into<PBSParameters>,
-{
-    let (cks, mut sks) = KEY_CACHE.get_from_params(param);
-    let cks = RadixClientKey::from((cks, NB_CTXT));
-
-    sks.set_deterministic_pbs_execution(true);
-
-    //RNG
-    let mut rng = rand::thread_rng();
-
-    // message_modulus^vec_length
-    let modulus = cks.parameters().message_modulus().0.pow(NB_CTXT as u32) as u64;
-
-    for len in [1, 2, 15, 16, 17] {
-        for _ in 0..NB_TEST_SMALLER {
-            let clears = (0..len)
-                .map(|_| rng.gen::<u64>() % modulus)
-                .collect::<Vec<_>>();
-
-            // encryption of integers
-            let ctxts = clears
-                .iter()
-                .copied()
-                .map(|clear| cks.encrypt(clear))
-                .collect::<Vec<_>>();
-
-            let threadpool = rayon::ThreadPoolBuilder::new()
-                .num_threads(1)
-                .build()
-                .unwrap();
-
-            let ct_res = threadpool.install(|| {
-                sks.default_binary_op_seq_parallelized(&ctxts, ServerKey::add_parallelized)
-                    .unwrap()
-            });
-            assert!(ct_res.block_carries_are_empty());
-            let ct_res: u64 = cks.decrypt(&ct_res);
-            let clear = clears.iter().sum::<u64>() % modulus;
-
-            assert_eq!(ct_res, clear);
-        }
-    }
-}
-
 //=============================================================================
 // Default Scalar Tests
 //=============================================================================
@@ -932,12 +830,30 @@ where
     default_scalar_add_test(param, executor);
 }
 
+fn integer_default_overflowing_scalar_add<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor =
+        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_add_parallelized);
+    default_overflowing_scalar_add_test(param, executor);
+}
+
 fn integer_default_scalar_sub<P>(param: P)
 where
     P: Into<PBSParameters>,
 {
     let executor = CpuFunctionExecutor::new(&ServerKey::scalar_sub_parallelized);
     default_scalar_sub_test(param, executor);
+}
+
+fn integer_default_overflowing_scalar_sub<P>(param: P)
+where
+    P: Into<PBSParameters>,
+{
+    let executor =
+        CpuFunctionExecutor::new(&ServerKey::unsigned_overflowing_scalar_sub_parallelized);
+    default_overflowing_scalar_sub_test(param, executor);
 }
 
 fn integer_default_scalar_bitand<P>(param: P)
@@ -1039,17 +955,18 @@ where
 #[test]
 fn test_non_regression_clone_from() {
     // Issue: https://github.com/zama-ai/tfhe-rs/issues/410
-    let (client_key, server_key) = KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2);
-    const NUM_BLOCK: usize = 4;
+    let (client_key, server_key) =
+        KEY_CACHE.get_from_params(PARAM_MESSAGE_2_CARRY_2, IntegerKeyKind::Radix);
+    let num_block: usize = 4;
     let a: u8 = 248;
     let b: u8 = 249;
     let c: u8 = 250;
     let d: u8 = 251;
 
-    let enc_a = client_key.encrypt_radix(a, NUM_BLOCK);
-    let enc_b = client_key.encrypt_radix(b, NUM_BLOCK);
-    let enc_c = client_key.encrypt_radix(c, NUM_BLOCK);
-    let enc_d = client_key.encrypt_radix(d, NUM_BLOCK);
+    let enc_a = client_key.encrypt_radix(a, num_block);
+    let enc_b = client_key.encrypt_radix(b, num_block);
+    let enc_c = client_key.encrypt_radix(c, num_block);
+    let enc_d = client_key.encrypt_radix(d, num_block);
 
     let (mut q1, mut r1) = server_key.div_rem_parallelized(&enc_b, &enc_a);
     let (mut q2, mut r2) = server_key.div_rem_parallelized(&enc_d, &enc_c);
@@ -1089,7 +1006,11 @@ where
 
     let mut ct_3 = server_key.unchecked_add_parallelized(&ct_1, &ct_2);
     let output: u64 = client_key.decrypt(&ct_3);
-    assert_eq!(output, (msg2 + msg1) % (modulus * modulus));
+    // Seems to be a false positive
+    #[allow(clippy::suspicious_operation_groupings)]
+    {
+        assert_eq!(output, (msg2 + msg1) % (modulus * modulus));
+    }
     assert_ne!(output, (msg2 + msg1) % (modulus));
 
     server_key.trim_radix_blocks_msb_assign(&mut ct_3, NB_CTXT);
