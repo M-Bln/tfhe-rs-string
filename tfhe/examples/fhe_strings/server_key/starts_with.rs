@@ -88,12 +88,12 @@ mod tests {
         let fhe_starts_with_encrypted = server_key.starts_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
             client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
-            std_starts_with as u8
+            std_starts_with as u32
         );
         let fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
             client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_clear)),
-            std_starts_with as u8
+            std_starts_with as u32
         );
     }
 
@@ -125,24 +125,24 @@ mod tests {
             server_key.starts_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
             client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
-            std_starts_with as u8
+            std_starts_with as u32
         );
         let mut fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
             client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_clear)),
-            std_starts_with as u8
+            std_starts_with as u32
         );
 
         encrypted_s = client_key.encrypt_str_padding(s, string_padding).unwrap();
         fhe_starts_with_encrypted = server_key.starts_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
             client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
-            std_starts_with as u8
+            std_starts_with as u32
         );
         let mut fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
             client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_clear)),
-            std_starts_with as u8
+            std_starts_with as u32
         );
     }
 

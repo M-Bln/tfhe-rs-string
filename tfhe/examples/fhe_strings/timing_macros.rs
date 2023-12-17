@@ -382,7 +382,7 @@ macro_rules! time_len {
         let start = std::time::Instant::now();
         let fhe_result = match SERVER_KEY.$method(&$encrypted_s) {
             FheStrLength::Encrypted(encrypted_length) => CLIENT_KEY.decrypt_u8(&encrypted_length),
-            FheStrLength::Clear(clear_length) => *clear_length as u8,
+            FheStrLength::Clear(clear_length) => *clear_length as u32,
         };
         let duration = start.elapsed();
         let std_result = $clear_s.$method();
