@@ -1,5 +1,4 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::client_key::ConversionError;
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
@@ -126,7 +125,7 @@ impl StringServerKey {
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let mut trailing_empty_string = self.create_false();
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
@@ -174,7 +173,7 @@ impl StringServerKey {
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let mut trailing_empty_string = self.create_false();
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_clear_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
@@ -229,7 +228,7 @@ impl StringServerKey {
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let mut trailing_empty_string = self.create_false();
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_char_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
@@ -376,7 +375,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{compare_result, test_fhe_split_char_pattern, test_fhe_split_string_pattern};

@@ -13,9 +13,7 @@ pub struct StringClientKey {
 
 impl From<RadixClientKey> for StringClientKey {
     fn from(integer_key: RadixClientKey) -> Self {
-        Self {
-            integer_key: integer_key,
-        }
+        Self { integer_key }
     }
 }
 
@@ -101,8 +99,8 @@ impl StringClientKey {
                 .iter()
                 .map(|byte| self.encrypt_ascii_char(*byte))
                 .collect(),
-            padding: padding,
-            length: length,
+            padding,
+            length,
         })
     }
 
@@ -145,7 +143,7 @@ impl StringClientKey {
         let mut result: Vec<u8> = Vec::with_capacity(result_length);
         let mut current_s_index = 0;
         let mut current_padding_zeros = 0;
-        for n in 0..result_length {
+        for _ in 0..result_length {
             let choice = rand::thread_rng().gen_range(0..result_length);
             if (choice < s.len() || current_padding_zeros == padding_size)
                 && current_s_index < s.len()
@@ -186,7 +184,7 @@ impl StringClientKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;

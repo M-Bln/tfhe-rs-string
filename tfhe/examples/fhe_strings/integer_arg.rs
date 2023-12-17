@@ -1,4 +1,4 @@
-use crate::ciphertext::{FheString};
+use crate::ciphertext::FheString;
 use crate::pattern::FheCharPattern;
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
@@ -56,7 +56,7 @@ macro_rules! impl_splitn_methods {
 
 impl FheIntegerArg for u32 {
     impl_splitn_methods!(clear, (|itself: &u32| *itself as usize));
-    fn add_one(&self, server_key: &StringServerKey) -> Self {
+    fn add_one(&self, _server_key: &StringServerKey) -> Self {
         *self + 1
     }
     fn to_string(&self) -> String {
@@ -70,7 +70,7 @@ impl FheIntegerArg for u32 {
 
 impl FheIntegerArg for usize {
     impl_splitn_methods!(clear, (|itself: &usize| *itself as usize));
-    fn add_one(&self, server_key: &StringServerKey) -> Self {
+    fn add_one(&self, _server_key: &StringServerKey) -> Self {
         *self + 1
     }
     fn to_string(&self) -> String {

@@ -88,7 +88,6 @@ impl StringServerKey {
     }
 
     pub fn strip_encrypted_prefix(&self, s: &FheString, prefix: &FheString) -> FheOptionString {
-        let zero = self.create_zero();
         match (&s.length, &prefix.length) {
             (&FheStrLength::Clear(l), &FheStrLength::Clear(l_prefix)) if l_prefix > l => {
                 return (self.create_false(), s.clone())
@@ -142,7 +141,7 @@ impl StringServerKey {
         let is_prefix = prefix.is_prefix_of_string(self, s);
         let mut result_content: Vec<FheAsciiChar> = vec![];
 
-        for (i, c) in prefix.bytes().enumerate() {
+        for (i, _c) in prefix.bytes().enumerate() {
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
                 &is_prefix,
                 &zero,
@@ -313,12 +312,11 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{
-        compare_result, test_fhe_add_char_pattern, test_fhe_string_string_pattern,
-        test_option_string_char_pattern, test_option_string_string_pattern,
+        compare_result, test_option_string_char_pattern, test_option_string_string_pattern,
         test_replace_clear_n_string_pattern,
     };
     use lazy_static::lazy_static;

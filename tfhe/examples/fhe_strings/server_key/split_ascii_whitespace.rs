@@ -1,11 +1,8 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::client_key::ConversionError;
-use crate::integer_arg::FheIntegerArg;
-use crate::pattern::{FheCharPattern, FhePattern};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
-pub type ResultFheString = (RadixCiphertext, FheString);
+//pub type ResultFheString = (RadixCiphertext, FheString);
 
 pub struct FheSplit {
     pub parts: Vec<FheString>,
@@ -101,7 +98,7 @@ impl StringServerKey {
         s: &FheString,
         from: &RadixCiphertext,
     ) -> (RadixCiphertext, RadixCiphertext) {
-        let result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
+        //        let result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         let mut start_chunk = self.create_zero();
         let mut end_chunk = self.create_zero();
         let mut prev_is_not_content_in_range = self.create_true();
@@ -196,8 +193,8 @@ impl StringServerKey {
             from = end_chunk;
         }
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -251,13 +248,10 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
-    use crate::{
-        compare_result, test_fhe_split_ascii_whitespace, test_fhe_split_char_pattern,
-        test_fhe_split_string_pattern, test_splitn_char_pattern, test_splitn_string_pattern,
-    };
+    use crate::{compare_result, test_fhe_split_ascii_whitespace};
     use lazy_static::lazy_static;
 
     lazy_static! {

@@ -1,5 +1,4 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::client_key::ConversionError;
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
@@ -30,7 +29,7 @@ impl StringServerKey {
     where
         F: Fn(&FheString) -> FheSplit,
     {
-        match (s.padding) {
+        match s.padding {
             Padding::None | Padding::Final => f(s),
             _ => f(&self.push_padding_to_end(s)),
         }
@@ -185,7 +184,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n,
         // 0)); let empty_string = FheString {
         //     content: vec![],
@@ -221,8 +219,8 @@ impl StringServerKey {
             n,
         );
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -243,15 +241,14 @@ impl StringServerKey {
         let maximum_number_of_parts = std::cmp::min(maximum_number_of_parts_split, n);
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
-        let fhe_false = self.create_false();
+
         //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n,
         // 0));
 
         if n == 1 {
             parts.push(s.clone());
             return FheSplit {
-                parts: parts,
+                parts,
                 number_parts: self.create_n(1),
                 current_index: 0,
             };
@@ -268,13 +265,13 @@ impl StringServerKey {
             parts.push(FheString {
                 content: vec![s.content[i].clone()],
                 length: match s.len() {
-                    FheStrLength::Clear(clear_length) => FheStrLength::Clear(1),
+                    FheStrLength::Clear(_) => FheStrLength::Clear(1),
                     _ => FheStrLength::Encrypted(self.bool_to_radix(
                         &self.integer_key.scalar_ne_parallelized(&s.content[i].0, 0),
                     )),
                 },
                 padding: match s.len() {
-                    FheStrLength::Clear(clear_length) => Padding::None,
+                    FheStrLength::Clear(_) => Padding::None,
                     _ => Padding::Final,
                 },
             });
@@ -290,7 +287,7 @@ impl StringServerKey {
         });
 
         FheSplit {
-            parts: parts,
+            parts,
             number_parts: self.integer_key.scalar_min_parallelized(
                 &self.add_length_to_radix(&self.create_n(2), s.len()),
                 n as u32,
@@ -324,8 +321,8 @@ impl StringServerKey {
         }
         parts.push(empty_string);
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -342,13 +339,12 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
 
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_char_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
@@ -359,8 +355,8 @@ impl StringServerKey {
             start_part = self.integer_key.scalar_add_parallelized(&end_part, 1);
         }
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -373,13 +369,12 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
 
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_clear_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
@@ -392,8 +387,8 @@ impl StringServerKey {
                 .scalar_add_parallelized(&end_part, pattern.len() as u64);
         }
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -406,13 +401,12 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
 
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, end_part) = self.find_from_final_padding(s, pattern, &start_part);
 
             // Increment `number_parts` if the pattern is found.
@@ -423,8 +417,8 @@ impl StringServerKey {
             start_part = self.add_length_to_radix(&end_part, &pattern.length);
         }
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -443,7 +437,6 @@ impl StringServerKey {
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -463,8 +456,8 @@ impl StringServerKey {
         }
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -481,7 +474,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -519,8 +511,8 @@ impl StringServerKey {
             &number_parts,
         );
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -548,7 +540,6 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
@@ -597,8 +588,8 @@ impl StringServerKey {
         );
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -617,7 +608,6 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
         // let mut number_parts = match n {
         //     0 => self.create_zero(),
@@ -688,8 +678,8 @@ impl StringServerKey {
         // 				 &self.integer_key.scalar_ge_parallelized(n, maximum_number_of_parts as u64)));
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -707,7 +697,7 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
+        let fhe_false: BooleanBlock;
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
 
         let mut start_part = zero.clone();
@@ -740,8 +730,8 @@ impl StringServerKey {
         }
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -774,7 +764,7 @@ impl StringServerKey {
 
         for i in 0..maximum_number_of_parts {
             let found: BooleanBlock;
-            let mut end_part: RadixCiphertext;
+            let end_part: RadixCiphertext;
             //            let out_of_range = self.integer_key.scalar_le_parallelized(n, (i + 1) as
             // u64);
             if n <= i + 1 {
@@ -804,8 +794,8 @@ impl StringServerKey {
         }
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -838,7 +828,7 @@ impl StringServerKey {
 
         for i in 0..maximum_number_of_parts {
             let found: BooleanBlock;
-            let mut end_part: RadixCiphertext;
+            let end_part: RadixCiphertext;
             //            let out_of_range = self.integer_key.scalar_le_parallelized(n, (i + 1) as
             // u64);
             if n <= i + 1 {
@@ -866,8 +856,8 @@ impl StringServerKey {
         }
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -885,7 +875,6 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
 
         let mut start_part = zero.clone();
@@ -917,8 +906,8 @@ impl StringServerKey {
         }
 
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -978,13 +967,10 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
-    use crate::{
-        compare_result, test_fhe_split_char_pattern, test_fhe_split_string_pattern,
-        test_splitn_char_pattern, test_splitn_string_pattern,
-    };
+    use crate::{compare_result, test_splitn_char_pattern, test_splitn_string_pattern};
     use lazy_static::lazy_static;
 
     lazy_static! {

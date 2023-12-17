@@ -1,5 +1,4 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::client_key::ConversionError;
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
@@ -57,7 +56,7 @@ impl StringServerKey {
         let mut start_part = zero.clone();
         let mut trailing_empty_string = self.create_false();
 
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, start_pattern) = self.find_from_final_padding(s, pattern, &start_part);
             let end_part = self.add_length_to_radix(&start_pattern, &pattern.length);
             // Increment `number_parts` if the pattern is found.
@@ -74,8 +73,8 @@ impl StringServerKey {
             &self.bool_to_radix(&trailing_empty_string),
         );
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -135,8 +134,8 @@ impl StringServerKey {
             &number_parts,
         );
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -154,7 +153,7 @@ impl StringServerKey {
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let mut trailing_empty_string = self.create_false();
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, start_pattern) =
                 self.find_clear_from_final_padding(s, pattern, &start_part);
 
@@ -176,8 +175,8 @@ impl StringServerKey {
             &self.bool_to_radix(&trailing_empty_string),
         );
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -199,7 +198,7 @@ impl StringServerKey {
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
         let mut trailing_empty_string = self.create_false();
-        for n in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let (found, start_pattern) = self.find_char_from_final_padding(s, pattern, &start_part);
 
             let end_part = self.integer_key.scalar_add_parallelized(&start_pattern, 1);
@@ -218,8 +217,8 @@ impl StringServerKey {
             &self.bool_to_radix(&trailing_empty_string),
         );
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -249,10 +248,9 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
-    use crate::{compare_result, test_fhe_split_char_pattern, test_fhe_split_string_pattern};
     use lazy_static::lazy_static;
 
     lazy_static! {

@@ -1,7 +1,7 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheAsciiChar, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use tfhe::integer::BooleanBlock;
 
 impl StringServerKey {
     pub fn contains(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {

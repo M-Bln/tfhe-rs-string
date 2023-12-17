@@ -1,6 +1,5 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheAsciiChar, FheString, Padding};
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     /// Returns the first element encrypting a non null character in content,

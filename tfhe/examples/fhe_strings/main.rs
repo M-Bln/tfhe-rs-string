@@ -7,7 +7,7 @@ mod test_generating_macros;
 mod timing_macros;
 mod timing_pair_strings_macros;
 
-use crate::ciphertext::{gen_keys_test, ClearOrEncrypted, FheStrLength, FheString};
+use crate::ciphertext::{gen_keys_test, FheStrLength, FheString};
 use crate::client_key::StringClientKey;
 use crate::server_key::StringServerKey;
 //use crate::integer_arg::FheIntegerArg;
@@ -17,7 +17,7 @@ use crate::server_key::is_empty::FheBool;
 //use crate::server_key::strip::FheOptionString;
 use clap::Parser;
 use lazy_static::lazy_static;
-use timing_pair_strings_macros::{padding_to_string, Clear, Encrypted, Encryption};
+use timing_pair_strings_macros::{padding_to_string, Encryption};
 
 #[derive(Parser, Debug)]
 #[command(about, long_about, verbatim_doc_comment)]

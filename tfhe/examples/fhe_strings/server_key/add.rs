@@ -1,12 +1,17 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheAsciiChar, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     /// Concatenates the pattern to the end of the encrypted string s1. It consumes s1 and returns a
     /// `FheString`.
-    pub fn add(&self, mut s1: FheString, pattern: &impl FhePattern) -> FheString {
+    /// # Examples
+    ///
+    /// ```
+    /// let x = 5;
+    /// assert_eq!(x, 5);
+    /// ```
+    pub fn add(&self, s1: FheString, pattern: &impl FhePattern) -> FheString {
         pattern.push_to(self, s1)
     }
 
@@ -56,7 +61,7 @@ impl StringServerKey {
 
     /// Concatenates a clear character `c` to the end of the encrypted string s1. It consumes s1 and
     /// returns a `FheString`.
-    pub fn add_clear_char(&self, mut s1: FheString, c: char) -> FheString {
+    pub fn add_clear_char(&self, s1: FheString, c: char) -> FheString {
         self.add_encrypted_char(s1, &self.server_encrypt_ascii_char(c))
     }
 
@@ -82,12 +87,11 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test, FheAsciiChar, FheStrLength};
+    use crate::ciphertext::{gen_keys_test, FheStrLength};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{compare_result, test_fhe_add_char_pattern, test_fhe_add_string_pattern};
     use lazy_static::lazy_static;
-    use tfhe::integer::RadixClientKey;
 
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_test();

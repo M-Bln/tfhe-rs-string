@@ -1,8 +1,8 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     pub fn rpadding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
@@ -201,8 +201,8 @@ impl StringServerKey {
         }
         parts.push(empty_string);
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -236,8 +236,8 @@ impl StringServerKey {
         }
         parts.push(empty_string);
         FheSplit {
-            parts: parts,
-            number_parts: number_parts,
+            parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -393,13 +393,12 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.initial_index_rfind(&s.length);
 
-        for n in (0..maximum_number_of_parts).rev() {
+        for _ in (0..maximum_number_of_parts).rev() {
             let (found, start_pattern) =
                 self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
 
@@ -437,7 +436,7 @@ impl StringServerKey {
         let zero = self.create_zero();
         let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
-        let mut found = fhe_false.clone();
+        let mut found;
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
@@ -508,7 +507,7 @@ impl StringServerKey {
         let zero = self.create_zero();
         let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
-        let mut found = fhe_false.clone();
+        let mut found;
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
@@ -573,11 +572,11 @@ impl StringServerKey {
         let zero = self.create_zero();
         let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
-        let mut found = fhe_false.clone();
+        let mut found;
 
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
 
-        for i in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             let start_pattern: RadixCiphertext;
 
             (found, start_pattern) = self.rfind_char_from_final_padding(s, pattern, &end_part);
@@ -617,7 +616,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
@@ -717,7 +715,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
@@ -817,7 +814,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
@@ -842,7 +838,7 @@ impl StringServerKey {
         //     ,
         //     &start_part,
         // )
-        for i in 0..maximum_number_of_parts {
+        for _ in 0..maximum_number_of_parts {
             (found, start_pattern) = self.rfind_char_from_final_padding(s, pattern, &end_part);
 
             let start_part = self.integer_key.cmux_parallelized(
@@ -923,7 +919,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{compare_result, test_fhe_split_char_pattern, test_fhe_split_string_pattern};

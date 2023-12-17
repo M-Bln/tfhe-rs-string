@@ -1,4 +1,4 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
@@ -16,7 +16,6 @@ impl StringServerKey {
 
     pub fn find_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-        let fhe_false: BooleanBlock = self.create_false();
         let fhe_false: BooleanBlock = self.create_false();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (fhe_false, zero),
@@ -64,7 +63,6 @@ impl StringServerKey {
 
     pub fn find_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
@@ -159,8 +157,6 @@ impl StringServerKey {
     }
 
     pub fn connected_rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
-        let zero: RadixCiphertext = self.create_zero();
-        let fhe_false: BooleanBlock = self.create_false();
         let mut index = self.initial_index_rfind(&s.length);
         if pattern.len() == 0 {
             return (self.create_true(), index);
@@ -300,7 +296,6 @@ impl StringServerKey {
 
     pub fn rfind_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
@@ -327,7 +322,6 @@ impl StringServerKey {
         s: &FheString,
         pattern: &FheString,
     ) -> FheOptionInt {
-        let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
         let initial_index = self.initial_index_rfind(&s.length);
         let mut index = initial_index.clone();
@@ -355,7 +349,6 @@ impl StringServerKey {
         pattern: &FheString,
         to: &RadixCiphertext,
     ) -> FheOptionInt {
-        let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
         let mut index = self.initial_index_rfind(&s.length);
         let mut found = fhe_false;
@@ -705,7 +698,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, gen_keys_test};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{compare_result, test_option_index_char_pattern, test_option_index_string_pattern};

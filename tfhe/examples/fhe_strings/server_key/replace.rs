@@ -3,7 +3,6 @@ use crate::integer_arg::FheIntegerArg;
 use crate::pattern::FhePattern;
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
     // pub fn insert_in_fhe_split(&self, fhe_split: &FheSplit, new: &FheString) -> FheString {
@@ -190,15 +189,11 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test, FheAsciiChar, FheStrLength, Padding};
+    use crate::ciphertext::{gen_keys_test, FheAsciiChar, FheStrLength};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
-    use crate::{
-        compare_result, test_fhe_add_char_pattern, test_fhe_string_string_pattern,
-        test_replace_clear_n_string_pattern,
-    };
+    use crate::{compare_result, test_fhe_string_string_pattern};
     use lazy_static::lazy_static;
-    use tfhe::integer::RadixClientKey;
 
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_test();
