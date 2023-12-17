@@ -93,17 +93,17 @@ pub const PARAM_MESSAGE_2_CARRY_2_TEST: ClassicPBSParameters = ClassicPBSParamet
 /// test.
 pub fn gen_keys_test() -> (StringClientKey, StringServerKey) {
     let num_block = 4;
-    match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_TEST, num_block) {
-        (radix_client_key, server_key) => (
-            StringClientKey {
-                integer_key: radix_client_key,
-            },
-            StringServerKey {
-                integer_key: server_key,
-            },
-        ),
-    }
+    let (radix_client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_TEST, num_block);
+    (
+        StringClientKey {
+            integer_key: radix_client_key,
+        },
+        StringServerKey {
+            integer_key: server_key,
+        },
+    )
 }
+
 
 /// Generate a pair (client_key, server_key) with secure cryptographic parameters and NUMBER_BLOCKS
 /// blocks.
@@ -115,31 +115,18 @@ pub fn gen_keys() -> (StringClientKey, StringServerKey) {
 /// number of blocks. Should be at least 4 in order to work with ascii chars. Should be larger than
 /// 4 to works with string of length larger than 8 bits.
 pub fn gen_keys_number_blocks(num_blocks: usize) -> (StringClientKey, StringServerKey) {
-    match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks) {
-        (radix_client_key, server_key) => (
+    let (radix_client_key, server_key) = gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_blocks) ;
+    (
             StringClientKey {
                 integer_key: radix_client_key,
             },
             StringServerKey {
                 integer_key: server_key,
             },
-        ),
-    }
+    )
 }
 
-// pub fn gen_keys_big_int() -> (StringClientKey, StringServerKey) {
-//     let num_block = 8;
-//     match gen_keys_radix(PARAM_MESSAGE_2_CARRY_2_KS_PBS, num_block) {
-//         (radix_client_key, server_key) => (
-//             StringClientKey {
-//                 integer_key: radix_client_key,
-//             },
-//             StringServerKey {
-//                 integer_key: server_key,
-//             },
-//         ),
-//     }
-// }
+
 
 #[cfg(test)]
 mod tests {

@@ -87,7 +87,7 @@ impl StringClientKey {
     /// arguments.
     pub fn encrypt_ascii_vec(
         &self,
-        ascii_vec: &Vec<u8>,
+        ascii_vec: &[u8],
         padding: Padding,
         length: FheStrLength,
     ) -> Result<FheString, ConversionError> {
@@ -106,7 +106,7 @@ impl StringClientKey {
 
     /// Encrypt a single character (encded as u8)
     pub fn encrypt_ascii_char(&self, ascii_char: u8) -> FheAsciiChar {
-        FheAsciiChar(self.integer_key.encrypt(ascii_char as u8))
+        FheAsciiChar(self.integer_key.encrypt(ascii_char))
     }
 
     pub fn decrypt_ascii_char(&self, encrypted_char: &FheAsciiChar) -> u8 {
@@ -114,7 +114,7 @@ impl StringClientKey {
     }
 
     pub fn decrypt_integer(&self, encrypted_int: &RadixCiphertext) -> u32 {
-        self.integer_key.decrypt::<u32>(&encrypted_int)
+        self.integer_key.decrypt::<u32>(encrypted_int)
     }
 
     pub fn encrypt_integer<T: DecomposableInto<u64> + UnsignedNumeric>(
@@ -149,10 +149,10 @@ impl StringClientKey {
                 && current_s_index < s.len()
             {
                 result.push(s.as_bytes()[current_s_index]);
-                current_s_index = current_s_index + 1;
+                current_s_index +=1;
             } else {
                 result.push(0);
-                current_padding_zeros = current_padding_zeros + 1;
+                current_padding_zeros +=1;
             }
         }
         result
