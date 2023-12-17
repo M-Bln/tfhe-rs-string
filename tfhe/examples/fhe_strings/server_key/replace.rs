@@ -172,7 +172,7 @@ impl StringServerKey {
                         self.integer_key.cmux_parallelized(
                             &self
                                 .integer_key
-                                .scalar_le_parallelized(&encrypted_length, i as u32),
+                                .scalar_le_parallelized(encrypted_length, i as u32),
                             &zero,
                             &s.content[i].0,
                         ),

@@ -1,8 +1,8 @@
-use super::ServerKey;
-use crate::shortint::engine::ShortintEngine;
+use super::{CiphertextNoiseDegree, SmartCleaningOperation};
+use crate::core_crypto::algorithms::*;
+use crate::shortint::ciphertext::Degree;
 use crate::shortint::server_key::CheckError;
-use crate::shortint::server_key::CheckError::CarryFull;
-use crate::shortint::Ciphertext;
+use crate::shortint::{Ciphertext, ServerKey};
 
 impl ServerKey {
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -178,9 +178,9 @@ impl ServerKey {
     /// assert_eq!(msg1 + msg2, res);
     /// ```
     pub fn unchecked_add(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_add(ct_left, ct_right).unwrap()
-        })
+        let mut result = ct_left.clone();
+        self.unchecked_add_assign(&mut result, ct_right);
+        result
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -226,9 +226,7 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn unchecked_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.unchecked_add_assign(ct_left, ct_right).unwrap()
-        })
+        unchecked_add_assign(ct_left, ct_right);
     }
 
     /// Verify if ct_left and ct_right can be added together.
@@ -254,9 +252,9 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let can_be_added = sks.is_add_possible(&ct_left, &ct_right);
-    ///
-    /// assert_eq!(can_be_added, true);
+    /// let can_be_added = sks
+    ///     .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+    ///     .unwrap();
     ///
     /// let (cks, sks) = gen_keys(PARAM_MESSAGE_2_CARRY_2_PBS_KS);
     ///
@@ -265,19 +263,26 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Check if we can perform an addition
-    /// let can_be_added = sks.is_add_possible(&ct_left, &ct_right);
-    ///
-    /// assert_eq!(can_be_added, true);
+    /// let can_be_added = sks
+    ///     .is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+    ///     .unwrap();
     /// ```
-    pub fn is_add_possible(&self, ct_left: &Ciphertext, ct_right: &Ciphertext) -> bool {
-        let final_operation_count = ct_left.degree.0 + ct_right.degree.0;
-        final_operation_count <= self.max_degree.0
+    pub fn is_add_possible(
+        &self,
+        ct_left: CiphertextNoiseDegree,
+        ct_right: CiphertextNoiseDegree,
+    ) -> Result<(), CheckError> {
+        self.max_degree.validate(ct_left.degree + ct_right.degree)?;
+
+        self.max_noise_level
+            .validate(ct_left.noise_level + ct_right.noise_level)?;
+        Ok(())
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is returned a _new_ ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned.
+    /// Otherwise a [CheckError] is returned.
     ///
     /// # Example
     ///
@@ -297,11 +302,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let ct_res = sks.checked_add(&ct1, &ct2);
+    /// let ct_res = sks.checked_add(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg + msg);
     ///
@@ -312,11 +314,8 @@ impl ServerKey {
     /// let ct2 = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let ct_res = sks.checked_add(&ct1, &ct2);
+    /// let ct_res = sks.checked_add(&ct1, &ct2).unwrap();
     ///
-    /// assert!(ct_res.is_ok());
-    ///
-    /// let ct_res = ct_res.unwrap();
     /// let clear_res = cks.decrypt(&ct_res);
     /// assert_eq!(clear_res, msg + msg);
     /// ```
@@ -325,18 +324,15 @@ impl ServerKey {
         ct_left: &Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<Ciphertext, CheckError> {
-        if self.is_add_possible(ct_left, ct_right) {
-            let ct_result = self.unchecked_add(ct_left, ct_right);
-            Ok(ct_result)
-        } else {
-            Err(CarryFull)
-        }
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        let ct_result = self.unchecked_add(ct_left, ct_right);
+        Ok(ct_result)
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
     ///
     /// If the operation can be performed, the result is stored in the `ct_left` ciphertext.
-    /// Otherwise [CheckError::CarryFull] is returned, and `ct_left` is not modified.
+    /// Otherwise a [CheckError] is returned, and `ct_left` is not modified.
     ///
     /// # Example
     ///
@@ -356,9 +352,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let res = sks.checked_add_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_add_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg + msg);
@@ -370,9 +364,7 @@ impl ServerKey {
     /// let ct_right = cks.encrypt(msg);
     ///
     /// // Compute homomorphically an addition:
-    /// let res = sks.checked_add_assign(&mut ct_left, &ct_right);
-    ///
-    /// assert!(res.is_ok());
+    /// sks.checked_add_assign(&mut ct_left, &ct_right).unwrap();
     ///
     /// let clear_res = cks.decrypt(&ct_left);
     /// assert_eq!(clear_res, msg + msg);
@@ -382,12 +374,9 @@ impl ServerKey {
         ct_left: &mut Ciphertext,
         ct_right: &Ciphertext,
     ) -> Result<(), CheckError> {
-        if self.is_add_possible(ct_left, ct_right) {
-            self.unchecked_add_assign(ct_left, ct_right);
-            Ok(())
-        } else {
-            Err(CarryFull)
-        }
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())?;
+        self.unchecked_add_assign(ct_left, ct_right);
+        Ok(())
     }
 
     /// Compute homomorphically an addition between two ciphertexts encrypting integer values.
@@ -432,9 +421,27 @@ impl ServerKey {
     /// assert_eq!(msg + msg, two);
     /// ```
     pub fn smart_add(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) -> Ciphertext {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_add(self, ct_left, ct_right).unwrap()
-        })
+        let SmartCleaningOperation {
+            bootstrap_left,
+            bootstrap_right,
+        } = self
+            .binary_smart_op_optimal_cleaning_strategy(ct_left, ct_right, |sk, a, b| {
+                sk.is_add_possible(a, b).is_ok()
+            })
+            .unwrap();
+
+        if bootstrap_left {
+            self.message_extract_assign(ct_left)
+        }
+
+        if bootstrap_right {
+            self.message_extract_assign(ct_right)
+        }
+
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
+
+        self.unchecked_add(ct_left, ct_right)
     }
 
     /// Compute homomorphically an addition between two ciphertexts
@@ -486,8 +493,32 @@ impl ServerKey {
     /// assert_eq!((msg2 + msg1) % modulus, two);
     /// ```
     pub fn smart_add_assign(&self, ct_left: &mut Ciphertext, ct_right: &mut Ciphertext) {
-        ShortintEngine::with_thread_local_mut(|engine| {
-            engine.smart_add_assign(self, ct_left, ct_right).unwrap()
-        })
+        let SmartCleaningOperation {
+            bootstrap_left,
+            bootstrap_right,
+        } = self
+            .binary_smart_op_optimal_cleaning_strategy(ct_left, ct_right, |sk, a, b| {
+                sk.is_add_possible(a, b).is_ok()
+            })
+            .unwrap();
+
+        if bootstrap_left {
+            self.message_extract_assign(ct_left)
+        }
+
+        if bootstrap_right {
+            self.message_extract_assign(ct_right)
+        }
+
+        self.is_add_possible(ct_left.noise_degree(), ct_right.noise_degree())
+            .unwrap();
+
+        self.unchecked_add_assign(ct_left, ct_right);
     }
+}
+
+pub(crate) fn unchecked_add_assign(ct_left: &mut Ciphertext, ct_right: &Ciphertext) {
+    lwe_ciphertext_add_assign(&mut ct_left.ct, &ct_right.ct);
+    ct_left.degree = Degree::new(ct_left.degree.get() + ct_right.degree.get());
+    ct_left.set_noise_level(ct_left.noise_level() + ct_right.noise_level());
 }

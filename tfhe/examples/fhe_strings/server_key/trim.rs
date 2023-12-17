@@ -1,15 +1,28 @@
-use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{ClearOrEncryptedChar, FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
 use crate::client_key::ConversionError;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 pub const ASCII_WHITE_SPACE: u8 = 32;
 
 impl StringServerKey {
-    pub fn create_true(&self) -> RadixCiphertext {
-        self.integer_key
-            .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix(4), 1)
+    pub fn create_true(&self) -> BooleanBlock {
+        BooleanBlock::convert(&self.integer_key
+            .scalar_add_parallelized(&self.integer_key.create_trivial_zero_radix::<RadixCiphertext>(NUMBER_BLOCKS), 1), &self.integer_key)
     }
+
+    pub fn create_false(&self) -> BooleanBlock {
+        BooleanBlock::convert(&self.integer_key.create_trivial_zero_radix::<RadixCiphertext>(4), &self.integer_key)
+    }
+
+    pub fn bool_to_radix(&self, fhe_bool: &BooleanBlock) -> RadixCiphertext {
+	fhe_bool.clone().into_radix::<RadixCiphertext>(NUMBER_BLOCKS, &self.integer_key)
+    }
+
+    pub fn radix_to_bool(&self, radix: &RadixCiphertext) -> BooleanBlock {
+	BooleanBlock::convert(radix, &self.integer_key)
+    }
+    
 
     pub fn create_zero(&self) -> RadixCiphertext {
         self.integer_key.create_trivial_zero_radix(4)
@@ -65,19 +78,12 @@ impl StringServerKey {
         }
     }
 
-    pub fn add_assign_radix_length(
-        &self,
-        length: &mut FheStrLength,
-        encrypted_int: &RadixCiphertext,
-    ) {
-        *length = self.add_radix_length(&length, &encrypted_int);
-    }
 
     pub fn eq_clear_or_encrypted_char(
         &self,
         c: &FheAsciiChar,
         character: &ClearOrEncryptedChar,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match character {
             ClearOrEncryptedChar::Clear(clear_char) => {
                 self.integer_key.scalar_eq_parallelized(&c.0, *clear_char)
@@ -158,11 +164,11 @@ impl StringServerKey {
         let mut result_length: FheStrLength = s.length.clone();
 
         for c in s.content.iter() {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut continue_triming,
                 &self.eq_clear_or_encrypted_char(c, pattern),
             );
-            result_length = self.sub_radix_to_length(&result_length, &continue_triming);
+            result_length = self.sub_radix_to_length(&result_length, &self.bool_to_radix(&continue_triming));
 
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
                 &continue_triming,
@@ -185,8 +191,8 @@ impl StringServerKey {
 
         for c in s.content.iter() {
             self.integer_key
-                .bitand_assign_parallelized(&mut continue_triming, &self.is_ascii_white_space(&c));
-            result_length = self.sub_radix_to_length(&result_length, &continue_triming);
+                .boolean_bitand_assign(&mut continue_triming, &self.is_ascii_white_space(&c));
+            result_length = self.sub_radix_to_length(&result_length, &self.bool_to_radix(&continue_triming));
 
             result_content.push(FheAsciiChar(self.integer_key.cmux_parallelized(
                 &continue_triming,

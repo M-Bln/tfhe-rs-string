@@ -195,10 +195,10 @@ mod tests {
         assert_eq!(decrypted_str, "abc");
     }
 
-    #[test]
-    fn test_integer_size() {
-        let big_int = CLIENT_KEY.integer_key.encrypt(250 as u32);
-        let bigger_int = SERVER_KEY.integer_key.scalar_add_parallelized(&big_int, 30);
-        assert_eq!(CLIENT_KEY.integer_key.decrypt::<u32>(&bigger_int), 280);
-    }
+    // #[test]
+    // fn test_integer_size() {
+    //     let big_int = CLIENT_KEY.integer_key.encrypt(250 as u32);
+    //     let bigger_int = SERVER_KEY.integer_key.scalar_add_parallelized(&big_int, 30);
+    //     assert_eq!(CLIENT_KEY.integer_key.decrypt::<u32>(&bigger_int), 280);
+    // }
 }

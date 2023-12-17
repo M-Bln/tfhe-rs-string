@@ -1,9 +1,9 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext,BooleanBlock};
 
-pub type FheOptionString = (RadixCiphertext, FheString);
+pub type FheOptionString = (BooleanBlock, FheString);
 
 impl StringServerKey {
     pub fn strip_prefix(&self, s: &FheString, prefix: &impl FhePattern) -> FheOptionString {
@@ -33,7 +33,7 @@ impl StringServerKey {
         match s.len() {
             FheStrLength::Clear(0) => {
                 return (
-                    self.create_zero(),
+                    self.create_false(),
                     FheString {
                         content: vec![],
                         length: FheStrLength::Clear(0),
@@ -43,7 +43,7 @@ impl StringServerKey {
             }
             _ if s.content.is_empty() => {
                 return (
-                    self.create_zero(),
+                    self.create_false(),
                     FheString {
                         content: vec![],
                         length: FheStrLength::Clear(0),
@@ -71,7 +71,7 @@ impl StringServerKey {
                 .cmux_parallelized(&is_prefix, &self.create_zero(), &s.content[0].0);
         let mut result_content = vec![FheAsciiChar(radix_first_char)];
         result_content.extend_from_slice(&s.content[1..]);
-        let result_length = self.sub_radix_to_length(s.len(), &is_prefix);
+        let result_length = self.sub_radix_to_length(s.len(), &self.bool_to_radix(&is_prefix));
         let result_padding = match s.padding {
             Padding::None => Padding::Initial,
             Padding::Final => Padding::InitialAndFinal,
@@ -91,10 +91,10 @@ impl StringServerKey {
         let zero = self.create_zero();
         match (&s.length, &prefix.length) {
             (&FheStrLength::Clear(l), &FheStrLength::Clear(l_prefix)) if l_prefix > l => {
-                return (zero, s.clone())
+                return (self.create_false(), s.clone())
             }
             (_, &FheStrLength::Clear(l_prefix)) if l_prefix > s.content.len() => {
-                return (zero, s.clone())
+                return (self.create_false(), s.clone())
             }
             _ => (),
         }
@@ -118,9 +118,9 @@ impl StringServerKey {
     pub fn strip_clear_prefix(&self, s: &FheString, prefix: &str) -> FheOptionString {
         match s.len() {
             FheStrLength::Clear(clear_length) if *clear_length < prefix.len() => {
-                return (self.create_zero(), s.clone())
+                return (self.create_false(), s.clone())
             }
-            _ if s.content.len() < prefix.len() => return (self.create_zero(), s.clone()),
+            _ if s.content.len() < prefix.len() => return (self.create_false(), s.clone()),
             _ => (),
         }
         match s.padding {
@@ -135,7 +135,7 @@ impl StringServerKey {
         prefix: &str,
     ) -> FheOptionString {
         if s.content.len() < prefix.len() {
-            return (self.create_zero(), s.clone());
+            return (self.create_false(), s.clone());
         }
 
         let zero = self.create_zero();
@@ -223,7 +223,7 @@ impl StringServerKey {
         &self,
         string_length: &FheStrLength,
         prefix_length: &FheStrLength,
-        starts_with_prefix: &RadixCiphertext,
+        starts_with_prefix: &BooleanBlock,
     ) -> FheStrLength {
         match (string_length, prefix_length) {
             (ClearOrEncrypted::Clear(str_length), ClearOrEncrypted::Clear(pfx_length)) => {
@@ -267,7 +267,7 @@ impl StringServerKey {
     fn strip_clear_length_encrypted_prefix_content(
         &self,
         content: &[FheAsciiChar],
-        starts_with_prefix: &RadixCiphertext,
+        starts_with_prefix: &BooleanBlock,
         prefix_length: u8,
     ) -> Vec<FheAsciiChar> {
         let mut result: Vec<FheAsciiChar> = Vec::with_capacity(content.len());
@@ -287,14 +287,14 @@ impl StringServerKey {
         &self,
         content: &[FheAsciiChar],
         prefix_content: &[FheAsciiChar],
-        starts_with_prefix: &RadixCiphertext,
+        starts_with_prefix: &BooleanBlock,
         prefix_length: &RadixCiphertext,
     ) -> Vec<FheAsciiChar> {
         let mut result: Vec<FheAsciiChar> = Vec::with_capacity(content.len());
         let overlapping_content_length = std::cmp::min(content.len(), prefix_content.len());
         let zero = self.create_zero();
         for n in 0..overlapping_content_length {
-            let erase = self.integer_key.bitand_parallelized(
+            let erase = self.integer_key.boolean_bitand(
                 starts_with_prefix,
                 &self
                     .integer_key

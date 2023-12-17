@@ -1,9 +1,8 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::client_key::ConversionError;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
     pub fn rpadding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
@@ -196,7 +195,7 @@ impl StringServerKey {
             let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
             parts.push(FheString {
                 padding: Padding::Final,
-                length: ClearOrEncrypted::Encrypted(current_char_non_null),
+                length: ClearOrEncrypted::Encrypted(self.bool_to_radix(&current_char_non_null)),
                 content: vec![c.clone()],
             })
         }
@@ -231,7 +230,7 @@ impl StringServerKey {
             let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
             parts.push(FheString {
                 padding: Padding::Final,
-                length: ClearOrEncrypted::Encrypted(current_char_non_null),
+                length: ClearOrEncrypted::Encrypted(self.bool_to_radix(&current_char_non_null)),
                 content: vec![c.clone()],
             })
         }
@@ -262,7 +261,7 @@ impl StringServerKey {
     //         let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
     //         parts.push(FheString {
     //             padding: Padding::Final,
-    //             length: ClearOrEncrypted::Encrypted(current_char_non_null),
+    //             length: ClearOrEncrypted::Encrypted(self.bool_to_radix(&current_char_non_null)),
     //             content: vec![c.clone()],
     //         })
     //     }
@@ -270,7 +269,7 @@ impl StringServerKey {
     //         let current_char_non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
     //         parts.push(FheString {
     //             padding: Padding::Final,
-    //             length: ClearOrEncrypted::Encrypted(current_char_non_null),
+    //             length: ClearOrEncrypted::Encrypted(self.bool_to_radix(&current_char_non_null)),
     //             content: vec![c.clone()],
     //         })
     //     }
@@ -293,7 +292,7 @@ impl StringServerKey {
     //         _ => s.content.len() + 2,
     //     };
     //     let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-    //     let zero = self.create_zero();
+    //     let zero = self.create_zero(); let fhe_false = self.create_false();
     //     let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
     //     // `start_part` holds the index of the beginning of the current part.
@@ -345,7 +344,7 @@ impl StringServerKey {
     //         _ => s.content.len() + 2,
     //     };
     //     let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-    //     let zero = self.create_zero();
+    //     let zero = self.create_zero(); let fhe_false = self.create_false();
     //     let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
     //     // `start_part` holds the index of the beginning of the current part.
@@ -393,7 +392,7 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
+        let zero = self.create_zero(); let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `end_part` holds the index of the end of the current part.
@@ -405,7 +404,7 @@ impl StringServerKey {
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             let start_part = self.integer_key.cmux_parallelized(
                 &found,
@@ -434,9 +433,9 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
+        let zero = self.create_zero(); let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
-        let mut found = zero.clone();
+        let mut found = fhe_false.clone();
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
@@ -469,7 +468,7 @@ impl StringServerKey {
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             let start_part = self.integer_key.cmux_parallelized(
                 &found,
@@ -504,9 +503,9 @@ impl StringServerKey {
             _ => s.content.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
+        let zero = self.create_zero(); let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
-        let mut found = zero.clone();
+        let mut found = fhe_false.clone();
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
@@ -534,7 +533,7 @@ impl StringServerKey {
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             let start_part = self.integer_key.cmux_parallelized(
                 &found,
@@ -568,9 +567,9 @@ impl StringServerKey {
             _ => s.content.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
+        let zero = self.create_zero(); let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
-        let mut found = zero.clone();
+        let mut found = fhe_false.clone();
 
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
 
@@ -581,7 +580,7 @@ impl StringServerKey {
 
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             let start_part = self.integer_key.cmux_parallelized(
                 &found,
@@ -613,8 +612,8 @@ impl StringServerKey {
             _ => s.content.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(&s); // The result has at least 1 part if s is non-empty 0 otherwise.
+        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
@@ -627,7 +626,7 @@ impl StringServerKey {
 
         let (mut found, mut start_pattern) =
             self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
-        let has_trailing_empty_string = self.integer_key.bitand_parallelized(
+        let has_trailing_empty_string = self.integer_key.boolean_bitand(
             &found,
             &self.integer_key.eq_parallelized(
                 &self.add_length_to_radix(&start_pattern, &pattern.length),
@@ -683,7 +682,7 @@ impl StringServerKey {
             );
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             end_part = self
@@ -712,8 +711,8 @@ impl StringServerKey {
             _ => s.content.len(),
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(&s); // The result has at least 1 part if s is non-empty 0 otherwise.
+        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
@@ -722,7 +721,7 @@ impl StringServerKey {
 
         let (mut found, mut start_pattern) =
             self.rfind_clear_from_final_padding(s, pattern, &end_part);
-        let has_trailing_empty_string = self.integer_key.bitand_parallelized(
+        let has_trailing_empty_string = self.integer_key.boolean_bitand(
             &found,
             &self.integer_key.eq_parallelized(
                 &self
@@ -785,7 +784,7 @@ impl StringServerKey {
             );
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             end_part = self
@@ -811,15 +810,15 @@ impl StringServerKey {
             _ => s.content.len(),
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero();
-        let mut number_parts = self.is_not_empty_encrypted(&s); // The result has at least 1 part if s is non-empty 0 otherwise.
+        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
 
         let (mut found, mut start_pattern) =
             self.rfind_char_from_final_padding(s, pattern, &end_part);
-        let has_trailing_empty_string = self.integer_key.bitand_parallelized(
+        let has_trailing_empty_string = self.integer_key.boolean_bitand(
             &found,
             &self.integer_key.eq_parallelized(
                 &self.integer_key.scalar_add_parallelized(&start_pattern, 1),
@@ -846,7 +845,7 @@ impl StringServerKey {
             );
             // Increment `number_parts` if the pattern is found.
             self.integer_key
-                .add_assign_parallelized(&mut number_parts, &found);
+                .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             end_part = self
@@ -872,7 +871,7 @@ impl StringServerKey {
     //         _ => s.content.len() + 2,
     //     };
     //     let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-    //     let zero = self.create_zero();
+    //     let zero = self.create_zero(); let fhe_false = self.create_false();
     //     let mut number_parts = self.create_n(1); // The result has at least 1 part.
     //     let empty_pattern = self.is_empty_encrypted(&pattern);
 
@@ -896,7 +895,7 @@ impl StringServerKey {
 
     //         // Increment `number_parts` if the pattern is found.
     //         self.integer_key
-    //             .add_assign_parallelized(&mut number_parts, &found);
+    //             .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
 
     //         let start_part = self.integer_key.cmux_parallelized(
     //             &found,

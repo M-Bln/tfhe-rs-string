@@ -1,14 +1,14 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
-    pub fn contains(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn contains(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.is_contained_in(self, s)
     }
 
-    pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
+    pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> BooleanBlock {
         match (s.padding, pattern.padding) {
             (Padding::Anywhere, Padding::Final | Padding::None) => {
                 self.contains_unpadded_string(&self.push_padding_to_end(s), pattern)
@@ -22,12 +22,12 @@ impl StringServerKey {
         }
     }
 
-    pub fn contains_clear_string(&self, s: &FheString, pattern: &str) -> RadixCiphertext {
+    pub fn contains_clear_string(&self, s: &FheString, pattern: &str) -> BooleanBlock {
         match (s.content.len(), pattern.len()) {
             (0, 0) => return self.create_true(),
-            (0, _) => return self.create_zero(),
+            (0, _) => return self.create_false(),
             (string_length, pattern_length) if pattern_length > string_length => {
-                return self.create_zero()
+                return self.create_false()
             }
             _ => (),
         }
@@ -39,29 +39,29 @@ impl StringServerKey {
         }
     }
 
-    fn connected_contains_clear_string(&self, s: &FheString, pattern: &str) -> RadixCiphertext {
-        let mut result = self.create_zero();
+    fn connected_contains_clear_string(&self, s: &FheString, pattern: &str) -> BooleanBlock {
+        let mut result = self.create_false();
         for n in 0..s.content.len() {
             let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
             //let current_match = self.starts_with_vec_clear(&s.content[n..], pattern);
             self.integer_key
-                .bitor_assign_parallelized(&mut result, &current_match);
+                .boolean_bitor_assign(&mut result, &current_match);
         }
         result
     }
 
-    pub fn contains_unpadded_string(&self, s: &FheString, pattern: &FheString) -> RadixCiphertext {
+    pub fn contains_unpadded_string(&self, s: &FheString, pattern: &FheString) -> BooleanBlock {
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return self.create_true(),
             (0, _) => return self.eq_clear_char(&pattern.content[0], 0),
             _ => (),
         }
-        let mut result = self.create_zero();
+        let mut result = self.create_false();
         for n in 0..s.content.len() {
             let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
             //let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
             self.integer_key
-                .bitor_assign_parallelized(&mut result, &current_match);
+                .boolean_bitor_assign(&mut result, &current_match);
         }
         result
     }
@@ -73,17 +73,17 @@ impl StringServerKey {
         &self,
         s: &[FheAsciiChar],
         prefix: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         // First the overlapping content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.len(), prefix.content.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &match prefix.padding {
                     Padding::None => {
                         self.compare_char(&s[n], &prefix.content[n], std::cmp::Ordering::Equal)
                     }
-                    _ => self.integer_key.bitor_parallelized(
+                    _ => self.integer_key.boolean_bitor(
                         &self.compare_char(&s[n], &prefix.content[n], std::cmp::Ordering::Equal),
                         &self
                             .integer_key
@@ -95,7 +95,7 @@ impl StringServerKey {
         // If prefix content size is greater than s content size, check if the extra characters are
         // padding zeros
         if prefix.content.len() > s.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -105,10 +105,10 @@ impl StringServerKey {
         result
     }
 
-    pub fn starts_with_vec_clear(&self, s: &[FheAsciiChar], prefix: &str) -> RadixCiphertext {
+    pub fn starts_with_vec_clear(&self, s: &[FheAsciiChar], prefix: &str) -> BooleanBlock {
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.len(), prefix.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &self.compare_clear_char(&s[n], prefix.as_bytes()[n], std::cmp::Ordering::Equal),
             )
@@ -139,7 +139,7 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -148,7 +148,7 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -158,7 +158,7 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -168,7 +168,7 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
             }
@@ -184,7 +184,7 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -193,7 +193,7 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -203,7 +203,7 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -213,7 +213,7 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
 
@@ -223,7 +223,7 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                    let clear_fhe_result = CLIENT_KEY.decrypt_u8(&fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
 		    assert_eq!(std_result as u8, clear_fhe_result);
 		}
             }

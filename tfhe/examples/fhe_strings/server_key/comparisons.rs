@@ -1,28 +1,27 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::pattern::FhePattern;
-use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString,
+Padding}; use crate::pattern::FhePattern; use
+crate::server_key::StringServerKey; use
+tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
-    pub fn eq(&self, s1: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn eq(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.eq_string(self, s1)
     }
 
-    pub fn ne(&self, s1: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
-        self.integer_key
-            .scalar_eq_parallelized(&pattern.eq_string(self, s1), 0)
+    pub fn ne(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
+	self.integer_key.boolean_bitnot(&pattern.eq_string(self,s1))
     }
 
-    pub fn eq_ignore_case(&self, s1: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn eq_ignore_case(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.eq_ignore_case_string(self, s1)
     }
 
     /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString`s.
     /// Returns an encrypted value of 1 for true, 0 for false.
-    pub fn eq_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn eq_encrypted(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         match (&s1.length, &s2.length) {
             (&FheStrLength::Clear(l1), &FheStrLength::Clear(l2)) if l1 != l2 => {
-                return self.create_zero()
+                return self.create_false()
             }
             _ => (),
         }
@@ -44,10 +43,10 @@ impl StringServerKey {
 
     /// Checks if s1 and s2 encrypt the same string up to case, for s1 and s2 `FheString`s.
     /// Returns an encrypted value of 1 for true.
-    pub fn eq_ignore_case_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn eq_ignore_case_encrypted(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         match (&s1.length, &s2.length) {
             (&FheStrLength::Clear(l1), &FheStrLength::Clear(l2)) if l1 != l2 => {
-                return self.create_zero()
+                return self.create_false()
             }
             _ => (),
         }
@@ -71,14 +70,14 @@ impl StringServerKey {
 
     // /// Checks if s1 encrypts a string which has the string encrypted by `prefix` as a prefix.
     // Returns /// an encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn starts_with_encrypted(&self, s: &FheString, prefix: &FheString) -> RadixCiphertext {
+    // pub fn starts_with_encrypted(&self, s: &FheString, prefix: &FheString) -> BooleanBlock {
     //     // If the prefix is longer than the encrypted string, return false
     //     match (&s.length, &prefix.length) {
     //         (&FheStrLength::Clear(l), &FheStrLength::Clear(l_prefix)) if l_prefix > l => {
-    //             return self.create_zero()
+    //             return self.create_false()
     //         }
     //         (_, &FheStrLength::Clear(l_prefix)) if l_prefix > s.content.len() => {
-    //             return self.create_zero()
+    //             return self.create_false()
     //         }
     //         _ => (),
     //     }
@@ -102,7 +101,7 @@ impl StringServerKey {
 
     // /// Checks if s1 encrypts a string which has the string encrypted by `sufix` as a sufix.
     // Returns /// an encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn ends_with_encrypted(&self, s: &FheString, sufix: &FheString) -> RadixCiphertext {
+    // pub fn ends_with_encrypted(&self, s: &FheString, sufix: &FheString) -> BooleanBlock {
     //     self.starts_with_encrypted(
     //         &self.reverse_string_content(s),
     //         &self.reverse_string_content(sufix),
@@ -111,10 +110,10 @@ impl StringServerKey {
 
     /// Checks if s1 encrypt the string s2, for s1 an FheString and s2 a clear &str.
     /// Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn eq_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
+    pub fn eq_clear(&self, s1: &FheString, s2: &str) -> BooleanBlock {
         match s1.length {
-            FheStrLength::Clear(l1) if l1 != s2.len() => return self.create_zero(),
-            _ if s2.len() > s1.content.len() => return self.create_zero(),
+            FheStrLength::Clear(l1) if l1 != s2.len() => return self.create_false(),
+            _ if s2.len() > s1.content.len() => return self.create_false(),
             _ => (),
         }
         return match s1.padding {
@@ -125,10 +124,10 @@ impl StringServerKey {
 
     /// Checks if the string encrypted by s1 is equal to the clear string s2 up to case. Returns an
     /// encrypted value of 1 for true.
-    pub fn eq_ignore_case_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
+    pub fn eq_ignore_case_clear(&self, s1: &FheString, s2: &str) -> BooleanBlock {
         match s1.length {
-            FheStrLength::Clear(l1) if l1 != s2.len() => return self.create_zero(),
-            _ if s2.len() > s1.content.len() => return self.create_zero(),
+            FheStrLength::Clear(l1) if l1 != s2.len() => return self.create_false(),
+            _ if s2.len() > s1.content.len() => return self.create_false(),
             _ => (),
         }
         return match s1.padding {
@@ -139,10 +138,10 @@ impl StringServerKey {
 
     // /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. Return an
     // /// encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn starts_with_clear(&self, s: &FheString, prefix: &str) -> RadixCiphertext {
+    // pub fn starts_with_clear(&self, s: &FheString, prefix: &str) -> BooleanBlock {
     //     match s.length {
-    //         FheStrLength::Clear(length) if prefix.len() > length => return self.create_zero(),
-    //         _ if prefix.len() > s.content.len() => return self.create_zero(),
+    //         FheStrLength::Clear(length) if prefix.len() > length => return self.create_false(),
+    //         _ if prefix.len() > s.content.len() => return self.create_false(),
     //         _ => (),
     //     }
     //     return match s.padding {
@@ -153,7 +152,7 @@ impl StringServerKey {
 
     // /// Checks if `s1` encrypts a string which has the clear string `sufix` as a sufix. Returns
     // an /// encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn ends_with_clear(&self, s: &FheString, sufix: &str) -> RadixCiphertext {
+    // pub fn ends_with_clear(&self, s: &FheString, sufix: &str) -> BooleanBlock {
     //     self.starts_with_clear(
     //         &self.reverse_string_content(s),
     //         &sufix.chars().rev().collect::<String>(),
@@ -163,11 +162,11 @@ impl StringServerKey {
     /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString` with no initial
     /// padding zeros. Returns an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
-    pub fn eq_no_init_padding(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn eq_no_init_padding(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         // First the content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.content.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &self.compare_char(&s1.content[n], &s2.content[n], std::cmp::Ordering::Equal),
             )
@@ -175,7 +174,7 @@ impl StringServerKey {
 
         // If content sizes mismatch, check if the extra characters are padding zeros
         if s1.content.len() > s2.content.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -183,7 +182,7 @@ impl StringServerKey {
             );
         }
         if s2.content.len() > s1.content.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -200,11 +199,11 @@ impl StringServerKey {
         &self,
         s1: &FheString,
         s2: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         // First the content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.content.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &self.eq_char_ignore_case(&s1.content[n], &s2.content[n]),
             )
@@ -212,7 +211,7 @@ impl StringServerKey {
 
         // If content sizes mismatch, check if the extra characters are padding zeros
         if s1.content.len() > s2.content.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -220,7 +219,7 @@ impl StringServerKey {
             );
         }
         if s2.content.len() > s1.content.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -233,10 +232,10 @@ impl StringServerKey {
     /// Checks if s1 encrypt the string s2, for s1 an `FheString` with no initial padding zeros and
     /// s2 a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
-    pub fn eq_clear_no_init_padding(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
+    pub fn eq_clear_no_init_padding(&self, s1: &FheString, s2: &str) -> BooleanBlock {
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &self.compare_clear_char(
                     &s1.content[n],
@@ -246,7 +245,7 @@ impl StringServerKey {
             )
         }
         if s1.content.len() > s2.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -263,16 +262,16 @@ impl StringServerKey {
         &self,
         s1: &FheString,
         s2: &str,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.len()) {
-            self.integer_key.bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &self.eq_clear_char_ignore_case(&s1.content[n], s2.as_bytes()[n]),
             )
         }
         if s1.content.len() > s2.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -289,11 +288,11 @@ impl StringServerKey {
     //     &self,
     //     s: &FheString,
     //     prefix: &str,
-    // ) -> RadixCiphertext {
+    // ) -> BooleanBlock {
     //     // First the content are compared
     //     let mut result = self.create_true();
     //     for n in 0..std::cmp::min(s.content.len(), prefix.len()) {
-    //         self.integer_key.bitand_assign_parallelized(
+    //         self.integer_key.boolean_bitand_assign(
     //             &mut result,
     //             &self.compare_clear_char(
     //                 &s.content[n],
@@ -310,7 +309,7 @@ impl StringServerKey {
     /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
     /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
     /// value of 0 for false.
-    pub fn le(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn le(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         // The permutation le <-> ge is to be consistent with argument order
         pattern.ge_string(self, s)
     }
@@ -320,7 +319,7 @@ impl StringServerKey {
     /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
     /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
     /// value of 0 for false.
-    pub fn ge(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn ge(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         // The permutation le <-> ge is to be consistent with argument order
         pattern.le_string(self, s)
     }
@@ -329,7 +328,7 @@ impl StringServerKey {
     /// Checks if the string encrypted by s1 is less than or equal to the string encrypted by s2.
     /// The order is the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn le_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn le_encrypted(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         self.compare(s1, s2, std::cmp::Ordering::Less)
     }
 
@@ -337,7 +336,7 @@ impl StringServerKey {
     /// Check if the string encrypted by s1 is greater or equal to the string encrypted by s2.
     /// The order is the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn ge_encrypted(&self, s1: &FheString, s2: &FheString) -> RadixCiphertext {
+    pub fn ge_encrypted(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         self.compare(s1, s2, std::cmp::Ordering::Greater)
     }
 
@@ -345,7 +344,7 @@ impl StringServerKey {
     /// Check if the string encrypted by s1 is less than or equal to the clear string s2.
     /// The order is the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn le_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
+    pub fn le_clear(&self, s1: &FheString, s2: &str) -> BooleanBlock {
         self.compare_clear(s1, s2, std::cmp::Ordering::Less)
     }
 
@@ -353,7 +352,7 @@ impl StringServerKey {
     /// Check if the string encrypted by s1 is greater or equal to the clear string s2.
     /// The order is the lexicographic order for bytes.
     /// Return an encrypted value of 1 for true and an encrypted value of 0 for false.
-    pub fn ge_clear(&self, s1: &FheString, s2: &str) -> RadixCiphertext {
+    pub fn ge_clear(&self, s1: &FheString, s2: &str) -> BooleanBlock {
         self.compare_clear(s1, s2, std::cmp::Ordering::Greater)
     }
 
@@ -373,7 +372,7 @@ impl StringServerKey {
         s1: &FheString,
         s2: &FheString,
         operator: std::cmp::Ordering,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match (s1.padding, s2.padding) {
             (Padding::None | Padding::Final, Padding::None | Padding::Final) => {
                 self.compare_no_init_padding(s1, s2, operator)
@@ -406,7 +405,7 @@ impl StringServerKey {
         s1: &FheString,
         s2: &str,
         operator: std::cmp::Ordering,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         return match s1.padding {
             Padding::None | Padding::Final => self.compare_clear_no_init_padding(s1, s2, operator),
             _ => self.compare_clear_no_init_padding(&self.push_padding_to_end(s1), s2, operator),
@@ -419,33 +418,33 @@ impl StringServerKey {
         s1: &FheString,
         s2: &FheString,
         operator: std::cmp::Ordering,
-    ) -> RadixCiphertext {
-        let mut result = self.create_zero();
+    ) -> BooleanBlock {
+        let mut result = self.create_false();
         let mut equal_up_to_n_minus_1 = self.create_true();
         let mut equal_up_to_n = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.content.len()) {
-            equal_up_to_n = self.integer_key.bitand_parallelized(
+            equal_up_to_n = self.integer_key.boolean_bitand(
                 &equal_up_to_n_minus_1,
                 &self.compare_char(&s1.content[n], &s2.content[n], std::cmp::Ordering::Equal),
             );
-            result = self.integer_key.cmux_parallelized(
-                &self.integer_key.bitand_parallelized(
+            result = self.radix_to_bool(&self.integer_key.cmux_parallelized(
+                &self.integer_key.boolean_bitand(
                     &equal_up_to_n_minus_1,
-                    &self.integer_key.bitnot_parallelized(&equal_up_to_n),
+                    &self.integer_key.boolean_bitnot(&equal_up_to_n),
                 ),
-                &self.compare_char(&s1.content[n], &s2.content[n], operator),
-                &result,
-            );
+                &self.bool_to_radix(&self.compare_char(&s1.content[n], &s2.content[n], operator)),
+                &self.bool_to_radix(&result),
+            ));
             equal_up_to_n_minus_1 = equal_up_to_n.clone();
         }
         if s1.content.len() > s2.content.len() {
             return match operator {
                 std::cmp::Ordering::Greater => {
-                    self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
+                    self.integer_key.boolean_bitor(&result, &equal_up_to_n)
                 }
-                _ => self.integer_key.bitor_parallelized(
+                _ => self.integer_key.boolean_bitor(
                     &result,
-                    &self.integer_key.bitand_parallelized(
+                    &self.integer_key.boolean_bitand(
                         &equal_up_to_n,
                         &self
                             .integer_key
@@ -457,11 +456,11 @@ impl StringServerKey {
         if s2.content.len() > s1.content.len() {
             return match operator {
                 std::cmp::Ordering::Less => {
-                    self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
+                    self.integer_key.boolean_bitor(&result, &equal_up_to_n)
                 }
-                _ => self.integer_key.bitor_parallelized(
+                _ => self.integer_key.boolean_bitor(
                     &result,
-                    &self.integer_key.bitand_parallelized(
+                    &self.integer_key.boolean_bitand(
                         &equal_up_to_n,
                         &self
                             .integer_key
@@ -470,7 +469,7 @@ impl StringServerKey {
                 ),
             };
         }
-        self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
+        self.integer_key.boolean_bitor(&result, &equal_up_to_n)
     }
 
     /// Implementation of compare_clear, for FheString without initial padding zeros.
@@ -479,12 +478,12 @@ impl StringServerKey {
         s1: &FheString,
         s2: &str,
         operator: std::cmp::Ordering,
-    ) -> RadixCiphertext {
-        let mut result = self.create_zero();
+    ) -> BooleanBlock {
+        let mut result = self.create_false();
         let mut equal_up_to_n_minus_1 = self.create_true();
         let mut equal_up_to_n = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.len()) {
-            equal_up_to_n = self.integer_key.bitand_parallelized(
+            equal_up_to_n = self.integer_key.boolean_bitand(
                 &equal_up_to_n_minus_1,
                 &self.compare_clear_char(
                     &s1.content[n],
@@ -492,24 +491,24 @@ impl StringServerKey {
                     std::cmp::Ordering::Equal,
                 ),
             );
-            result = self.integer_key.cmux_parallelized(
-                &self.integer_key.bitand_parallelized(
+            result = self.radix_to_bool(&self.integer_key.cmux_parallelized(
+                &self.integer_key.boolean_bitand(
                     &equal_up_to_n_minus_1,
-                    &self.integer_key.bitnot_parallelized(&equal_up_to_n),
+                    &self.integer_key.boolean_bitnot(&equal_up_to_n),
                 ),
-                &self.compare_clear_char(&s1.content[n], s2.as_bytes()[n], operator),
-                &result,
-            );
+                &self.bool_to_radix(&self.compare_clear_char(&s1.content[n], s2.as_bytes()[n], operator)),
+                &self.bool_to_radix(&result),
+            ));
             equal_up_to_n_minus_1 = equal_up_to_n.clone();
         }
         if s1.content.len() > s2.len() {
             return match operator {
                 std::cmp::Ordering::Greater => {
-                    self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
+                    self.integer_key.boolean_bitor(&result, &equal_up_to_n)
                 }
-                _ => self.integer_key.bitor_parallelized(
+                _ => self.integer_key.boolean_bitor(
                     &result,
-                    &self.integer_key.bitand_parallelized(
+                    &self.integer_key.boolean_bitand(
                         &equal_up_to_n,
                         &self
                             .integer_key
@@ -521,12 +520,12 @@ impl StringServerKey {
         if s2.len() > s1.content.len() {
             return match operator {
                 std::cmp::Ordering::Less => {
-                    self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
+                    self.integer_key.boolean_bitor(&result, &equal_up_to_n)
                 }
                 _ => result,
             };
         }
-        self.integer_key.bitor_parallelized(&result, &equal_up_to_n)
+        self.integer_key.boolean_bitor(&result, &equal_up_to_n)
     }
 
     /// Compares the encrypted character c1 and the encrypted char c2 with the operator operator.
@@ -544,7 +543,7 @@ impl StringServerKey {
         c1: &FheAsciiChar,
         c2: &FheAsciiChar,
         operator: std::cmp::Ordering,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match operator {
             std::cmp::Ordering::Equal => self.integer_key.eq_parallelized(&c1.0, &c2.0),
             std::cmp::Ordering::Less => self.integer_key.le_parallelized(&c1.0, &c2.0),
@@ -552,11 +551,11 @@ impl StringServerKey {
         }
     }
 
-    pub fn eq_char(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> RadixCiphertext {
+    pub fn eq_char(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> BooleanBlock {
         self.integer_key.eq_parallelized(&c1.0, &c2.0)
     }
 
-    pub fn eq_clear_char(&self, c1: &FheAsciiChar, c2: u8) -> RadixCiphertext {
+    pub fn eq_clear_char(&self, c1: &FheAsciiChar, c2: u8) -> BooleanBlock {
         self.integer_key.scalar_eq_parallelized(&c1.0, c2)
     }
 
@@ -574,7 +573,7 @@ impl StringServerKey {
         c: &FheAsciiChar,
         scalar: u8,
         operator: std::cmp::Ordering,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         match operator {
             std::cmp::Ordering::Equal => self.integer_key.scalar_eq_parallelized(&c.0, scalar),
             std::cmp::Ordering::Less => self.integer_key.scalar_le_parallelized(&c.0, scalar),
@@ -584,7 +583,7 @@ impl StringServerKey {
 
     /// Compare the encrypted character c1 and the encryted char c2 ignoring case. Return an
     /// encrypted value of 1 if they are equal up to case and an encrypted value of 0 otherwise.
-    pub fn eq_char_ignore_case(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> RadixCiphertext {
+    pub fn eq_char_ignore_case(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> BooleanBlock {
         self.compare_char(
             &self.to_lowercase_char(&c1),
             &self.to_lowercase_char(&c2),
@@ -594,7 +593,7 @@ impl StringServerKey {
 
     /// Compare the encrypted character c1 and the encryted char c2 ignoring case. Return an
     /// encrypted value of 1 if they are equal up to case and an encrypted value of 0 otherwise.
-    pub fn eq_clear_char_ignore_case(&self, c: &FheAsciiChar, clear_char: u8) -> RadixCiphertext {
+    pub fn eq_clear_char_ignore_case(&self, c: &FheAsciiChar, clear_char: u8) -> BooleanBlock {
         let lowercase_clear_char: u8 = if clear_char > 64 && clear_char < 91 {
             clear_char + 32
         } else {
@@ -748,7 +747,7 @@ mod tests {
     //         .encrypt_ascii_vec(
     //             &vec![0, 0],
     //             Padding::InitialAndFinal,
-    //             FheStrLength::Encrypted(SERVER_KEY.create_zero()),
+    //             FheStrLength::Encrypted(SERVER_KEY.create_false()),
     //         )
     //         .unwrap();
 

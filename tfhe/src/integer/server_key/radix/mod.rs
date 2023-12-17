@@ -14,7 +14,7 @@ use super::ServerKey;
 use crate::integer::block_decomposition::DecomposableInto;
 use crate::integer::ciphertext::{IntegerRadixCiphertext, RadixCiphertext};
 use crate::integer::encryption::encrypt_words_radix_impl;
-use crate::integer::SignedRadixCiphertext;
+use crate::integer::{BooleanBlock, SignedRadixCiphertext};
 
 #[cfg(test)]
 mod tests;
@@ -25,7 +25,7 @@ impl ServerKey {
         T: IntegerRadixCiphertext,
     {
         for block in ctxt.blocks_mut() {
-            self.key.create_trivial_assign(block, 0)
+            self.key.create_trivial_assign(block, 0);
         }
     }
 
@@ -58,6 +58,10 @@ impl ServerKey {
         }
 
         T::from_blocks(vec_res)
+    }
+
+    pub fn create_trivial_boolean_block(&self, value: bool) -> BooleanBlock {
+        BooleanBlock::new_unchecked(self.key.create_trivial(u64::from(value)))
     }
 
     /// Create a trivial radix ciphertext
@@ -206,7 +210,7 @@ impl ServerKey {
     ) {
         let block_trivial_zero = self.key.create_trivial(0);
         ct.blocks
-            .resize(ct.blocks.len() + num_blocks, block_trivial_zero)
+            .resize(ct.blocks.len() + num_blocks, block_trivial_zero);
     }
 
     /// Append trivial zero MSB blocks to an existing [`RadixCiphertext`] and returns the result as

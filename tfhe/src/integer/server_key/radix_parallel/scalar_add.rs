@@ -1,8 +1,95 @@
-use crate::integer::block_decomposition::DecomposableInto;
+use crate::core_crypto::prelude::{SignedNumeric, UnsignedNumeric};
+use crate::integer::block_decomposition::{BlockDecomposer, DecomposableInto};
 use crate::integer::ciphertext::IntegerRadixCiphertext;
-use crate::integer::ServerKey;
+use crate::integer::{BooleanBlock, RadixCiphertext, ServerKey, SignedRadixCiphertext};
 
 impl ServerKey {
+    pub fn unsigned_overflowing_scalar_add_assign_parallelized<Scalar>(
+        &self,
+        lhs: &mut RadixCiphertext,
+        scalar: Scalar,
+    ) -> BooleanBlock
+    where
+        Scalar: UnsignedNumeric + DecomposableInto<u8>,
+    {
+        if !lhs.block_carries_are_empty() {
+            self.full_propagate_parallelized(lhs);
+        }
+
+        self.unchecked_scalar_add_assign(lhs, scalar);
+        let overflowed = self.unsigned_overflowing_propagate_addition_carry(lhs);
+
+        let num_scalar_block =
+            BlockDecomposer::with_early_stop_at_zero(scalar, self.key.message_modulus.0.ilog2())
+                .count();
+
+        if num_scalar_block > lhs.blocks.len() {
+            // Scalar has more blocks so addition counts as overflowing
+            BooleanBlock::new_unchecked(self.key.create_trivial(1))
+        } else {
+            overflowed
+        }
+    }
+
+    pub fn unsigned_overflowing_scalar_add_parallelized<Scalar>(
+        &self,
+        lhs: &RadixCiphertext,
+        scalar: Scalar,
+    ) -> (RadixCiphertext, BooleanBlock)
+    where
+        Scalar: UnsignedNumeric + DecomposableInto<u8>,
+    {
+        let mut result = lhs.clone();
+        let overflowed =
+            self.unsigned_overflowing_scalar_add_assign_parallelized(&mut result, scalar);
+        (result, overflowed)
+    }
+
+    pub fn signed_overflowing_scalar_add_parallelized<Scalar>(
+        &self,
+        lhs: &SignedRadixCiphertext,
+        scalar: Scalar,
+    ) -> (SignedRadixCiphertext, BooleanBlock)
+    where
+        Scalar: SignedNumeric + DecomposableInto<u64>,
+    {
+        let mut tmp_lhs;
+        let lhs = if lhs.block_carries_are_empty() {
+            lhs
+        } else {
+            tmp_lhs = lhs.clone();
+            self.full_propagate_parallelized(&mut tmp_lhs);
+            &tmp_lhs
+        };
+
+        // To keep the code simple we transform the scalar into a trivial
+        // performances wise this won't have much impact as all the cost is
+        // in the carry propagation
+        let trivial: SignedRadixCiphertext = self.create_trivial_radix(scalar, lhs.blocks.len());
+        let (result, overflowed) = self.signed_overflowing_add_parallelized(lhs, &trivial);
+
+        let mut extra_scalar_block_iter =
+            BlockDecomposer::new(scalar, self.key.message_modulus.0.ilog2())
+                .iter_as::<u64>()
+                .skip(lhs.blocks.len());
+
+        let extra_blocks_have_correct_value = if scalar < Scalar::ZERO {
+            extra_scalar_block_iter.all(|block| block == (self.message_modulus().0 as u64 - 1))
+        } else {
+            extra_scalar_block_iter.all(|block| block == 0)
+        };
+
+        if extra_blocks_have_correct_value {
+            (result, overflowed)
+        } else {
+            // Scalar has more blocks so addition counts as overflowing
+            (
+                result,
+                BooleanBlock::new_unchecked(self.key.create_trivial(1)),
+            )
+        }
+    }
+
     /// Computes homomorphically the addition of ciphertext with a scalar.
     ///
     /// The result is returned in a new ciphertext.
@@ -34,10 +121,10 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
-        if !self.is_scalar_add_possible(ct, scalar) {
+        if self.is_scalar_add_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
         }
-        assert!(self.is_scalar_add_possible(ct, scalar));
+        self.is_scalar_add_possible(ct, scalar).unwrap();
         self.unchecked_scalar_add(ct, scalar)
     }
 
@@ -72,10 +159,10 @@ impl ServerKey {
         Scalar: DecomposableInto<u8>,
         T: IntegerRadixCiphertext,
     {
-        if !self.is_scalar_add_possible(ct, scalar) {
+        if self.is_scalar_add_possible(ct, scalar).is_err() {
             self.full_propagate_parallelized(ct);
         }
-        assert!(self.is_scalar_add_possible(ct, scalar));
+        self.is_scalar_add_possible(ct, scalar).unwrap();
         self.unchecked_scalar_add_assign(ct, scalar);
     }
 
@@ -170,7 +257,7 @@ impl ServerKey {
 
         if self.is_eligible_for_parallel_single_carry_propagation(ct) {
             self.unchecked_scalar_add_assign(ct, scalar);
-            self.propagate_single_carry_parallelized_low_latency(ct);
+            let _carry = self.propagate_single_carry_parallelized_low_latency(ct);
         } else {
             self.unchecked_scalar_add_assign(ct, scalar);
             self.full_propagate_parallelized(ct);

@@ -1,11 +1,11 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{RadixCiphertext, BooleanBlock};
 
 impl StringServerKey {
     /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.
-    pub fn starts_with(&self, s: &FheString, pattern: &impl FhePattern) -> RadixCiphertext {
+    pub fn starts_with(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.is_prefix_of_string(self, s)
     }
 
@@ -16,11 +16,11 @@ impl StringServerKey {
         &self,
         s: &FheString,
         prefix: &FheString,
-    ) -> RadixCiphertext {
+    ) -> BooleanBlock {
         // First the overlapping contents are compared.
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s.content.len(), prefix.content.len()) {
-            self.integer_key.unchecked_bitand_assign_parallelized(
+            self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &match prefix.padding {
                     // Padding is either None or Final.
@@ -29,7 +29,7 @@ impl StringServerKey {
                         &prefix.content[n],
                         std::cmp::Ordering::Equal,
                     ),
-                    _ => self.integer_key.unchecked_bitor_parallelized(
+                    _ => self.integer_key.boolean_bitor(
                         &self.compare_char(
                             &s.content[n],
                             &prefix.content[n],
@@ -46,7 +46,7 @@ impl StringServerKey {
         // If prefix content size is greater than s content size, check if the extra characters are
         // padding zeros.
         if prefix.content.len() > s.content.len() {
-            return self.integer_key.bitand_parallelized(
+            return self.integer_key.boolean_bitand(
                 &result,
                 &self
                     .integer_key
@@ -87,12 +87,12 @@ mod tests {
             .unwrap();
         let fhe_starts_with_encrypted = server_key.starts_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
-            client_key.decrypt_u8(&fhe_starts_with_encrypted),
+            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
             std_starts_with as u8
         );
         let fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
-            client_key.decrypt_u8(&fhe_starts_with_clear),
+            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_clear)),
             std_starts_with as u8
         );
     }
@@ -124,24 +124,24 @@ mod tests {
         let mut fhe_starts_with_encrypted =
             server_key.starts_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
-            client_key.decrypt_u8(&fhe_starts_with_encrypted),
+            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
             std_starts_with as u8
         );
         let mut fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
-            client_key.decrypt_u8(&fhe_starts_with_clear),
+            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_clear)),
             std_starts_with as u8
         );
 
         encrypted_s = client_key.encrypt_str_padding(s, string_padding).unwrap();
         fhe_starts_with_encrypted = server_key.starts_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
-            client_key.decrypt_u8(&fhe_starts_with_encrypted),
+            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
             std_starts_with as u8
         );
         let mut fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
-            client_key.decrypt_u8(&fhe_starts_with_clear),
+            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_starts_with_clear)),
             std_starts_with as u8
         );
     }

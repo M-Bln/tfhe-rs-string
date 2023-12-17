@@ -3,7 +3,7 @@ use crate::client_key::ConversionError;
 use crate::integer_arg::FheIntegerArg;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
-use tfhe::integer::RadixCiphertext;
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub type ResultFheString = (RadixCiphertext, FheString);
 
@@ -14,24 +14,24 @@ pub struct FheSplit {
 }
 
 impl StringServerKey {
-    pub fn is_ascii_white_space(&self, c: &FheAsciiChar) -> RadixCiphertext {
-        let is_tab_feed_return = self.integer_key.bitand_parallelized(
+    pub fn is_ascii_white_space(&self, c: &FheAsciiChar) -> BooleanBlock {
+        let is_tab_feed_return = self.integer_key.boolean_bitand(
             &self.integer_key.scalar_ge_parallelized(&c.0, 9),
             &self.integer_key.scalar_le_parallelized(&c.0, 13),
         );
         let is_space = self.integer_key.scalar_eq_parallelized(&c.0, 32);
         self.integer_key
-            .bitor_parallelized(&is_tab_feed_return, &is_space)
+            .boolean_bitor(&is_tab_feed_return, &is_space)
     }
 
-    pub fn is_not_ascii_white_space(&self, c: &FheAsciiChar) -> RadixCiphertext {
-        let is_not_tab_feed_return = self.integer_key.bitor_parallelized(
+    pub fn is_not_ascii_white_space(&self, c: &FheAsciiChar) -> BooleanBlock {
+        let is_not_tab_feed_return = self.integer_key.boolean_bitor(
             &self.integer_key.scalar_lt_parallelized(&c.0, 9),
             &self.integer_key.scalar_gt_parallelized(&c.0, 13),
         );
         let is_not_space = self.integer_key.scalar_ne_parallelized(&c.0, 32);
         self.integer_key
-            .bitand_parallelized(&is_not_tab_feed_return, &is_not_space)
+            .boolean_bitand(&is_not_tab_feed_return, &is_not_space)
     }
 
     pub fn index_first_non_white_nor_null(
@@ -40,20 +40,20 @@ impl StringServerKey {
         from: &RadixCiphertext,
     ) -> RadixCiphertext {
         let mut result = self.create_zero();
-        let mut found = self.create_zero();
+        let mut found = self.create_false();
         for (i, c) in s.content.iter().enumerate() {
             let in_range = self.integer_key.scalar_le_parallelized(from, i as u32);
             let non_white = self.is_not_ascii_white_space(c);
             let non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
-            let content_in_range = self.integer_key.bitand_parallelized(
-                &self.integer_key.bitand_parallelized(&in_range, &non_white),
+            let content_in_range = self.integer_key.boolean_bitand(
+                &self.integer_key.boolean_bitand(&in_range, &non_white),
                 &non_null,
             );
             self.integer_key
-                .bitor_assign_parallelized(&mut found, &content_in_range);
+                .boolean_bitor_assign(&mut found, &content_in_range);
             self.integer_key.add_assign_parallelized(
                 &mut result,
-                &self.integer_key.scalar_ne_parallelized(&found, 1),
+                &self.bool_to_radix(&self.integer_key.boolean_bitnot(&found)),
             )
         }
         result
@@ -62,25 +62,25 @@ impl StringServerKey {
     pub fn index_end_chunk(&self, s: &FheString, from: &RadixCiphertext) -> RadixCiphertext {
         let zero = self.create_zero();
         let mut result = zero.clone();
-        let mut found = zero;
+        let mut found = self.create_false();
         for (i, c) in s.content.iter().enumerate() {
             let in_range = self.integer_key.scalar_le_parallelized(from, i as u32);
             let is_white = self.is_ascii_white_space(c);
             //let non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
-            let is_white_in_range = &self.integer_key.bitand_parallelized(&in_range, &is_white);
+            let is_white_in_range = &self.integer_key.boolean_bitand(&in_range, &is_white);
 
-            // self.integer_key.bitand_parallelized(
-            // 	&self.integer_key.bitand_parallelized(
+            // self.integer_key.boolean_bitand(
+            // 	&self.integer_key.boolean_bitand(
             // 	    &in_range,
             // 	    &non_white,
             // 	),
             // 	&non_null,
             // );
             self.integer_key
-                .bitor_assign_parallelized(&mut found, &is_white_in_range);
+                .boolean_bitor_assign(&mut found, &is_white_in_range);
             self.integer_key.add_assign_parallelized(
                 &mut result,
-                &self.integer_key.scalar_ne_parallelized(&found, 1),
+                &self.bool_to_radix(&self.integer_key.boolean_bitnot(&found)),
             );
         }
         result
@@ -105,33 +105,33 @@ impl StringServerKey {
         let mut start_chunk = self.create_zero();
         let mut end_chunk = self.create_zero();
         let mut prev_is_not_content_in_range = self.create_true();
-        let mut prev_non_white_and_in_range = self.create_zero();
+        let mut prev_non_white_and_in_range = self.create_false();
         for (i, c) in s.content.iter().enumerate() {
             let in_range = self.integer_key.scalar_le_parallelized(from, i as u32);
             let non_white = self.is_not_ascii_white_space(c);
             let non_white_and_in_range =
-                self.integer_key.bitand_parallelized(&non_white, &in_range);
-            let is_content_in_range = self.integer_key.bitand_parallelized(
+                self.integer_key.boolean_bitand(&non_white, &in_range);
+            let is_content_in_range = self.integer_key.boolean_bitand(
                 &non_white_and_in_range,
                 &self.integer_key.scalar_ne_parallelized(&c.0, 0),
             );
 
             let first_content_in_range = self
                 .integer_key
-                .bitand_parallelized(&is_content_in_range, &prev_is_not_content_in_range);
+                .boolean_bitand(&is_content_in_range, &prev_is_not_content_in_range);
 
-            let end_non_white_in_range = self.integer_key.bitand_parallelized(
+            let end_non_white_in_range = self.integer_key.boolean_bitand(
                 &prev_non_white_and_in_range,
-                &self.integer_key.scalar_ne_parallelized(&non_white, 1),
+                &self.integer_key.boolean_bitnot(&non_white),
             );
 
             prev_is_not_content_in_range = self
                 .integer_key
-                .scalar_ne_parallelized(&is_content_in_range, 1);
+                .boolean_bitnot(&is_content_in_range);
             prev_non_white_and_in_range = non_white_and_in_range;
 
             start_chunk = self.integer_key.cmux_parallelized(
-                &self.integer_key.bitand_parallelized(
+                &self.integer_key.boolean_bitand(
                     &first_content_in_range,
                     &self.integer_key.scalar_eq_parallelized(&start_chunk, 0),
                 ),
@@ -140,7 +140,7 @@ impl StringServerKey {
             );
 
             end_chunk = self.integer_key.cmux_parallelized(
-                &self.integer_key.bitand_parallelized(
+                &self.integer_key.boolean_bitand(
                     &end_non_white_in_range,
                     &self.integer_key.scalar_eq_parallelized(&end_chunk, 0),
                 ),
@@ -149,7 +149,7 @@ impl StringServerKey {
             );
         }
         end_chunk = self.integer_key.cmux_parallelized(
-            &self.integer_key.bitand_parallelized(
+            &self.integer_key.boolean_bitand(
                 &prev_non_white_and_in_range,
                 &self.integer_key.scalar_eq_parallelized(&end_chunk, 0),
             ),
@@ -192,7 +192,7 @@ impl StringServerKey {
             // Count the chunk one is found (i.e. if it is a non empty range)
             self.integer_key.add_assign_parallelized(
                 &mut number_parts,
-                &self.integer_key.ne_parallelized(&start_chunk, &end_chunk),
+                &self.bool_to_radix(&self.integer_key.ne_parallelized(&start_chunk, &end_chunk)),
             );
 
             parts.push(self.content_slice(s, &start_chunk, &end_chunk));
@@ -215,7 +215,7 @@ impl StringServerKey {
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         for (n, c) in s.content.iter().enumerate() {
             // Check if the index `n` is in the range `start`-`end`.
-            let in_range: RadixCiphertext = self.integer_key.bitand_parallelized(
+            let in_range: BooleanBlock = self.integer_key.boolean_bitand(
                 &self.integer_key.scalar_le_parallelized(start, n as u64),
                 &self.integer_key.scalar_gt_parallelized(end, n as u64),
             );
@@ -245,7 +245,7 @@ impl StringServerKey {
         for c in content {
             self.integer_key.add_assign_parallelized(
                 &mut result,
-                &self.integer_key.scalar_ne_parallelized(&c.0, 0),
+                &self.bool_to_radix(&self.integer_key.scalar_ne_parallelized(&c.0, 0)),
             )
         }
         FheStrLength::Encrypted(result)

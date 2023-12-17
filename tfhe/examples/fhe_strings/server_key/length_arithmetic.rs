@@ -43,6 +43,16 @@ impl StringServerKey {
         }
     }
 
+    
+    pub fn add_assign_radix_length(
+        &self,
+        length: &mut FheStrLength,
+        encrypted_int: &RadixCiphertext,
+    ) {
+        *length = self.add_radix_length(&length, &encrypted_int);
+    }
+
+
     /// Substracts an encrypted integer n to the length of an encrypted string and returns an
     /// `FheStrLength`.
     pub fn sub_radix_to_length(
