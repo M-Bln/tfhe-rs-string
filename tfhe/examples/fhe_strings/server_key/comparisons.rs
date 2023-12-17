@@ -4,17 +4,96 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::BooleanBlock;
 
 impl StringServerKey {
+    /// Check if the string encrypted by s1 is the same as pattern. Works with pattern clear string
+    /// or encrypted string. Return an encrypted boolean
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("Abc").unwrap();
+    /// let encrypted_str2 = client_key.encrypt_str("Abc").unwrap();
+    /// let result = server_key.eq(&encrypted_str, &encrypted_str2);
+    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 1);
+    /// ```
     pub fn eq(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.eq_string(self, s1)
     }
 
+    /// Check if the string encrypted by s1 is not equal to the pattern. Works with pattern clear
+    /// string or encrypted string. Return an encrypted boolean
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("Abc").unwrap();
+    /// let encrypted_str2 = client_key.encrypt_str("Abc").unwrap();
+    /// let result = server_key.ne(&encrypted_str, &encrypted_str2);
+    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 0);
+    /// ```
     pub fn ne(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         self.integer_key
             .boolean_bitnot(&pattern.eq_string(self, s1))
     }
 
+    /// Check if the string encrypted by s1 is not equal to the pattern. Works with pattern clear
+    /// string or encrypted string. Return an encrypted boolean
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
+    /// let encrypted_str2 = client_key.encrypt_str("AbC").unwrap();
+    /// let result = server_key.eq_ignore_case(&encrypted_str, &encrypted_str2);
+    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 1);
+    /// ```
     pub fn eq_ignore_case(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.eq_ignore_case_string(self, s1)
+    }
+
+    /// Less or equal (<=).
+    /// Checks if the string encrypted by s1 is less than or equal to the pattern (clear or
+    /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
+    /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
+    /// value of 0 for false.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
+    /// let encrypted_str2 = client_key.encrypt_str("bce").unwrap();
+    /// let result = server_key.le(&encrypted_str, &encrypted_str2);
+    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 1);
+    /// ```
+    pub fn le(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
+        // The permutation le <-> ge is to be consistent with argument order
+        pattern.ge_string(self, s)
+    }
+
+    /// Greater or equal (>=).
+    /// Checks if the string encrypted by s1 is greater than or equal to the pattern (clear or
+    /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
+    /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
+    /// value of 0 for false.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
+    /// let encrypted_str2 = client_key.encrypt_str("bce").unwrap();
+    /// let result = server_key.ge(&encrypted_str, &encrypted_str2);
+    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 0);
+    /// ```
+    pub fn ge(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
+        // The permutation le <-> ge is to be consistent with argument order
+        pattern.le_string(self, s)
     }
 
     /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString`s.
@@ -26,7 +105,7 @@ impl StringServerKey {
             }
             _ => (),
         }
-
+        // Push padding to the end if necessary
         match (s1.padding, s2.padding) {
             (Padding::None | Padding::Final, Padding::None | Padding::Final) => {
                 self.eq_no_init_padding(s1, s2)
@@ -69,46 +148,6 @@ impl StringServerKey {
         }
     }
 
-    // /// Checks if s1 encrypts a string which has the string encrypted by `prefix` as a prefix.
-    // Returns /// an encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn starts_with_encrypted(&self, s: &FheString, prefix: &FheString) -> BooleanBlock {
-    //     // If the prefix is longer than the encrypted string, return false
-    //     match (&s.length, &prefix.length) {
-    //         (&FheStrLength::Clear(l), &FheStrLength::Clear(l_prefix)) if l_prefix > l => {
-    //             return self.create_false()
-    //         }
-    //         (_, &FheStrLength::Clear(l_prefix)) if l_prefix > s.content.len() => {
-    //             return self.create_false()
-    //         }
-    //         _ => (),
-    //     }
-
-    //     match (s.padding, prefix.padding) {
-    //         (Padding::None | Padding::Final, Padding::None | Padding::Final) => {
-    //             self.starts_with_encrypted_no_init_padding(s, prefix)
-    //         }
-    //         (Padding::None | Padding::Final, _) => {
-    //             self.starts_with_encrypted_no_init_padding(s, &self.push_padding_to_end(prefix))
-    //         }
-    //         (_, Padding::None | Padding::Final) => {
-    //             self.starts_with_encrypted_no_init_padding(&self.push_padding_to_end(s), prefix)
-    //         }
-    //         _ => self.starts_with_encrypted_no_init_padding(
-    //             &self.push_padding_to_end(s),
-    //             &self.push_padding_to_end(prefix),
-    //         ),
-    //     }
-    // }
-
-    // /// Checks if s1 encrypts a string which has the string encrypted by `sufix` as a sufix.
-    // Returns /// an encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn ends_with_encrypted(&self, s: &FheString, sufix: &FheString) -> BooleanBlock {
-    //     self.starts_with_encrypted(
-    //         &self.reverse_string_content(s),
-    //         &self.reverse_string_content(sufix),
-    //     )
-    // }
-
     /// Checks if s1 encrypt the string s2, for s1 an FheString and s2 a clear &str.
     /// Returns an encrypted value of 1 for true and an encrypted value of 0 for false.
     pub fn eq_clear(&self, s1: &FheString, s2: &str) -> BooleanBlock {
@@ -137,32 +176,11 @@ impl StringServerKey {
         }
     }
 
-    // /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. Return an
-    // /// encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn starts_with_clear(&self, s: &FheString, prefix: &str) -> BooleanBlock {
-    //     match s.length {
-    //         FheStrLength::Clear(length) if prefix.len() > length => return self.create_false(),
-    //         _ if prefix.len() > s.content.len() => return self.create_false(),
-    //         _ => (),
-    //     }
-    //     return match s.padding {
-    //         Padding::None | Padding::Final => self.starts_with_clear_no_init_padding(s, prefix),
-    //         _ => self.starts_with_clear_no_init_padding(&self.push_padding_to_end(s), prefix),
-    //     };
-    // }
-
-    // /// Checks if `s1` encrypts a string which has the clear string `sufix` as a sufix. Returns
-    // an /// encrypted value of 1 for true and an encrypted value of 0 for false.
-    // pub fn ends_with_clear(&self, s: &FheString, sufix: &str) -> BooleanBlock {
-    //     self.starts_with_clear(
-    //         &self.reverse_string_content(s),
-    //         &sufix.chars().rev().collect::<String>(),
-    //     )
-    // }
-
     /// Checks if s1 and s2 encrypt the same string, for s1 and s2 `FheString` with no initial
     /// padding zeros. Returns an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
+    /// As both strings don't have padding zeros, it is enough to iterat over their content and
+    /// compare each character.
     pub fn eq_no_init_padding(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         // First the content are compared
         let mut result = self.create_true();
@@ -272,49 +290,6 @@ impl StringServerKey {
             );
         }
         result
-    }
-
-    // /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. The
-    // function /// assumes that both s and prefix do not have initial padding zeros. Return an
-    // encrypted value /// of 1 for true and an encrypted value of 0 for false.
-    // pub fn starts_with_clear_no_init_padding(
-    //     &self,
-    //     s: &FheString,
-    //     prefix: &str,
-    // ) -> BooleanBlock {
-    //     // First the content are compared
-    //     let mut result = self.create_true();
-    //     for n in 0..std::cmp::min(s.content.len(), prefix.len()) {
-    //         self.integer_key.boolean_bitand_assign(
-    //             &mut result,
-    //             &self.compare_clear_char(
-    //                 &s.content[n],
-    //                 prefix.as_bytes()[n],
-    //                 std::cmp::Ordering::Equal,
-    //             ),
-    //         )
-    //     }
-    //     result
-    // }
-
-    /// Less or equal (<=).
-    /// Checks if the string encrypted by s1 is less than or equal to the pattern (clear or
-    /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
-    /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
-    /// value of 0 for false.
-    pub fn le(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
-        // The permutation le <-> ge is to be consistent with argument order
-        pattern.ge_string(self, s)
-    }
-
-    /// Greater or equal (>=).
-    /// Checks if the string encrypted by s1 is greater than or equal to the pattern (clear or
-    /// encrypted string). The order is the lexicographic order for bytes. Returns false if the
-    /// pattern is an FheCharPatterns. Returns an encrypted value of 1 for true and an encrypted
-    /// value of 0 for false.
-    pub fn ge(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
-        // The permutation le <-> ge is to be consistent with argument order
-        pattern.le_string(self, s)
     }
 
     /// Less or equal (<=).
