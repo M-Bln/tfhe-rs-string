@@ -9,12 +9,14 @@ use tfhe::shortint::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MessageModulus,
 };
 
+/// Number of blocks of RadixCiphertext. 4 corresponds to integer of 8 bits. Must be modify to allow correctly work with string of length larger than 8 bits.
 pub const NUMBER_BLOCKS: usize = 4;
 
 #[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);
 
 #[derive(Copy, Clone, PartialEq, Debug)]
+/// Padding zeros are allowed in anywhere in an FheString content, they are ignored after decryption. They allow to obfuscate the string length.
 pub enum Padding {
     None,
     Final,
@@ -23,6 +25,7 @@ pub enum Padding {
     Anywhere,
 }
 
+/// Order the padding from the less inconvenient (None) to most inconvenient (Anywhere)
 impl PartialOrd for Padding {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         match (self, other) {
@@ -43,6 +46,7 @@ pub enum ClearOrEncrypted<T, U> {
     Encrypted(U),
 }
 
+/// The length of an encrypted string can be obfuscated in the presence of padding zeros. In this case it is stored as an encrypted integer.
 pub type FheStrLength = ClearOrEncrypted<usize, RadixCiphertext>;
 pub type ClearOrEncryptedChar = ClearOrEncrypted<u8, FheAsciiChar>;
 

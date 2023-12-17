@@ -73,9 +73,12 @@ impl StringServerKey {
         FheAsciiChar(result)
     }
 
-    /// Replace the content of s with an encryption of the same string with the same
-    /// and without initial padding.
+    /// Replace the content of s with an encryption of the same string with all padding zeros pushed to the end.
     pub fn push_padding_to_end_assign(&self, s: &mut FheString) {
+	match &s.padding {
+	    Padding::None | Padding::Final => return,
+	    _ => (),
+	}
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         let mut prev_content_slice = &mut s.content.clone()[..];
         for _ in 0..s.content.len() {
@@ -86,9 +89,12 @@ impl StringServerKey {
         s.content = result_content;
     }
 
-    /// Return an encryption of the same string, with the same content length,
-    /// without initial padding.
+    /// Return an encryption of the same string, with the same content length, with all padding zeros pushed to the end.
     pub fn push_padding_to_end(&self, s: &FheString) -> FheString {
+	match &s.padding {
+	    Padding::None | Padding::Final => return s.clone(),
+	    _ => (),
+	}
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         let mut prev_content_slice = &mut s.content.clone()[..];
         for _ in 0..s.content.len() {
@@ -103,8 +109,12 @@ impl StringServerKey {
     }
 
     /// Return an encryption of the same string, with the same content length,
-    /// without final padding.
+    /// with all padding zeros pushed to the start of the string.
     pub fn push_padding_to_start(&self, s: &FheString) -> FheString {
+	match &s.padding {
+	    Padding::None | Padding::Initial => return s.clone(),
+	    _ => (),
+	}
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         let mut prev_content_slice = &mut s.content.clone()[..];
         for i in 0..s.content.len() {
