@@ -5,10 +5,6 @@
 /// use distinct macros. For instance the name differ between the standard library and the FHE
 /// version `<=` becomes `le` and so on.
 
-/// Identifier used to pattern match in macro definition.
-pub type Clear = ();
-pub type Encrypted = ();
-
 /// Macro to display one or two line for each arguments of the function timed.
 #[macro_export]
 macro_rules! display_arg {

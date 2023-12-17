@@ -1,5 +1,4 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
-use crate::integer_arg::FheIntegerArg;
 use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
@@ -68,11 +67,10 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, FheAsciiChar};
+    use crate::ciphertext::gen_keys;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
-    use tfhe::integer::RadixClientKey;
 
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();

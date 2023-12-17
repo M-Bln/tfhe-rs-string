@@ -1,7 +1,7 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use tfhe::integer::BooleanBlock;
 
 impl StringServerKey {
     /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.
@@ -127,7 +127,7 @@ mod tests {
             client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
             std_starts_with as u32
         );
-        let mut fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
+        let fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
             client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_starts_with_clear)),
             std_starts_with as u32
@@ -139,7 +139,7 @@ mod tests {
             client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_starts_with_encrypted)),
             std_starts_with as u32
         );
-        let mut fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
+        let fhe_starts_with_clear = server_key.starts_with(&encrypted_s, &pattern);
         assert_eq!(
             client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_starts_with_clear)),
             std_starts_with as u32

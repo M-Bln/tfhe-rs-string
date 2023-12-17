@@ -381,7 +381,9 @@ macro_rules! time_len {
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
         let fhe_result = match SERVER_KEY.$method(&$encrypted_s) {
-            FheStrLength::Encrypted(encrypted_length) => CLIENT_KEY.decrypt_integer(&encrypted_length),
+            FheStrLength::Encrypted(encrypted_length) => {
+                CLIENT_KEY.decrypt_integer(&encrypted_length)
+            }
             FheStrLength::Clear(clear_length) => *clear_length as u32,
         };
         let duration = start.elapsed();

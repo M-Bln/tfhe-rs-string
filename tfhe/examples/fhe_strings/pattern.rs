@@ -1,11 +1,11 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::server_key::find::FheOptionInt;
 use crate::server_key::split::FheSplit;
 use crate::server_key::strip::FheOptionString;
 
 use crate::server_key::StringServerKey;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use tfhe::integer::BooleanBlock;
 
 /// Creates a method with 3 arguments `&self, server_key, s`, that just calls a specified method
 /// of `server_key`.
@@ -112,16 +112,16 @@ pub trait FhePattern {
         return result;
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+    fn eq_string(&self, server_key: &StringServerKey, _s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
-    fn eq_ignore_case_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+    fn eq_ignore_case_string(&self, server_key: &StringServerKey, _s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
-    fn le_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+    fn le_string(&self, server_key: &StringServerKey, _s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
-    fn ge_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+    fn ge_string(&self, server_key: &StringServerKey, _s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
 }
@@ -452,7 +452,7 @@ impl<T: FheCharPattern> FhePattern for T {
         FheCharPattern::insert_in(self, server_key, fhe_split)
     }
 
-    fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
+    fn eq_string(&self, server_key: &StringServerKey, _s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
 

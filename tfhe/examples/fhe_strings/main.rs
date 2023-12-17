@@ -7,7 +7,7 @@ mod test_generating_macros;
 mod timing_macros;
 mod timing_pair_strings_macros;
 
-use crate::ciphertext::{gen_keys_test, ClearOrEncrypted, FheStrLength, FheString};
+use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, FheString};
 use crate::client_key::StringClientKey;
 use crate::server_key::StringServerKey;
 //use crate::integer_arg::FheIntegerArg;
@@ -17,7 +17,7 @@ use crate::server_key::is_empty::FheBool;
 //use crate::server_key::strip::FheOptionString;
 use clap::Parser;
 use lazy_static::lazy_static;
-use timing_pair_strings_macros::{padding_to_string, Clear, Encrypted, Encryption};
+use timing_pair_strings_macros::{padding_to_string, Encryption};
 
 #[derive(Parser, Debug)]
 #[command(about, long_about, verbatim_doc_comment)]
@@ -411,6 +411,8 @@ fn main() {
         }
         _ => (),
     }
+
+    let _test_key = gen_keys();
 }
 
 /// Times repeat for a clear integer argument.
@@ -439,6 +441,12 @@ fn time_repeat_clear(clear_s: &str, encrypted_s: &FheString, clear_n: usize, pad
     println!("time:                               {:?}", duration);
 }
 
+/// Identifier used to pattern match in macro definition.
+pub type Clear = ();
+pub type Encrypted = ();
+pub fn return_clear() -> Clear {}
+pub fn return_encrypted() -> Encrypted {}
+
 /// Times repeat for an encrypted integer argument. It is required to provide a clear maximum of
 /// repeatition max_n in order to bound the length of the result.
 fn time_repeat_encrypted(
@@ -449,6 +457,8 @@ fn time_repeat_encrypted(
     encrypted_n: &RadixCiphertext,
     padding_zeros: usize,
 ) {
+    return_clear();
+    return_encrypted();
     let start = std::time::Instant::now();
     let result = SERVER_KEY.repeat_encrypted(encrypted_s, encrypted_n, max_n);
     let duration = start.elapsed();
