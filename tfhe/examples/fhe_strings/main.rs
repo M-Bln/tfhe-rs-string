@@ -82,9 +82,9 @@ fn main() {
         .encrypt_str_padding(&clear_s, padding_zeros)
         .unwrap();
 
-    let encrypted_pattern = CLIENT_KEY.encrypt_str(&clear_pattern).unwrap();
+    let encrypted_pattern = CLIENT_KEY.encrypt_str(clear_pattern).unwrap();
     let encrypted_pattern_padded = CLIENT_KEY
-        .encrypt_str_padding(&clear_pattern, padding_zeros)
+        .encrypt_str_padding(clear_pattern, padding_zeros)
         .unwrap();
 
     /// Macro to time function taking one string arguments without and with padding if necessary.
@@ -163,44 +163,41 @@ fn main() {
     time_pairs!(rsplit, FheSplit);
     time_pairs!(rsplit_terminator, FheSplit);
 
-    match arguments.char_pattern {
-        Some(clear_char_pattern) => {
-            let encrypted_char_pattern = CLIENT_KEY.encrypt_ascii_char(clear_char_pattern as u8);
+    if let Some(clear_char_pattern) = arguments.char_pattern {
+        let encrypted_char_pattern = CLIENT_KEY.encrypt_ascii_char(clear_char_pattern as u8);
 
-            /// Macro to time functions taking a string and a character pattern.  Shorthand to avoid
-            /// repetition of written arguments.
-            macro_rules! time_char_pattern {
-                ($method: ident, $return_type: ident) => {
-                    time_char_pattern_all_paddings!(
-                        $method,
-                        clear_s,
-                        encrypted_s,
-                        encrypted_s_padding,
-                        clear_char_pattern,
-                        encrypted_char_pattern,
-                        $return_type,
-                        padding_zeros
-                    );
-                };
-            }
-
-            time_char_pattern!(starts_with, Bool);
-            time_char_pattern!(ends_with, Bool);
-            time_char_pattern!(contains, Bool);
-
-            time_char_pattern!(find, FheOptionInt);
-            time_char_pattern!(rfind, FheOptionInt);
-
-            time_char_pattern!(strip_prefix, FheOptionString);
-            time_char_pattern!(strip_suffix, FheOptionString);
-
-            time_char_pattern!(split, FheSplit);
-            time_char_pattern!(split_inclusive, FheSplit);
-            time_char_pattern!(split_terminator, FheSplit);
-            time_char_pattern!(rsplit, FheSplit);
-            time_char_pattern!(rsplit_terminator, FheSplit);
+        /// Macro to time functions taking a string and a character pattern.  Shorthand to avoid
+        /// repetition of written arguments.
+        macro_rules! time_char_pattern {
+            ($method: ident, $return_type: ident) => {
+                time_char_pattern_all_paddings!(
+                    $method,
+                    clear_s,
+                    encrypted_s,
+                    encrypted_s_padding,
+                    clear_char_pattern,
+                    encrypted_char_pattern,
+                    $return_type,
+                    padding_zeros
+                );
+            };
         }
-        None => (),
+
+        time_char_pattern!(starts_with, Bool);
+        time_char_pattern!(ends_with, Bool);
+        time_char_pattern!(contains, Bool);
+
+        time_char_pattern!(find, FheOptionInt);
+        time_char_pattern!(rfind, FheOptionInt);
+
+        time_char_pattern!(strip_prefix, FheOptionString);
+        time_char_pattern!(strip_suffix, FheOptionString);
+
+        time_char_pattern!(split, FheSplit);
+        time_char_pattern!(split_inclusive, FheSplit);
+        time_char_pattern!(split_terminator, FheSplit);
+        time_char_pattern!(rsplit, FheSplit);
+        time_char_pattern!(rsplit_terminator, FheSplit);
     }
 
     // Times functions taking a string and an integer argument if provided by command line

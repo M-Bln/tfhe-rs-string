@@ -106,7 +106,7 @@ impl StringServerKey {
         new: &impl FhePattern,
         n: &impl FheIntegerArg,
     ) -> FheString {
-        new.insert_in(&self, &self.splitn(s, &n.add_one(self), old_pattern))
+        new.insert_in(self, &self.splitn(s, &n.add_one(self), old_pattern))
     }
 
     pub fn replace(
@@ -115,7 +115,7 @@ impl StringServerKey {
         old_pattern: &impl FhePattern,
         new: &impl FhePattern,
     ) -> FheString {
-        new.insert_in(&self, &self.split(s, old_pattern))
+        new.insert_in(self, &self.split(s, old_pattern))
     }
 
     // pub fn replacen(&self, s: &FheString, old_pattern: &impl FhePattern, new: &FheString, n:
@@ -183,7 +183,7 @@ impl StringServerKey {
                 s.padding = Padding::None;
             }
         }
-        return s;
+        s
     }
 }
 

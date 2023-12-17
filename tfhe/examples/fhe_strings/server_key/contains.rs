@@ -76,15 +76,19 @@ impl StringServerKey {
     ) -> BooleanBlock {
         // First the overlapping content are compared
         let mut result = self.create_true();
-        for n in 0..std::cmp::min(s.len(), prefix.content.len()) {
+        for (n, c) in s
+            .iter()
+            .enumerate()
+            .take(std::cmp::min(s.len(), prefix.content.len()))
+        {
             self.integer_key.boolean_bitand_assign(
                 &mut result,
                 &match prefix.padding {
                     Padding::None => {
-                        self.compare_char(&s[n], &prefix.content[n], std::cmp::Ordering::Equal)
+                        self.compare_char(&c, &prefix.content[n], std::cmp::Ordering::Equal)
                     }
                     _ => self.integer_key.boolean_bitor(
-                        &self.compare_char(&s[n], &prefix.content[n], std::cmp::Ordering::Equal),
+                        &self.compare_char(&c, &prefix.content[n], std::cmp::Ordering::Equal),
                         &self
                             .integer_key
                             .scalar_eq_parallelized(&prefix.content[n].0, 0),
@@ -107,10 +111,14 @@ impl StringServerKey {
 
     pub fn starts_with_vec_clear(&self, s: &[FheAsciiChar], prefix: &str) -> BooleanBlock {
         let mut result = self.create_true();
-        for n in 0..std::cmp::min(s.len(), prefix.len()) {
+        for (n, c) in s
+            .iter()
+            .enumerate()
+            .take(std::cmp::min(s.len(), prefix.len()))
+        {
             self.integer_key.boolean_bitand_assign(
                 &mut result,
-                &self.compare_clear_char(&s[n], prefix.as_bytes()[n], std::cmp::Ordering::Equal),
+                &self.compare_clear_char(&c, prefix.as_bytes()[n], std::cmp::Ordering::Equal),
             )
         }
         result

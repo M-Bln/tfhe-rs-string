@@ -87,14 +87,14 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys, FheStrLength};
+    use crate::ciphertext::{gen_keys_test, FheStrLength};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{compare_result, test_fhe_add_char_pattern, test_fhe_add_string_pattern};
     use lazy_static::lazy_static;
 
     lazy_static! {
-        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
+        pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_test();
         pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }

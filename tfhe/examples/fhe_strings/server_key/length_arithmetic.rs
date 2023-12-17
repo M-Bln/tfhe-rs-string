@@ -48,7 +48,7 @@ impl StringServerKey {
         length: &mut FheStrLength,
         encrypted_int: &RadixCiphertext,
     ) {
-        *length = self.add_radix_length(&length, &encrypted_int);
+        *length = self.add_radix_length(length, encrypted_int);
     }
 
     /// Substracts an encrypted integer n to the length of an encrypted string and returns an

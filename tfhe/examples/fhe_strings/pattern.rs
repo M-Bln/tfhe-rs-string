@@ -109,7 +109,7 @@ pub trait FhePattern {
                 &self.is_prefix_of_slice(server_key, &haystack.content[i..]),
             );
         }
-        return result;
+        result
     }
 
     fn eq_string(&self, server_key: &StringServerKey, _s: &FheString) -> BooleanBlock {
@@ -145,11 +145,14 @@ impl FhePattern for &str {
         if self.len() > haystack.len() {
             return server_key.create_false();
         }
-        for n in 0..std::cmp::min(haystack.len(), self.len()) {
-            result = server_key.integer_key.boolean_bitand(
-                &result,
-                &server_key.eq_clear_char(&haystack[n], self.as_bytes()[n]),
-            );
+        for (n, c) in haystack
+            .iter()
+            .enumerate()
+            .take(std::cmp::min(haystack.len(), self.len()))
+        {
+            result = server_key
+                .integer_key
+                .boolean_bitand(&result, &server_key.eq_clear_char(&c, self.as_bytes()[n]));
             // server_key.integer_key.boolean_bitand_assign(
             //     &mut result,
             //     &server_key.bool_to_radix(&server_key.eq_clear_char(&haystack[n],
@@ -260,17 +263,25 @@ impl FhePattern for FheString {
         };
         match self.padding {
             Padding::None => {
-                for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
+                for (n, c) in haystack
+                    .iter()
+                    .enumerate()
+                    .take(std::cmp::min(max_needle_length, haystack.len()))
+                {
                     server_key.integer_key.boolean_bitand_assign(
                         &mut result,
-                        &server_key.eq_char(&haystack[n], &self.content[n]),
+                        &server_key.eq_char(&c, &self.content[n]),
                     )
                 }
             }
             Padding::Final => {
-                for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
+                for (n, c) in haystack
+                    .iter()
+                    .enumerate()
+                    .take(std::cmp::min(max_needle_length, haystack.len()))
+                {
                     let match_or_end_needle = server_key.integer_key.boolean_bitor(
-                        &server_key.eq_char(&haystack[n], &self.content[n]),
+                        &server_key.eq_char(&c, &self.content[n]),
                         &server_key.eq_clear_char(&self.content[n], 0),
                     );
                     server_key
@@ -286,9 +297,13 @@ impl FhePattern for FheString {
             }
             _ => {
                 let unpadded_needle = server_key.push_padding_to_end(self);
-                for n in 0..std::cmp::min(max_needle_length, haystack.len()) {
+                for (n, c) in haystack
+                    .iter()
+                    .enumerate()
+                    .take(std::cmp::min(max_needle_length, haystack.len()))
+                {
                     let match_or_end_needle = server_key.integer_key.boolean_bitor(
-                        &server_key.eq_char(&haystack[n], &unpadded_needle.content[n]),
+                        &server_key.eq_char(&c, &unpadded_needle.content[n]),
                         &server_key.eq_clear_char(&unpadded_needle.content[n], 0),
                     );
                     server_key
@@ -411,14 +426,14 @@ pub trait FheCharPattern {
         let mut result = server_key.create_false();
         let mut previous_char_is_null = server_key.create_true();
         for c in &haystack.content {
-            let char_is_match = self.fhe_eq(server_key, &c);
+            let char_is_match = self.fhe_eq(server_key, c);
             server_key.integer_key.boolean_bitor_assign(
                 &mut result,
                 &server_key
                     .integer_key
                     .boolean_bitand(&char_is_match, &previous_char_is_null),
             );
-            previous_char_is_null = server_key.eq_clear_char(&c, 0);
+            previous_char_is_null = server_key.eq_clear_char(c, 0);
         }
         result
     }
@@ -465,7 +480,7 @@ impl<T: FheCharPattern> FhePattern for T {
         server_key: &StringServerKey,
         haystack_slice: &[FheAsciiChar],
     ) -> BooleanBlock {
-        if haystack_slice.len() == 0 {
+        if haystack_slice.is_empty() {
             return server_key.create_false();
         }
         self.fhe_eq(server_key, &haystack_slice[0])
@@ -517,7 +532,7 @@ impl FheCharPattern for char {
 
 impl FheCharPattern for FheAsciiChar {
     fn fhe_eq(&self, server_key: &StringServerKey, c: &FheAsciiChar) -> BooleanBlock {
-        server_key.eq_char(c, &self)
+        server_key.eq_char(c, self)
     }
 
     fn push_to(&self, server_key: &StringServerKey, s: FheString) -> FheString {

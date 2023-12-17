@@ -30,14 +30,14 @@ impl StringServerKey {
             padding: Padding::None,
         };
         match s.len() {
-            FheStrLength::Clear(0) if pattern.len() == 0 => {
+            FheStrLength::Clear(0) if pattern.is_empty() => {
                 return FheSplit {
                     parts: vec![empty_fhe_string],
                     number_parts: self.create_n(1),
                     current_index: 0,
                 }
             }
-            _ if s.content.len() == 0 && pattern.len() == 0 => {
+            _ if s.content.is_empty() && pattern.is_empty() => {
                 return FheSplit {
                     parts: vec![empty_fhe_string],
                     number_parts: self.create_n(1),
@@ -51,7 +51,7 @@ impl StringServerKey {
                     current_index: 0,
                 }
             }
-            _ if s.content.len() == 0 => {
+            _ if s.content.is_empty() => {
                 return FheSplit {
                     parts: vec![],
                     number_parts: self.create_n(0),
@@ -76,7 +76,7 @@ impl StringServerKey {
         }
 
         match s.padding {
-            _ if pattern.len() == 0 => self
+            _ if pattern.is_empty() => self
                 .padding_pair_dispatch(s, s, |s1, s2| self.split_terminator_empty_pattern(s1, s2)),
             Padding::None | Padding::Final => self.split_terminator_clear_final_padding(s, pattern),
             _ => self.split_terminator_clear_final_padding(&self.push_padding_to_end(s), pattern),
@@ -92,7 +92,7 @@ impl StringServerKey {
                     current_index: 0,
                 }
             }
-            _ if s.content.len() == 0 => {
+            _ if s.content.is_empty() => {
                 return FheSplit {
                     parts: vec![],
                     number_parts: self.create_zero(),
@@ -280,7 +280,7 @@ impl StringServerKey {
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
         let mut trailing_empty_string = self.create_false();
         for n in 0..maximum_number_of_parts {
             let found: BooleanBlock;

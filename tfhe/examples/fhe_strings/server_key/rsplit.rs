@@ -61,7 +61,7 @@ impl StringServerKey {
             _ => (),
         }
         match s.padding {
-            _ if pattern.len() == 0 => {
+            _ if pattern.is_empty() => {
                 self.rpadding_pair_dispatch(s, s, |s1, s2| self.rsplit_empty_pattern(s1, s2))
             }
             Padding::None | Padding::Final => self.rsplit_clear_final_padding(s, pattern),
@@ -85,7 +85,7 @@ impl StringServerKey {
                     current_index: 0,
                 }
             }
-            _ if s.content.len() == 0 => {
+            _ if s.content.is_empty() => {
                 return FheSplit {
                     parts: vec![],
                     number_parts: self.create_zero(),
@@ -121,14 +121,14 @@ impl StringServerKey {
             padding: Padding::None,
         };
         match s.len() {
-            FheStrLength::Clear(0) if pattern.len() == 0 => {
+            FheStrLength::Clear(0) if pattern.is_empty() => {
                 return FheSplit {
                     parts: vec![empty_fhe_string],
                     number_parts: self.create_n(1),
                     current_index: 0,
                 }
             }
-            _ if s.content.len() == 0 && pattern.len() == 0 => {
+            _ if s.content.is_empty() && pattern.is_empty() => {
                 return FheSplit {
                     parts: vec![empty_fhe_string],
                     number_parts: self.create_n(1),
@@ -142,7 +142,7 @@ impl StringServerKey {
                     current_index: 0,
                 }
             }
-            _ if s.content.len() == 0 => {
+            _ if s.content.is_empty() => {
                 return FheSplit {
                     parts: vec![],
                     number_parts: self.create_n(0),
@@ -166,7 +166,7 @@ impl StringServerKey {
             _ => (),
         }
         match s.padding {
-            _ if pattern.len() == 0 => self.rpadding_pair_dispatch(s, s, |s1, s2| {
+            _ if pattern.is_empty() => self.rpadding_pair_dispatch(s, s, |s1, s2| {
                 self.rsplit_terminator_empty_pattern(s1, s2)
             }),
             Padding::None | Padding::Final => {
@@ -439,7 +439,7 @@ impl StringServerKey {
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
         let decrement_search_from = self.integer_key.cmux_parallelized(
             &empty_pattern,
             &zero.clone(),
@@ -613,11 +613,11 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(0), &s.length);
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
         let decrement_search_from = self.integer_key.cmux_parallelized(
             &empty_pattern,
             &zero.clone(),
@@ -712,7 +712,7 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
@@ -811,7 +811,7 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(&s)); // The result has at least 1 part if s is non-empty 0 otherwise.
+        let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if s is non-empty 0 otherwise.
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_zero(), &s.length);

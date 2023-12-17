@@ -18,7 +18,7 @@ impl StringServerKey {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
         match s.length {
-            FheStrLength::Clear(length) if length == 0 => return (fhe_false, zero),
+            FheStrLength::Clear(0) => return (fhe_false, zero),
             _ => (),
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) = (fhe_false, zero);
@@ -37,7 +37,7 @@ impl StringServerKey {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
         match s.length {
-            FheStrLength::Clear(length) if length == 0 => return (fhe_false, zero),
+            FheStrLength::Clear(0) => return (fhe_false, zero),
             _ => (),
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) =
@@ -158,7 +158,7 @@ impl StringServerKey {
 
     pub fn connected_rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let mut index = self.initial_index_rfind(&s.length);
-        if pattern.len() == 0 {
+        if pattern.is_empty() {
             return (self.create_true(), index);
         }
         let mut found = self.create_false();
@@ -242,7 +242,7 @@ impl StringServerKey {
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
-        if s.content.len() == 0 {
+        if s.content.is_empty() {
             return (fhe_false, zero);
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) = (fhe_false, zero);
@@ -454,7 +454,7 @@ impl StringServerKey {
         //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
-        if s.content.len() == 0 {
+        if s.content.is_empty() {
             return (fhe_false, zero);
         }
 
@@ -650,7 +650,7 @@ impl StringServerKey {
             ),
             _ => self.bool_to_radix(
                 &self.integer_key.boolean_bitand(
-                    &self.integer_key.boolean_bitnot(&found),
+                    &self.integer_key.boolean_bitnot(found),
                     &self
                         .integer_key
                         .scalar_ne_parallelized(&s.content[content_index].0, 0),
@@ -667,7 +667,7 @@ impl StringServerKey {
     ) -> RadixCiphertext {
         self.bool_to_radix(
             &self.integer_key.boolean_bitand(
-                &self.integer_key.boolean_bitnot(&found),
+                &self.integer_key.boolean_bitnot(found),
                 &self
                     .integer_key
                     .scalar_ne_parallelized(&s.content[content_index].0, 0),
