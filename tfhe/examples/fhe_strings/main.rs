@@ -294,73 +294,15 @@ fn main() {
 
         // Time replacen if both the integer argument and the replace pattern are provided by
         // CLI
-        match &arguments.replace_pattern {
-            Some(replace_pattern) => {
-                let clear_replace_pattern = replace_pattern.as_str();
-                let encrypted_replace_pattern =
-                    CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
-                let encrypted_replace_pattern_padding = CLIENT_KEY
-                    .encrypt_str_padding(clear_replace_pattern, padding_zeros)
-                    .unwrap();
-                if padding_zeros != 0 {
-                    time_replacen_all_cases!(
-                        replacen,
-                        clear_s,
-                        encrypted_s,
-                        encrypted_s_padding,
-                        padding_zeros,
-                        (
-                            String,
-                            clear_pattern,
-                            encrypted_pattern,
-                            encrypted_pattern_padded
-                        ),
-                        (
-                            String,
-                            clear_replace_pattern,
-                            encrypted_replace_pattern,
-                            encrypted_replace_pattern_padding
-                        ),
-                        (clear_integer_arg, encrypted_integer_arg)
-                    );
-                } else {
-                    time_replacen_all_cases!(
-                        replacen,
-                        clear_s,
-                        encrypted_s,
-                        encrypted_s_padding,
-                        0,
-                        (
-                            String,
-                            clear_pattern,
-                            encrypted_pattern,
-                            encrypted_pattern_padded
-                        ),
-                        (
-                            String,
-                            clear_replace_pattern,
-                            encrypted_replace_pattern,
-                            encrypted_replace_pattern_padding
-                        ),
-                        (clear_integer_arg, encrypted_integer_arg)
-                    );
-                }
-            }
-            _ => (),
-        }
-    }
-
-    // Times replace if replace_pattern provided by command line interface.
-    match arguments.replace_pattern {
-        Some(replace_pattern) => {
+        if let Some(replace_pattern) = &arguments.replace_pattern {
             let clear_replace_pattern = replace_pattern.as_str();
             let encrypted_replace_pattern = CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
             let encrypted_replace_pattern_padding = CLIENT_KEY
                 .encrypt_str_padding(clear_replace_pattern, padding_zeros)
                 .unwrap();
             if padding_zeros != 0 {
-                time_replace_all_cases!(
-                    replace,
+                time_replacen_all_cases!(
+                    replacen,
                     clear_s,
                     encrypted_s,
                     encrypted_s_padding,
@@ -376,11 +318,12 @@ fn main() {
                         clear_replace_pattern,
                         encrypted_replace_pattern,
                         encrypted_replace_pattern_padding
-                    )
+                    ),
+                    (clear_integer_arg, encrypted_integer_arg)
                 );
             } else {
-                time_replace_all_cases!(
-                    replace,
+                time_replacen_all_cases!(
+                    replacen,
                     clear_s,
                     encrypted_s,
                     encrypted_s_padding,
@@ -396,11 +339,61 @@ fn main() {
                         clear_replace_pattern,
                         encrypted_replace_pattern,
                         encrypted_replace_pattern_padding
-                    )
+                    ),
+                    (clear_integer_arg, encrypted_integer_arg)
                 );
             }
         }
-        _ => (),
+    }
+
+    // Times replace if replace_pattern provided by command line interface.
+    if let Some(replace_pattern) = arguments.replace_pattern {
+        let clear_replace_pattern = replace_pattern.as_str();
+        let encrypted_replace_pattern = CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
+        let encrypted_replace_pattern_padding = CLIENT_KEY
+            .encrypt_str_padding(clear_replace_pattern, padding_zeros)
+            .unwrap();
+        if padding_zeros != 0 {
+            time_replace_all_cases!(
+                replace,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                padding_zeros,
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                ),
+                (
+                    String,
+                    clear_replace_pattern,
+                    encrypted_replace_pattern,
+                    encrypted_replace_pattern_padding
+                )
+            );
+        } else {
+            time_replace_all_cases!(
+                replace,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                0,
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                ),
+                (
+                    String,
+                    clear_replace_pattern,
+                    encrypted_replace_pattern,
+                    encrypted_replace_pattern_padding
+                )
+            );
+        }
     }
 
     let _test_key = gen_keys();
