@@ -17,9 +17,8 @@ impl StringServerKey {
     pub fn find_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
-        match s.length {
-            FheStrLength::Clear(0) => return (fhe_false, zero),
-            _ => (),
+        if let FheStrLength::Clear(0) = s.length {
+            return (fhe_false, zero);
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) = (fhe_false, zero);
         for n in 0..s.content.len() {
@@ -36,9 +35,8 @@ impl StringServerKey {
     pub fn rfind_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
-        match s.length {
-            FheStrLength::Clear(0) => return (fhe_false, zero),
-            _ => (),
+        if let FheStrLength::Clear(0) = s.length {
+            return (fhe_false, zero);
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) =
             (fhe_false.clone(), self.initial_index_rfind_char(&s.length));

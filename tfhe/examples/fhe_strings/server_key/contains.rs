@@ -85,10 +85,10 @@ impl StringServerKey {
                 &mut result,
                 &match prefix.padding {
                     Padding::None => {
-                        self.compare_char(&c, &prefix.content[n], std::cmp::Ordering::Equal)
+                        self.compare_char(c, &prefix.content[n], std::cmp::Ordering::Equal)
                     }
                     _ => self.integer_key.boolean_bitor(
-                        &self.compare_char(&c, &prefix.content[n], std::cmp::Ordering::Equal),
+                        &self.compare_char(c, &prefix.content[n], std::cmp::Ordering::Equal),
                         &self
                             .integer_key
                             .scalar_eq_parallelized(&prefix.content[n].0, 0),
@@ -118,7 +118,7 @@ impl StringServerKey {
         {
             self.integer_key.boolean_bitand_assign(
                 &mut result,
-                &self.compare_clear_char(&c, prefix.as_bytes()[n], std::cmp::Ordering::Equal),
+                &self.compare_clear_char(c, prefix.as_bytes()[n], std::cmp::Ordering::Equal),
             )
         }
         result

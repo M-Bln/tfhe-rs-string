@@ -9,14 +9,11 @@ mod timing_pair_strings_macros;
 
 use crate::ciphertext::{gen_keys, gen_keys_test, FheStrLength, FheString};
 use crate::client_key::StringClientKey;
-use crate::server_key::StringServerKey;
-//use crate::integer_arg::FheIntegerArg;
-use tfhe::integer::RadixCiphertext;
-//use crate::{time_function};
 use crate::server_key::is_empty::FheBool;
-//use crate::server_key::strip::FheOptionString;
+use crate::server_key::StringServerKey;
 use clap::Parser;
 use lazy_static::lazy_static;
+use tfhe::integer::RadixCiphertext;
 use timing_pair_strings_macros::{padding_to_string, Encryption};
 
 #[derive(Parser, Debug)]
@@ -202,158 +199,155 @@ fn main() {
 
     // Times functions taking a string and an integer argument if provided by command line
     // interface.
-    match arguments.integer_arg {
-        Some(clear_integer_arg) => {
-            // let clear_integer_arg = integer_arg as u32;
-            let encrypted_integer_arg = CLIENT_KEY.encrypt_integer(clear_integer_arg as u8);
+    if let Some(clear_integer_arg) = arguments.integer_arg {
+        // let clear_integer_arg = integer_arg as u32;
+        let encrypted_integer_arg = CLIENT_KEY.encrypt_integer(clear_integer_arg as u8);
 
-            if padding_zeros != 0 {
-                // Branching allow the macros to correctly match literal 0 for padding_zeros, TODO:
-                // avoid this branching?
-                time_splitn_all_cases!(
-                    splitn,
-                    clear_s,
-                    encrypted_s,
-                    encrypted_s_padding,
-                    padding_zeros,
-                    (clear_integer_arg, encrypted_integer_arg),
-                    (
-                        String,
-                        clear_pattern,
-                        encrypted_pattern,
-                        encrypted_pattern_padded
-                    )
-                );
-                time_splitn_all_cases!(
-                    rsplitn,
-                    clear_s,
-                    encrypted_s,
-                    encrypted_s_padding,
-                    padding_zeros,
-                    (clear_integer_arg, encrypted_integer_arg),
-                    (
-                        String,
-                        clear_pattern,
-                        encrypted_pattern,
-                        encrypted_pattern_padded
-                    )
-                );
-            } else {
-                time_splitn_all_cases!(
-                    splitn,
-                    clear_s,
-                    encrypted_s,
-                    encrypted_s_padding,
-                    0,
-                    (clear_integer_arg, encrypted_integer_arg),
-                    (
-                        String,
-                        clear_pattern,
-                        encrypted_pattern,
-                        encrypted_pattern_padded
-                    )
-                );
-                time_splitn_all_cases!(
-                    rsplitn,
-                    clear_s,
-                    encrypted_s,
-                    encrypted_s_padding,
-                    0,
-                    (clear_integer_arg, encrypted_integer_arg),
-                    (
-                        String,
-                        clear_pattern,
-                        encrypted_pattern,
-                        encrypted_pattern_padded
-                    )
-                );
-            }
-
-            if padding_zeros != 0 {
-                time_repeat_encrypted(
-                    &clear_s,
-                    &encrypted_s_padding,
-                    clear_integer_arg,
-                    arguments.max_number_repeatition,
-                    &encrypted_integer_arg,
-                    padding_zeros,
-                );
-                time_repeat_clear(
-                    &clear_s,
-                    &encrypted_s_padding,
-                    clear_integer_arg,
-                    padding_zeros,
-                );
-            } else {
-                time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
-                time_repeat_encrypted(
-                    &clear_s,
-                    &encrypted_s,
-                    clear_integer_arg,
-                    arguments.max_number_repeatition,
-                    &encrypted_integer_arg,
-                    0,
-                );
-            }
-
-            // Time replacen if both the integer argument and the replace pattern are provided by
-            // CLI
-            match &arguments.replace_pattern {
-                Some(replace_pattern) => {
-                    let clear_replace_pattern = replace_pattern.as_str();
-                    let encrypted_replace_pattern =
-                        CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
-                    let encrypted_replace_pattern_padding = CLIENT_KEY
-                        .encrypt_str_padding(clear_replace_pattern, padding_zeros)
-                        .unwrap();
-                    if padding_zeros != 0 {
-                        time_replacen_all_cases!(
-                            replacen,
-                            clear_s,
-                            encrypted_s,
-                            encrypted_s_padding,
-                            padding_zeros,
-                            (
-                                String,
-                                clear_pattern,
-                                encrypted_pattern,
-                                encrypted_pattern_padded
-                            ),
-                            (
-                                String,
-                                clear_replace_pattern,
-                                encrypted_replace_pattern,
-                                encrypted_replace_pattern_padding
-                            ),
-                            (clear_integer_arg, encrypted_integer_arg)
-                        );
-                    } else {
-                        time_replacen_all_cases!(
-                            replacen,
-                            clear_s,
-                            encrypted_s,
-                            encrypted_s_padding,
-                            0,
-                            (
-                                String,
-                                clear_pattern,
-                                encrypted_pattern,
-                                encrypted_pattern_padded
-                            ),
-                            (
-                                String,
-                                clear_replace_pattern,
-                                encrypted_replace_pattern,
-                                encrypted_replace_pattern_padding
-                            ),
-                            (clear_integer_arg, encrypted_integer_arg)
-                        );
-                    }
-                }
-                _ => (),
-            }
+        if padding_zeros != 0 {
+            // Branching allow the macros to correctly match literal 0 for padding_zeros, TODO:
+            // avoid this branching?
+            time_splitn_all_cases!(
+                splitn,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                padding_zeros,
+                (clear_integer_arg, encrypted_integer_arg),
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                )
+            );
+            time_splitn_all_cases!(
+                rsplitn,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                padding_zeros,
+                (clear_integer_arg, encrypted_integer_arg),
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                )
+            );
+        } else {
+            time_splitn_all_cases!(
+                splitn,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                0,
+                (clear_integer_arg, encrypted_integer_arg),
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                )
+            );
+            time_splitn_all_cases!(
+                rsplitn,
+                clear_s,
+                encrypted_s,
+                encrypted_s_padding,
+                0,
+                (clear_integer_arg, encrypted_integer_arg),
+                (
+                    String,
+                    clear_pattern,
+                    encrypted_pattern,
+                    encrypted_pattern_padded
+                )
+            );
         }
-        _ => (),
+
+        if padding_zeros != 0 {
+            time_repeat_encrypted(
+                &clear_s,
+                &encrypted_s_padding,
+                clear_integer_arg,
+                arguments.max_number_repeatition,
+                &encrypted_integer_arg,
+                padding_zeros,
+            );
+            time_repeat_clear(
+                &clear_s,
+                &encrypted_s_padding,
+                clear_integer_arg,
+                padding_zeros,
+            );
+        } else {
+            time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
+            time_repeat_encrypted(
+                &clear_s,
+                &encrypted_s,
+                clear_integer_arg,
+                arguments.max_number_repeatition,
+                &encrypted_integer_arg,
+                0,
+            );
+        }
+
+        // Time replacen if both the integer argument and the replace pattern are provided by
+        // CLI
+        match &arguments.replace_pattern {
+            Some(replace_pattern) => {
+                let clear_replace_pattern = replace_pattern.as_str();
+                let encrypted_replace_pattern =
+                    CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
+                let encrypted_replace_pattern_padding = CLIENT_KEY
+                    .encrypt_str_padding(clear_replace_pattern, padding_zeros)
+                    .unwrap();
+                if padding_zeros != 0 {
+                    time_replacen_all_cases!(
+                        replacen,
+                        clear_s,
+                        encrypted_s,
+                        encrypted_s_padding,
+                        padding_zeros,
+                        (
+                            String,
+                            clear_pattern,
+                            encrypted_pattern,
+                            encrypted_pattern_padded
+                        ),
+                        (
+                            String,
+                            clear_replace_pattern,
+                            encrypted_replace_pattern,
+                            encrypted_replace_pattern_padding
+                        ),
+                        (clear_integer_arg, encrypted_integer_arg)
+                    );
+                } else {
+                    time_replacen_all_cases!(
+                        replacen,
+                        clear_s,
+                        encrypted_s,
+                        encrypted_s_padding,
+                        0,
+                        (
+                            String,
+                            clear_pattern,
+                            encrypted_pattern,
+                            encrypted_pattern_padded
+                        ),
+                        (
+                            String,
+                            clear_replace_pattern,
+                            encrypted_replace_pattern,
+                            encrypted_replace_pattern_padding
+                        ),
+                        (clear_integer_arg, encrypted_integer_arg)
+                    );
+                }
+            }
+            _ => (),
+        }
     }
 
     // Times replace if replace_pattern provided by command line interface.
