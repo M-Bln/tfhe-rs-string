@@ -1,6 +1,5 @@
-use crate::ciphertext::{FheAsciiChar, FheString, NUMBER_BLOCKS};
+use crate::ciphertext::{FheAsciiChar, FheString};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub const UP_LOW_DISTANCE: u8 = 32;
 
@@ -8,18 +7,18 @@ pub const UP_LOW_DISTANCE: u8 = 32;
 impl StringServerKey {
     /// Returns a encrypted character encoding the same as c in uppercase.
     pub fn to_uppercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
+	let change_case = &self
+            .integer_key
+            .boolean_bitand(
+                &self.integer_key.scalar_gt_parallelized(&c.0, 96),
+                &self.integer_key.scalar_lt_parallelized(&c.0, 123),
+            );
         FheAsciiChar(
             self.integer_key.sub_parallelized(
                 &c.0,
                 &self.integer_key.scalar_mul_parallelized(
-                    &self
-                        .integer_key
-                        .boolean_bitand(
-                            &self.integer_key.scalar_gt_parallelized(&c.0, 96),
-                            &self.integer_key.scalar_lt_parallelized(&c.0, 123),
-                        )
-                        .into_radix(NUMBER_BLOCKS, &self.integer_key),
-                    UP_LOW_DISTANCE,
+                    &self.bool_to_radix(change_case),
+		    UP_LOW_DISTANCE,
                 ),
             ),
         )
@@ -27,17 +26,17 @@ impl StringServerKey {
 
     /// Returns a encrypted character encoding the same as c in lowercase.
     pub fn to_lowercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
+	let change_case = &self
+            .integer_key
+            .boolean_bitand(
+                &self.integer_key.scalar_gt_parallelized(&c.0, 64),
+                &self.integer_key.scalar_lt_parallelized(&c.0, 91),
+            );
         FheAsciiChar(
             self.integer_key.add_parallelized(
                 &c.0,
                 &self.integer_key.scalar_mul_parallelized(
-                    &self
-                        .integer_key
-                        .boolean_bitand(
-                            &self.integer_key.scalar_gt_parallelized(&c.0, 64),
-                            &self.integer_key.scalar_lt_parallelized(&c.0, 91),
-                        )
-                        .into_radix(NUMBER_BLOCKS, &self.integer_key),
+		    &self.bool_to_radix(change_case),
                     UP_LOW_DISTANCE,
                 ),
             ),

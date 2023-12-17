@@ -3,6 +3,9 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::string::FromUtf8Error;
 use tfhe::integer::{RadixCiphertext, RadixClientKey};
+use tfhe::core_crypto::prelude::{UnsignedNumeric};
+use tfhe::integer::block_decomposition::{DecomposableInto};
+
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StringClientKey {
@@ -11,7 +14,9 @@ pub struct StringClientKey {
 
 impl From<RadixClientKey> for StringClientKey {
     fn from(integer_key: RadixClientKey) -> Self {
-        Self { integer_key }
+        Self {
+	    integer_key: integer_key,
+	}
     }
 }
 
@@ -22,6 +27,7 @@ pub enum ConversionError {
 }
 
 impl StringClientKey {
+    /// Encrypt a string.
     pub fn encrypt_str(&self, s: &str) -> Result<FheString, ConversionError> {
         self.encrypt_ascii_vec(
             &s.as_bytes().to_vec(),
@@ -30,6 +36,7 @@ impl StringClientKey {
         )
     }
 
+    /// Encrypt a string and add `padding_size` encrypted padding zeros at the end of the string.
     pub fn encrypt_str_padding(
         &self,
         s: &str,
@@ -49,7 +56,8 @@ impl StringClientKey {
             )
         }
     }
-
+    
+    /// Encrypt a string and add `padding_size` encrypted padding zeros dispatched randomly inside the content of the string. For performence reason strings should not be encrypted this way in applications. This function exists for testing purpose.
     pub fn encrypt_str_random_padding(
         &self,
         s: &str,
@@ -70,10 +78,12 @@ impl StringClientKey {
         }
     }
 
+    /// Decrypt a string.
     pub fn decrypt_string(&self, s: &FheString) -> Result<String, FromUtf8Error> {
         StringClientKey::string_from_padded_vec(self.decrypt_fhe_ascii_vec(s))
     }
 
+    /// Encrypt a vector of ascii character (encoded as u8) and return an encrypted string. It does not perform any check and the returned string display the length and the padding passed as arguments.
     pub fn encrypt_ascii_vec(
         &self,
         ascii_vec: &Vec<u8>,
@@ -93,6 +103,7 @@ impl StringClientKey {
         })
     }
 
+    /// Encrypt a single character (encded as u8)
     pub fn encrypt_ascii_char(&self, ascii_char: u8) -> FheAsciiChar {
         FheAsciiChar(self.integer_key.encrypt(ascii_char as u8))
     }
@@ -101,12 +112,12 @@ impl StringClientKey {
         self.integer_key.decrypt::<u8>(&encrypted_char.0)
     }
 
-    pub fn decrypt_u8(&self, encrypted_int: &RadixCiphertext) -> u8 {
-        self.integer_key.decrypt::<u8>(&encrypted_int)
+    pub fn decrypt_u8(&self, encrypted_int: &RadixCiphertext) -> u32 {
+        self.integer_key.decrypt::<u32>(&encrypted_int)
     }
 
-    pub fn encrypt_u8(&self, n: u8) -> RadixCiphertext {
-        self.integer_key.encrypt(n)
+    pub fn encrypt_u8<T: DecomposableInto<u64> + UnsignedNumeric>(&self, n: T) -> RadixCiphertext {
+        self.integer_key.encrypt::<T>(n)
     }
 
     pub fn decrypt_fhe_ascii_vec(&self, s: &FheString) -> Vec<u8> {
@@ -194,11 +205,4 @@ mod tests {
         let decrypted_str = CLIENT_KEY.decrypt_string(&encrypted_str).unwrap();
         assert_eq!(decrypted_str, "abc");
     }
-
-    // #[test]
-    // fn test_integer_size() {
-    //     let big_int = CLIENT_KEY.integer_key.encrypt(250 as u32);
-    //     let bigger_int = SERVER_KEY.integer_key.scalar_add_parallelized(&big_int, 30);
-    //     assert_eq!(CLIENT_KEY.integer_key.decrypt::<u32>(&bigger_int), 280);
-    // }
 }
