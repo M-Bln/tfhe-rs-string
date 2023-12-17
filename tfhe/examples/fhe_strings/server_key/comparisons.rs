@@ -1,7 +1,7 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString,
-Padding}; use crate::pattern::FhePattern; use
-crate::server_key::StringServerKey; use
-tfhe::integer::{RadixCiphertext, BooleanBlock};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::pattern::FhePattern;
+use crate::server_key::StringServerKey;
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     pub fn eq(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -9,7 +9,8 @@ impl StringServerKey {
     }
 
     pub fn ne(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
-	self.integer_key.boolean_bitnot(&pattern.eq_string(self,s1))
+        self.integer_key
+            .boolean_bitnot(&pattern.eq_string(self, s1))
     }
 
     pub fn eq_ignore_case(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -195,11 +196,7 @@ impl StringServerKey {
     /// Checks if s1 and s2 encrypt the same string up to case, for s1 and s2 `FheString`s with no
     /// initial padding zeros. Returns an encrypted value of 1 for true and an encrypted value of
     /// 0 for false.
-    pub fn eq_ignore_case_no_init_padding(
-        &self,
-        s1: &FheString,
-        s2: &FheString,
-    ) -> BooleanBlock {
+    pub fn eq_ignore_case_no_init_padding(&self, s1: &FheString, s2: &FheString) -> BooleanBlock {
         // First the content are compared
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.content.len()) {
@@ -258,11 +255,7 @@ impl StringServerKey {
     /// Check if s1 encrypts the string s2, for s1 an `FheString` with no initial padding zeros and
     /// s2 a clear &str. Return an encrypted value of 1 for true and an encrypted value of 0 for
     /// false.
-    pub fn eq_clear_ignore_case_no_init_padding(
-        &self,
-        s1: &FheString,
-        s2: &str,
-    ) -> BooleanBlock {
+    pub fn eq_clear_ignore_case_no_init_padding(&self, s1: &FheString, s2: &str) -> BooleanBlock {
         let mut result = self.create_true();
         for n in 0..std::cmp::min(s1.content.len(), s2.len()) {
             self.integer_key.boolean_bitand_assign(
@@ -455,9 +448,7 @@ impl StringServerKey {
         }
         if s2.content.len() > s1.content.len() {
             return match operator {
-                std::cmp::Ordering::Less => {
-                    self.integer_key.boolean_bitor(&result, &equal_up_to_n)
-                }
+                std::cmp::Ordering::Less => self.integer_key.boolean_bitor(&result, &equal_up_to_n),
                 _ => self.integer_key.boolean_bitor(
                     &result,
                     &self.integer_key.boolean_bitand(
@@ -496,7 +487,11 @@ impl StringServerKey {
                     &equal_up_to_n_minus_1,
                     &self.integer_key.boolean_bitnot(&equal_up_to_n),
                 ),
-                &self.bool_to_radix(&self.compare_clear_char(&s1.content[n], s2.as_bytes()[n], operator)),
+                &self.bool_to_radix(&self.compare_clear_char(
+                    &s1.content[n],
+                    s2.as_bytes()[n],
+                    operator,
+                )),
                 &self.bool_to_radix(&result),
             ));
             equal_up_to_n_minus_1 = equal_up_to_n.clone();
@@ -519,9 +514,7 @@ impl StringServerKey {
         }
         if s2.len() > s1.content.len() {
             return match operator {
-                std::cmp::Ordering::Less => {
-                    self.integer_key.boolean_bitor(&result, &equal_up_to_n)
-                }
+                std::cmp::Ordering::Less => self.integer_key.boolean_bitor(&result, &equal_up_to_n),
                 _ => result,
             };
         }

@@ -1,6 +1,6 @@
 use crate::client_key::StringClientKey;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{gen_keys_radix, RadixCiphertext, BooleanBlock};
+use tfhe::integer::{gen_keys_radix, BooleanBlock, RadixCiphertext};
 use tfhe::shortint::prelude::{
     DecompositionBaseLog, DecompositionLevelCount, GlweDimension, LweDimension, PolynomialSize,
     StandardDev, PARAM_MESSAGE_2_CARRY_2_KS_PBS,
@@ -9,7 +9,7 @@ use tfhe::shortint::{
     CarryModulus, CiphertextModulus, ClassicPBSParameters, EncryptionKeyChoice, MessageModulus,
 };
 
-pub const NUMBER_BLOCKS : usize = 4;
+pub const NUMBER_BLOCKS: usize = 4;
 
 #[derive(Clone)]
 pub struct FheAsciiChar(pub RadixCiphertext);

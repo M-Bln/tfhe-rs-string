@@ -8,10 +8,16 @@ macro_rules! compare_result {
     ((RadixCiphertext, RadixCiphertext), $std_result: expr, $fhe_result: expr) => {
         match $std_result {
             Some(n) => {
-                assert_eq!(CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)), 1 as u8);
+                assert_eq!(
+                    CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)),
+                    1 as u8
+                );
                 assert_eq!(CLIENT_KEY.decrypt_u8(&$fhe_result.1), n as u8);
             }
-            None => assert_eq!(CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)), 0),
+            None => assert_eq!(
+                CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)),
+                0
+            ),
         }
     };
     (FheSplit, $std_result: expr, $fhe_result: expr) => {
@@ -45,10 +51,16 @@ macro_rules! compare_result {
                     CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap(),
                     std_string
                 );
-                assert_eq!(CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)), 1);
+                assert_eq!(
+                    CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)),
+                    1
+                );
             }
             _ => {
-                assert_eq!(CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)), 0);
+                assert_eq!(
+                    CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)),
+                    0
+                );
             }
         }
     };

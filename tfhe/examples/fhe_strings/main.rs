@@ -19,27 +19,36 @@ use clap::Parser;
 use lazy_static::lazy_static;
 use timing_pair_strings_macros::{padding_to_string, Clear, Encrypted, Encryption};
 
-
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about, verbatim_doc_comment)]
-/// Program to time FHE functions acting on encrypted strings and compare the result with the standard library. 
-/// - Take at least two string arguments, and `input_string` and a string `pattern`, 
+#[command(about, long_about, verbatim_doc_comment)]
+/// Program to time FHE functions acting on encrypted strings and compare the result with the
+/// standard library.
+///
+/// - It takes at least two string arguments, and `input_string` and a string `pattern`.
+///
 /// - Provide an additional character argument with flag -c to time methods that also accept char.
+///
 /// - Provide an integer argument with flag -i to time `splitn`, `repeat` etc.
+///
 /// - Provide a string 'replace_pattenr' with the flag -r to time `replace` and `replacen`.
-/// - Provide an integer arg with the flag -p to indicate the number of padding zeros to add to string arguments.
+///
+/// - Provide an integer arg with the flag -p to indicate the number of padding zeros to add to
+///   string arguments.
 struct Arguments {
-    /// Input string to process, the program times FHE functions acting on it and compare the result with the standard library.
+    /// Input string to process, the program times FHE functions acting on it and compare the
+    /// result with the standard library.
     input_string: String,
 
-    /// First pattern argument (string), calls `input_string.method(pattern)`, and the FHE equivalent for various methods.
+    /// First pattern argument (string), calls `input_string.method(pattern)`, and the FHE
+    /// equivalent for various methods.
     pattern: String,
 
-    /// Optional pattern argument (char),  an additional character argument to time methods that also accept character patterns.
+    /// Optional pattern argument (char),  an additional character argument to time methods that
+    /// also accept character patterns.
     #[arg(short, long)]
     char_pattern: Option<char>,
 
-    /// 'Replace by' argument (string), for replace and replacen. 
+    /// 'Replace by' argument (string), for replace and replacen.
     #[arg(short, long)]
     replace_pattern: Option<String>,
 
@@ -87,7 +96,7 @@ fn main() {
             }
         };
     }
-    
+
     // Times functions taking one string argument without and with padding if necessary.
     apply_time_function_twice!(trim);
     apply_time_function_twice!(trim_start);
@@ -99,19 +108,20 @@ fn main() {
     time_len!(len, encrypted_s, clear_s);
     time_is_empty!(is_empty, encrypted_s, clear_s);
     time_fhe_split!(split_ascii_whitespace, encrypted_s, clear_s);
-    
+
     if padding_zeros != 0 {
         time_len!(len, encrypted_s_padding, clear_s, padding_zeros);
         time_is_empty!(is_empty, encrypted_s_padding, clear_s, padding_zeros);
-	time_fhe_split!(
+        time_fhe_split!(
             split_ascii_whitespace,
             encrypted_s_padding,
             clear_s,
             padding_zeros
-	);
+        );
     }
 
-    /// Macro to time functions taking two string arguments.  Shorthand to avoid repetition of written arguments.
+    /// Macro to time functions taking two string arguments.  Shorthand to avoid repetition of
+    /// written arguments.
     macro_rules! time_pairs {
         ($method: ident, $return_type: ident) => {
             time_pair_string_all_paddings!(
@@ -153,12 +163,12 @@ fn main() {
     time_pairs!(rsplit, FheSplit);
     time_pairs!(rsplit_terminator, FheSplit);
 
-    
     match arguments.char_pattern {
         Some(clear_char_pattern) => {
             let encrypted_char_pattern = CLIENT_KEY.encrypt_ascii_char(clear_char_pattern as u8);
 
-	    /// Macro to time functions taking a string and a character pattern.  Shorthand to avoid repetition of written arguments.
+            /// Macro to time functions taking a string and a character pattern.  Shorthand to avoid
+            /// repetition of written arguments.
             macro_rules! time_char_pattern {
                 ($method: ident, $return_type: ident) => {
                     time_char_pattern_all_paddings!(
@@ -193,14 +203,17 @@ fn main() {
         None => (),
     }
 
-    // Times functions taking a string and an integer argument if provided by command line interface.
+    // Times functions taking a string and an integer argument if provided by command line
+    // interface.
     match arguments.integer_arg {
         Some(clear_integer_arg) => {
             // let clear_integer_arg = integer_arg as u32;
             let encrypted_integer_arg = CLIENT_KEY.encrypt_u8(clear_integer_arg as u8);
 
-	    if padding_zeros != 0 { // Branching allow the macros to correctly match literal 0 for padding_zeros, TODO: avoid this branching?
-		time_splitn_all_cases!(
+            if padding_zeros != 0 {
+                // Branching allow the macros to correctly match literal 0 for padding_zeros, TODO:
+                // avoid this branching?
+                time_splitn_all_cases!(
                     splitn,
                     clear_s,
                     encrypted_s,
@@ -208,13 +221,13 @@ fn main() {
                     padding_zeros,
                     (clear_integer_arg, encrypted_integer_arg),
                     (
-			String,
-			clear_pattern,
-			encrypted_pattern,
-			encrypted_pattern_padded
+                        String,
+                        clear_pattern,
+                        encrypted_pattern,
+                        encrypted_pattern_padded
                     )
-		);
-		time_splitn_all_cases!(
+                );
+                time_splitn_all_cases!(
                     rsplitn,
                     clear_s,
                     encrypted_s,
@@ -222,14 +235,14 @@ fn main() {
                     padding_zeros,
                     (clear_integer_arg, encrypted_integer_arg),
                     (
-			String,
-			clear_pattern,
-			encrypted_pattern,
-			encrypted_pattern_padded
+                        String,
+                        clear_pattern,
+                        encrypted_pattern,
+                        encrypted_pattern_padded
                     )
-		);
-	    } else {
-		time_splitn_all_cases!(
+                );
+            } else {
+                time_splitn_all_cases!(
                     splitn,
                     clear_s,
                     encrypted_s,
@@ -237,13 +250,13 @@ fn main() {
                     0,
                     (clear_integer_arg, encrypted_integer_arg),
                     (
-			String,
-			clear_pattern,
-			encrypted_pattern,
-			encrypted_pattern_padded
+                        String,
+                        clear_pattern,
+                        encrypted_pattern,
+                        encrypted_pattern_padded
                     )
-		);
-		time_splitn_all_cases!(
+                );
+                time_splitn_all_cases!(
                     rsplitn,
                     clear_s,
                     encrypted_s,
@@ -251,83 +264,97 @@ fn main() {
                     0,
                     (clear_integer_arg, encrypted_integer_arg),
                     (
-			String,
-			clear_pattern,
-			encrypted_pattern,
-			encrypted_pattern_padded
+                        String,
+                        clear_pattern,
+                        encrypted_pattern,
+                        encrypted_pattern_padded
                     )
-		);
+                );
+            }
 
-	    }
-
-	    if padding_zeros!= 0 {
-		time_repeat_encrypted(
+            if padding_zeros != 0 {
+                time_repeat_encrypted(
                     &clear_s,
                     &encrypted_s_padding,
                     clear_integer_arg,
                     arguments.max_number_repeatition,
                     &encrypted_integer_arg,
                     padding_zeros,
-		);
-		time_repeat_clear(
+                );
+                time_repeat_clear(
                     &clear_s,
                     &encrypted_s_padding,
                     clear_integer_arg,
                     padding_zeros,
-		);
-	    } else {
-		time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
-		time_repeat_encrypted(
+                );
+            } else {
+                time_repeat_clear(&clear_s, &encrypted_s, clear_integer_arg, 0);
+                time_repeat_encrypted(
                     &clear_s,
                     &encrypted_s,
                     clear_integer_arg,
                     arguments.max_number_repeatition,
                     &encrypted_integer_arg,
                     0,
-		);
-	    }
-	    
-	    // Time replacen if both the integer argument and the replace pattern are provided by CLI
+                );
+            }
+
+            // Time replacen if both the integer argument and the replace pattern are provided by
+            // CLI
             match &arguments.replace_pattern {
                 Some(replace_pattern) => {
                     let clear_replace_pattern = replace_pattern.as_str();
-		    let encrypted_replace_pattern = CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
-		    let encrypted_replace_pattern_padding = CLIENT_KEY.encrypt_str_padding(clear_replace_pattern, padding_zeros).unwrap();
-		    if padding_zeros != 0 {
-			time_replacen_all_cases!(
-			    replacen,
-			    clear_s,
-			    encrypted_s,
-			    encrypted_s_padding,
-			    padding_zeros,
-			    (
-				String, clear_pattern, encrypted_pattern, encrypted_pattern_padded
-			    ),
-			    (
-				String, clear_replace_pattern, encrypted_replace_pattern, encrypted_replace_pattern_padding
-			    ),
-			    (clear_integer_arg, encrypted_integer_arg)
-			);
-		    } else {
-			time_replacen_all_cases!(
-			    replacen,
-			    clear_s,
-			    encrypted_s,
-			    encrypted_s_padding,
-			    0,
-			    (
-				String, clear_pattern, encrypted_pattern, encrypted_pattern_padded
-			    ),
-			    (
-				String, clear_replace_pattern, encrypted_replace_pattern, encrypted_replace_pattern_padding
-			    ),
-			    (clear_integer_arg, encrypted_integer_arg)
-			);
-		    }
+                    let encrypted_replace_pattern =
+                        CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
+                    let encrypted_replace_pattern_padding = CLIENT_KEY
+                        .encrypt_str_padding(clear_replace_pattern, padding_zeros)
+                        .unwrap();
+                    if padding_zeros != 0 {
+                        time_replacen_all_cases!(
+                            replacen,
+                            clear_s,
+                            encrypted_s,
+                            encrypted_s_padding,
+                            padding_zeros,
+                            (
+                                String,
+                                clear_pattern,
+                                encrypted_pattern,
+                                encrypted_pattern_padded
+                            ),
+                            (
+                                String,
+                                clear_replace_pattern,
+                                encrypted_replace_pattern,
+                                encrypted_replace_pattern_padding
+                            ),
+                            (clear_integer_arg, encrypted_integer_arg)
+                        );
+                    } else {
+                        time_replacen_all_cases!(
+                            replacen,
+                            clear_s,
+                            encrypted_s,
+                            encrypted_s_padding,
+                            0,
+                            (
+                                String,
+                                clear_pattern,
+                                encrypted_pattern,
+                                encrypted_pattern_padded
+                            ),
+                            (
+                                String,
+                                clear_replace_pattern,
+                                encrypted_replace_pattern,
+                                encrypted_replace_pattern_padding
+                            ),
+                            (clear_integer_arg, encrypted_integer_arg)
+                        );
+                    }
                 }
                 _ => (),
             }
-
         }
         _ => (),
     }
@@ -336,37 +363,51 @@ fn main() {
     match arguments.replace_pattern {
         Some(replace_pattern) => {
             let clear_replace_pattern = replace_pattern.as_str();
-	    let encrypted_replace_pattern = CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
-	    let encrypted_replace_pattern_padding = CLIENT_KEY.encrypt_str_padding(clear_replace_pattern, padding_zeros).unwrap();
-	    if padding_zeros != 0 {
-		time_replace_all_cases!(
-		    replace,
-		    clear_s,
-		    encrypted_s,
-		    encrypted_s_padding,
-		    padding_zeros,
-		    (
-			String, clear_pattern, encrypted_pattern, encrypted_pattern_padded
-		    ),
-		    (
-			String, clear_replace_pattern, encrypted_replace_pattern, encrypted_replace_pattern_padding
-		    )
-		);
-	    } else {
-		time_replace_all_cases!(
-		    replace,
-		    clear_s,
-		    encrypted_s,
-		    encrypted_s_padding,
-		    0,
-		    (
-			String, clear_pattern, encrypted_pattern, encrypted_pattern_padded
-		    ),
-		    (
-			String, clear_replace_pattern, encrypted_replace_pattern, encrypted_replace_pattern_padding
-		    )
-		);
-	    }
+            let encrypted_replace_pattern = CLIENT_KEY.encrypt_str(clear_replace_pattern).unwrap();
+            let encrypted_replace_pattern_padding = CLIENT_KEY
+                .encrypt_str_padding(clear_replace_pattern, padding_zeros)
+                .unwrap();
+            if padding_zeros != 0 {
+                time_replace_all_cases!(
+                    replace,
+                    clear_s,
+                    encrypted_s,
+                    encrypted_s_padding,
+                    padding_zeros,
+                    (
+                        String,
+                        clear_pattern,
+                        encrypted_pattern,
+                        encrypted_pattern_padded
+                    ),
+                    (
+                        String,
+                        clear_replace_pattern,
+                        encrypted_replace_pattern,
+                        encrypted_replace_pattern_padding
+                    )
+                );
+            } else {
+                time_replace_all_cases!(
+                    replace,
+                    clear_s,
+                    encrypted_s,
+                    encrypted_s_padding,
+                    0,
+                    (
+                        String,
+                        clear_pattern,
+                        encrypted_pattern,
+                        encrypted_pattern_padded
+                    ),
+                    (
+                        String,
+                        clear_replace_pattern,
+                        encrypted_replace_pattern,
+                        encrypted_replace_pattern_padding
+                    )
+                );
+            }
         }
         _ => (),
     }
@@ -398,12 +439,13 @@ fn time_repeat_clear(clear_s: &str, encrypted_s: &FheString, clear_n: usize, pad
     println!("time:                               {:?}", duration);
 }
 
-/// Times repeat for an encrypted integer argument. It is required to provide a clear maximum of repeatition max_n in order to bound the length of the result.
+/// Times repeat for an encrypted integer argument. It is required to provide a clear maximum of
+/// repeatition max_n in order to bound the length of the result.
 fn time_repeat_encrypted(
     clear_s: &str,
     encrypted_s: &FheString,
     clear_n: usize,
-    max_n: usize, 
+    max_n: usize,
     encrypted_n: &RadixCiphertext,
     padding_zeros: usize,
 ) {

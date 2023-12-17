@@ -1,7 +1,7 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext,BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub type FheOptionInt = (BooleanBlock, RadixCiphertext);
 
@@ -16,8 +16,8 @@ impl StringServerKey {
 
     pub fn find_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (fhe_false, zero),
             _ => (),
@@ -36,7 +36,7 @@ impl StringServerKey {
 
     pub fn rfind_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match s.length {
             FheStrLength::Clear(length) if length == 0 => return (fhe_false, zero),
             _ => (),
@@ -64,7 +64,7 @@ impl StringServerKey {
 
     pub fn find_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
@@ -86,7 +86,7 @@ impl StringServerKey {
 
     pub fn find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
             (content_length, pattern_length) if pattern_length > content_length => {
@@ -105,7 +105,7 @@ impl StringServerKey {
 
     pub fn rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), zero),
             (content_length, pattern_length) if pattern_length > content_length => {
@@ -128,7 +128,7 @@ impl StringServerKey {
         pattern: &FheString,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) = (fhe_false, zero);
         for n in 0..s.content.len() {
             let current_match = self.starts_with_encrypted_vec(&s.content[n..], pattern);
@@ -143,7 +143,7 @@ impl StringServerKey {
 
     pub fn connected_find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) = (fhe_false, zero);
         for n in 0..s.content.len() {
             let current_match = pattern.is_prefix_of_slice(self, &s.content[n..]);
@@ -160,7 +160,7 @@ impl StringServerKey {
 
     pub fn connected_rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         let mut index = self.initial_index_rfind(&s.length);
         if pattern.len() == 0 {
             return (self.create_true(), index);
@@ -188,7 +188,7 @@ impl StringServerKey {
         from: &RadixCiphertext,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
@@ -216,7 +216,7 @@ impl StringServerKey {
         from: &RadixCiphertext,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.len()) {
             (0, 0) => return (self.create_true(), from.clone()),
             (0, _) => return (fhe_false, zero),
@@ -245,7 +245,7 @@ impl StringServerKey {
         from: &RadixCiphertext,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         if s.content.len() == 0 {
             return (fhe_false, zero);
         }
@@ -272,7 +272,7 @@ impl StringServerKey {
         from: &RadixCiphertext,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
@@ -300,7 +300,7 @@ impl StringServerKey {
 
     pub fn rfind_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (self.create_true(), zero),
             (0, _) => return (self.eq_clear_char(&pattern.content[0], 0), zero),
@@ -328,7 +328,7 @@ impl StringServerKey {
         pattern: &FheString,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         let initial_index = self.initial_index_rfind(&s.length);
         let mut index = initial_index.clone();
         let mut found = fhe_false;
@@ -356,7 +356,7 @@ impl StringServerKey {
         to: &RadixCiphertext,
     ) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         let mut index = self.initial_index_rfind(&s.length);
         let mut found = fhe_false;
         for n in (0..s.content.len()).rev() {
@@ -382,7 +382,7 @@ impl StringServerKey {
     ) -> FheOptionInt {
         let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return (from_greater_than_zero, zero),
             (0, _) => {
@@ -398,7 +398,7 @@ impl StringServerKey {
         }
 
         let mut index = self.initial_index_rfind(&s.length);
-         let mut found = fhe_false;
+        let mut found = fhe_false;
         for n in (0..s.content.len()).rev() {
             let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.integer_key.boolean_bitand(
@@ -430,13 +430,13 @@ impl StringServerKey {
     ) -> FheOptionInt {
         //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         if s.content.len() < pattern.len() {
             return (fhe_false, zero);
         }
 
         let mut index = self.initial_index_rfind(&s.length);
-         let mut found = fhe_false;
+        let mut found = fhe_false;
         for n in (0..s.content.len()).rev() {
             let increment_index = self.rincrement_index(s, n, &found);
             let current_match = self.integer_key.boolean_bitand(
@@ -460,7 +460,7 @@ impl StringServerKey {
     ) -> FheOptionInt {
         //        let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
         let zero: RadixCiphertext = self.create_zero();
-	let fhe_false: BooleanBlock = self.create_false();
+        let fhe_false: BooleanBlock = self.create_false();
         if s.content.len() == 0 {
             return (fhe_false, zero);
         }
@@ -650,13 +650,19 @@ impl StringServerKey {
         found: &BooleanBlock,
     ) -> RadixCiphertext {
         match s.padding {
-            Padding::None | Padding::Final => self.bool_to_radix(&self.integer_key.scalar_eq_parallelized(&self.bool_to_radix(found), 0)),
-            _ => self.bool_to_radix(&self.integer_key.boolean_bitand(
-                &self.integer_key.boolean_bitnot(&found),
+            Padding::None | Padding::Final => self.bool_to_radix(
                 &self
                     .integer_key
-                    .scalar_ne_parallelized(&s.content[content_index].0, 0),
-            )),
+                    .scalar_eq_parallelized(&self.bool_to_radix(found), 0),
+            ),
+            _ => self.bool_to_radix(
+                &self.integer_key.boolean_bitand(
+                    &self.integer_key.boolean_bitnot(&found),
+                    &self
+                        .integer_key
+                        .scalar_ne_parallelized(&s.content[content_index].0, 0),
+                ),
+            ),
         }
     }
 
@@ -666,12 +672,14 @@ impl StringServerKey {
         content_index: usize,
         found: &BooleanBlock,
     ) -> RadixCiphertext {
-        self.bool_to_radix(&self.integer_key.boolean_bitand(
-            &self.integer_key.boolean_bitnot(&found),
-            &self
-                .integer_key
-                .scalar_ne_parallelized(&s.content[content_index].0, 0),
-        ))
+        self.bool_to_radix(
+            &self.integer_key.boolean_bitand(
+                &self.integer_key.boolean_bitnot(&found),
+                &self
+                    .integer_key
+                    .scalar_ne_parallelized(&s.content[content_index].0, 0),
+            ),
+        )
     }
 
     // pub fn decrement_index(
@@ -681,8 +689,8 @@ impl StringServerKey {
     //     found: &RadixCiphertext,
     // ) -> RadixCiphertext {
     //     match s.padding {
-    //         Padding::None | Padding::Initial => self.integer_key.scalar_eq_parallelized(&found, 0),
-    //         _ if content_index > s.content.len() => {
+    //         Padding::None | Padding::Initial => self.integer_key.scalar_eq_parallelized(&found,
+    // 0),         _ if content_index > s.content.len() => {
     //             self.integer_key.scalar_eq_parallelized(&found, 0)
     //         }
     //         _ => self.integer_key.boolean_bitand(

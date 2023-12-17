@@ -1,7 +1,7 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.

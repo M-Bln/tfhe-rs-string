@@ -1,6 +1,8 @@
-use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
+use crate::ciphertext::{
+    ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS,
+};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     /// Return the `n`-th (encrypted) character of an encrypted string for `n` a clear index. Null
@@ -42,8 +44,10 @@ impl StringServerKey {
                 .cmux_parallelized(&right_index, &c.0, &result);
 
             // Increment `current_index` if the current char is non null
-            let current_char_non_null: RadixCiphertext =
-                self.integer_key.scalar_ne_parallelized(&c.0, 0).into_radix(NUMBER_BLOCKS, &self.integer_key);
+            let current_char_non_null: RadixCiphertext = self
+                .integer_key
+                .scalar_ne_parallelized(&c.0, 0)
+                .into_radix(NUMBER_BLOCKS, &self.integer_key);
             self.integer_key
                 .add_assign_parallelized(&mut current_index, &current_char_non_null);
         }
@@ -72,8 +76,10 @@ impl StringServerKey {
                 .cmux_parallelized(&right_index, &c.0, &result);
 
             // Increment `current_index` if the current char is non null
-            let current_char_non_null: RadixCiphertext =
-                self.integer_key.scalar_ne_parallelized(&c.0, 0).into_radix(NUMBER_BLOCKS, &self.integer_key);
+            let current_char_non_null: RadixCiphertext = self
+                .integer_key
+                .scalar_ne_parallelized(&c.0, 0)
+                .into_radix(NUMBER_BLOCKS, &self.integer_key);
             self.integer_key
                 .add_assign_parallelized(&mut current_index, &current_char_non_null);
         }
@@ -106,12 +112,8 @@ impl StringServerKey {
     /// If `condition` is an encryption of `1` (for `true`), this function returns an `FheString`
     /// encrypting the same string as `if_string`. Otherwise it returns an encryption of the empty
     /// string.
-    pub fn cmux_empty_string(
-        &self,
-        condition: &BooleanBlock,
-        if_string: &FheString,
-    ) -> FheString {
-	let radix_condition = self.bool_to_radix(&condition);
+    pub fn cmux_empty_string(&self, condition: &BooleanBlock, if_string: &FheString) -> FheString {
+        let radix_condition = self.bool_to_radix(&condition);
         let mut content_result: Vec<FheAsciiChar> = Vec::with_capacity(if_string.content.len());
         let zero = self.create_zero();
         for c in if_string.content.iter() {

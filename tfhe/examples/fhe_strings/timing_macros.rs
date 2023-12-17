@@ -405,9 +405,10 @@ macro_rules! time_is_empty {
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
         let (fhe_result, encryption_status) = match &SERVER_KEY.$method(&$encrypted_s) {
-            FheBool::Encrypted(encrypted_bool) => {
-                (CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(encrypted_bool)) != 0, "encrypted")
-            }
+            FheBool::Encrypted(encrypted_bool) => (
+                CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(encrypted_bool)) != 0,
+                "encrypted",
+            ),
             FheBool::Clear(clear_bool) => (*clear_bool, "clear"),
         };
         let duration = start.elapsed();

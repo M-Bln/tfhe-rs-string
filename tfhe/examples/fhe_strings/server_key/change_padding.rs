@@ -20,7 +20,9 @@ impl StringServerKey {
 
             // Encrypt same value as c if c is the first no null encrypted char,
             // encrypt zero otherwise
-            let to_sub = self.integer_key.mul_parallelized(&c.0, &self.bool_to_radix(&first_non_null));
+            let to_sub = self
+                .integer_key
+                .mul_parallelized(&c.0, &self.bool_to_radix(&first_non_null));
 
             // Compute the result
             self.integer_key
@@ -53,7 +55,9 @@ impl StringServerKey {
 
             // Encrypt same value as c if c is the first no null encrypted char,
             // encrypt zero otherwise
-            let to_sub = self.integer_key.mul_parallelized(&c.0, &self.bool_to_radix(&first_non_null));
+            let to_sub = self
+                .integer_key
+                .mul_parallelized(&c.0, &self.bool_to_radix(&first_non_null));
 
             // Compute the result
             self.integer_key

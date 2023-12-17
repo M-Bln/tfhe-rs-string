@@ -3,7 +3,7 @@ use crate::client_key::ConversionError;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     pub fn split_inclusive(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
@@ -69,8 +69,10 @@ impl StringServerKey {
             trailing_empty_string =
                 self.new_trailing_empty_string(&s.length, &trailing_empty_string, &start_part);
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -122,8 +124,10 @@ impl StringServerKey {
             trailing_empty_string =
                 self.new_trailing_empty_string(&s.length, &trailing_empty_string, &start_part);
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         // Count parts when the pattern is empty
         number_parts = self.integer_key.cmux_parallelized(
             &empty_pattern,
@@ -167,8 +171,10 @@ impl StringServerKey {
             trailing_empty_string =
                 self.new_trailing_empty_string(&s.length, &trailing_empty_string, &start_part);
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -207,8 +213,10 @@ impl StringServerKey {
             trailing_empty_string =
                 self.new_trailing_empty_string(&s.length, &trailing_empty_string, &start_part);
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,

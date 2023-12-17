@@ -1,34 +1,44 @@
 use crate::ciphertext::{FheAsciiChar, FheString, NUMBER_BLOCKS};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub const UP_LOW_DISTANCE: u8 = 32;
 
 impl StringServerKey {
     pub fn to_uppercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
-        FheAsciiChar(self.integer_key.sub_parallelized(
-            &c.0,
-            &self.integer_key.scalar_mul_parallelized(
-                &self.integer_key.boolean_bitand(
-                    &self.integer_key.scalar_gt_parallelized(&c.0, 96),
-                    &self.integer_key.scalar_lt_parallelized(&c.0, 123),
-                ).into_radix(NUMBER_BLOCKS, &self.integer_key),
-                UP_LOW_DISTANCE,
+        FheAsciiChar(
+            self.integer_key.sub_parallelized(
+                &c.0,
+                &self.integer_key.scalar_mul_parallelized(
+                    &self
+                        .integer_key
+                        .boolean_bitand(
+                            &self.integer_key.scalar_gt_parallelized(&c.0, 96),
+                            &self.integer_key.scalar_lt_parallelized(&c.0, 123),
+                        )
+                        .into_radix(NUMBER_BLOCKS, &self.integer_key),
+                    UP_LOW_DISTANCE,
+                ),
             ),
-        ))
+        )
     }
 
     pub fn to_lowercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
-        FheAsciiChar(self.integer_key.add_parallelized(
-            &c.0,
-            &self.integer_key.scalar_mul_parallelized(
-                &self.integer_key.boolean_bitand(
-                    &self.integer_key.scalar_gt_parallelized(&c.0, 64),
-                    &self.integer_key.scalar_lt_parallelized(&c.0, 91),
-                ).into_radix(NUMBER_BLOCKS, &self.integer_key),
-                UP_LOW_DISTANCE,
+        FheAsciiChar(
+            self.integer_key.add_parallelized(
+                &c.0,
+                &self.integer_key.scalar_mul_parallelized(
+                    &self
+                        .integer_key
+                        .boolean_bitand(
+                            &self.integer_key.scalar_gt_parallelized(&c.0, 64),
+                            &self.integer_key.scalar_lt_parallelized(&c.0, 91),
+                        )
+                        .into_radix(NUMBER_BLOCKS, &self.integer_key),
+                    UP_LOW_DISTANCE,
+                ),
             ),
-        ))
+        )
     }
 
     pub fn to_lowercase_cmux_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
