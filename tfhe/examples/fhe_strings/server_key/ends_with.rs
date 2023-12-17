@@ -4,7 +4,17 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::BooleanBlock;
 
 impl StringServerKey {
-    /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.
+    /// Checks if pattern is a suffix of s. Returns an encrypted boolean.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
+    /// let pattern = client_key.encrypt_str("bc").unwrap();
+    /// let result = server_key.ends_with(&encrypted_str, &pattern);
+    /// let clear_result = client_key.decrypt_integer(&server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 1);
+    /// ```
     pub fn ends_with(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.is_suffix_of_string(self, s)
     }

@@ -14,7 +14,7 @@ impl StringServerKey {
     /// let encrypted_str = client_key.encrypt_str("Abc").unwrap();
     /// let encrypted_str2 = client_key.encrypt_str("Abc").unwrap();
     /// let result = server_key.eq(&encrypted_str, &encrypted_str2);
-    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// let clear_result = client_key.decrypt_integer(&server_key.bool_to_radix(&result));
     /// assert_eq!(clear_result, 1);
     /// ```
     pub fn eq(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -31,7 +31,7 @@ impl StringServerKey {
     /// let encrypted_str = client_key.encrypt_str("Abc").unwrap();
     /// let encrypted_str2 = client_key.encrypt_str("Abc").unwrap();
     /// let result = server_key.ne(&encrypted_str, &encrypted_str2);
-    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// let clear_result = client_key.decrypt_integer & (server_key.bool_to_radix(&result));
     /// assert_eq!(clear_result, 0);
     /// ```
     pub fn ne(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -49,7 +49,7 @@ impl StringServerKey {
     /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
     /// let encrypted_str2 = client_key.encrypt_str("AbC").unwrap();
     /// let result = server_key.eq_ignore_case(&encrypted_str, &encrypted_str2);
-    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// let clear_result = client_key.decrypt_integer(&server_key.bool_to_radix(&result));
     /// assert_eq!(clear_result, 1);
     /// ```
     pub fn eq_ignore_case(&self, s1: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -68,7 +68,7 @@ impl StringServerKey {
     /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
     /// let encrypted_str2 = client_key.encrypt_str("bce").unwrap();
     /// let result = server_key.le(&encrypted_str, &encrypted_str2);
-    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// let clear_result = client_key.decrypt_integer(&server_key.bool_to_radix(&result));
     /// assert_eq!(clear_result, 1);
     /// ```
     pub fn le(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -88,7 +88,7 @@ impl StringServerKey {
     /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
     /// let encrypted_str2 = client_key.encrypt_str("bce").unwrap();
     /// let result = server_key.ge(&encrypted_str, &encrypted_str2);
-    /// let clear_result = client_key.decrypt_integer(server_key.bool_to_radix(&result));
+    /// let clear_result = client_key.decrypt_integer(&server_key.bool_to_radix(&result));
     /// assert_eq!(clear_result, 0);
     /// ```
     pub fn ge(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -381,6 +381,8 @@ impl StringServerKey {
     }
 
     /// Implementation of compare, for FheString without initial padding zeros.
+    /// As both strings dont have padding zeros it is enough to iterate over their content and
+    /// compare each characters.
     pub fn compare_no_init_padding(
         &self,
         s1: &FheString,
