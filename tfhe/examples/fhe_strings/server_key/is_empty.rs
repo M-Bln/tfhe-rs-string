@@ -72,7 +72,7 @@ mod tests {
                 panic!();
             }
         };
-        let clear_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&result));
+        let clear_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&result));
         assert_eq!(clear_result, 1);
     }
 }

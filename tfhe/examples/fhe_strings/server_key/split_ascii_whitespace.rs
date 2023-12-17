@@ -271,8 +271,8 @@ mod tests {
         let encrypted_s = CLIENT_KEY.encrypt_str("b c d").unwrap();
         let (start_chunk, end_chunk) =
             SERVER_KEY.next_non_white_chunk(&encrypted_s, &SERVER_KEY.create_n(1));
-        let clear_start = CLIENT_KEY.decrypt_u8(&start_chunk);
-        let clear_end = CLIENT_KEY.decrypt_u8(&end_chunk);
+        let clear_start = CLIENT_KEY.decrypt_integer(&start_chunk);
+        let clear_end = CLIENT_KEY.decrypt_integer(&end_chunk);
         assert_eq!((clear_start, clear_end), (2, 3));
     }
 

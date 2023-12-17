@@ -208,7 +208,7 @@ fn main() {
     match arguments.integer_arg {
         Some(clear_integer_arg) => {
             // let clear_integer_arg = integer_arg as u32;
-            let encrypted_integer_arg = CLIENT_KEY.encrypt_u8(clear_integer_arg as u8);
+            let encrypted_integer_arg = CLIENT_KEY.encrypt_integer(clear_integer_arg as u8);
 
             if padding_zeros != 0 {
                 // Branching allow the macros to correctly match literal 0 for padding_zeros, TODO:

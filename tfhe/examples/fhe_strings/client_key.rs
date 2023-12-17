@@ -112,11 +112,11 @@ impl StringClientKey {
         self.integer_key.decrypt::<u8>(&encrypted_char.0)
     }
 
-    pub fn decrypt_u8(&self, encrypted_int: &RadixCiphertext) -> u32 {
+    pub fn decrypt_integer(&self, encrypted_int: &RadixCiphertext) -> u32 {
         self.integer_key.decrypt::<u32>(&encrypted_int)
     }
 
-    pub fn encrypt_u8<T: DecomposableInto<u64> + UnsignedNumeric>(&self, n: T) -> RadixCiphertext {
+    pub fn encrypt_integer<T: DecomposableInto<u64> + UnsignedNumeric>(&self, n: T) -> RadixCiphertext {
         self.integer_key.encrypt::<T>(n)
     }
 
