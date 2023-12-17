@@ -58,7 +58,7 @@ impl StringServerKey {
 
     pub fn split_clear(&self, s: &FheString, pattern: &str) -> FheSplit {
         match s.padding {
-            _ if pattern.len() == 0 => {
+            _ if pattern.is_empty() => {
                 self.padding_pair_dispatch(s, s, |s1, s2| self.split_empty_pattern(s1, s2))
             }
             Padding::None | Padding::Final => self.split_clear_final_padding(s, pattern),
@@ -194,7 +194,7 @@ impl StringServerKey {
         let mut start_part = zero.clone();
         let mut end_part = self.integer_key.cmux_parallelized(
             &self.integer_key.scalar_eq_parallelized(n, 1),
-            &self.add_length_to_radix(&zero, &s.len()),
+            &self.add_length_to_radix(&zero, s.len()),
             &zero,
         );
         parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
@@ -478,7 +478,7 @@ impl StringServerKey {
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
 
         for n in 0..maximum_number_of_parts {
             let found: BooleanBlock;
@@ -546,7 +546,7 @@ impl StringServerKey {
         };
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
 
         for i in 0..maximum_number_of_parts_or_n {
             let found: BooleanBlock;
@@ -615,7 +615,7 @@ impl StringServerKey {
         // };
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
 
         for i in 0..maximum_number_of_parts {
             let mut found: BooleanBlock;

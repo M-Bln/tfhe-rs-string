@@ -117,10 +117,10 @@ impl StringServerKey {
             _ if s2.len() > s1.content.len() => return self.create_false(),
             _ => (),
         }
-        return match s1.padding {
+        match s1.padding {
             Padding::None | Padding::Final => self.eq_clear_no_init_padding(s1, s2),
             _ => self.eq_clear_no_init_padding(&self.push_padding_to_end(s1), s2),
-        };
+        }
     }
 
     /// Checks if the string encrypted by s1 is equal to the clear string s2 up to case. Returns an
@@ -131,10 +131,10 @@ impl StringServerKey {
             _ if s2.len() > s1.content.len() => return self.create_false(),
             _ => (),
         }
-        return match s1.padding {
+        match s1.padding {
             Padding::None | Padding::Final => self.eq_clear_ignore_case_no_init_padding(s1, s2),
             _ => self.eq_clear_ignore_case_no_init_padding(&self.push_padding_to_end(s1), s2),
-        };
+        }
     }
 
     // /// Check if s1 encrypts a string which has the clear string `prefix` as a prefix. Return an
@@ -399,10 +399,10 @@ impl StringServerKey {
         s2: &str,
         operator: std::cmp::Ordering,
     ) -> BooleanBlock {
-        return match s1.padding {
+        match s1.padding {
             Padding::None | Padding::Final => self.compare_clear_no_init_padding(s1, s2, operator),
             _ => self.compare_clear_no_init_padding(&self.push_padding_to_end(s1), s2, operator),
-        };
+        }
     }
 
     /// Implementation of compare, for FheString without initial padding zeros.
@@ -578,8 +578,8 @@ impl StringServerKey {
     /// encrypted value of 1 if they are equal up to case and an encrypted value of 0 otherwise.
     pub fn eq_char_ignore_case(&self, c1: &FheAsciiChar, c2: &FheAsciiChar) -> BooleanBlock {
         self.compare_char(
-            &self.to_lowercase_char(&c1),
-            &self.to_lowercase_char(&c2),
+            &self.to_lowercase_char(c1),
+            &self.to_lowercase_char(c2),
             std::cmp::Ordering::Equal,
         )
     }
@@ -593,7 +593,7 @@ impl StringServerKey {
             clear_char
         };
         self.compare_clear_char(
-            &self.to_lowercase_char(&c),
+            &self.to_lowercase_char(c),
             lowercase_clear_char,
             std::cmp::Ordering::Equal,
         )

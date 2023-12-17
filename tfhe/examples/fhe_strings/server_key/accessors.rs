@@ -111,7 +111,7 @@ impl StringServerKey {
     /// encrypting the same string as `if_string`. Otherwise it returns an encryption of the empty
     /// string.
     pub fn cmux_empty_string(&self, condition: &BooleanBlock, if_string: &FheString) -> FheString {
-        let radix_condition = self.bool_to_radix(&condition);
+        let radix_condition = self.bool_to_radix(condition);
         let mut content_result: Vec<FheAsciiChar> = Vec::with_capacity(if_string.content.len());
         let zero = self.create_zero();
         for c in if_string.content.iter() {

@@ -131,7 +131,7 @@ impl StringServerKey {
 
             // If `n` is in range, take the content of `s` otherwise take a null character.
             let new_char_content: RadixCiphertext =
-                self.integer_key.cmux_parallelized(&in_range, &c.0, &zero);
+                self.integer_key.cmux_parallelized(&in_range, &c.0, zero);
             result_content.push(FheAsciiChar(new_char_content));
         }
         let result_padding = match s.padding {
@@ -163,7 +163,7 @@ impl StringServerKey {
 
             // If `n` is in range, take the content of `s` otherwise take a null character.
             let new_char_content: RadixCiphertext =
-                self.integer_key.cmux_parallelized(&in_range, &c.0, &zero);
+                self.integer_key.cmux_parallelized(&in_range, &c.0, zero);
             result_content.push(FheAsciiChar(new_char_content));
         }
 

@@ -149,10 +149,10 @@ impl StringClientKey {
                 && current_s_index < s.len()
             {
                 result.push(s.as_bytes()[current_s_index]);
-                current_s_index +=1;
+                current_s_index += 1;
             } else {
                 result.push(0);
-                current_padding_zeros +=1;
+                current_padding_zeros += 1;
             }
         }
         result

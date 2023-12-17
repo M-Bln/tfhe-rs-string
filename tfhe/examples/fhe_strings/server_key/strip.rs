@@ -16,8 +16,8 @@ impl StringServerKey {
 
     pub fn strip_encrypted_suffix(&self, s: &FheString, suffix: &FheString) -> FheOptionString {
         let reversed_result: FheOptionString = self.strip_encrypted_prefix(
-            &self.reverse_string_content(&s),
-            &self.reverse_string_content(&suffix),
+            &self.reverse_string_content(s),
+            &self.reverse_string_content(suffix),
         );
         (
             reversed_result.0,
@@ -227,7 +227,7 @@ impl StringServerKey {
         match (string_length, prefix_length) {
             (ClearOrEncrypted::Clear(str_length), ClearOrEncrypted::Clear(pfx_length)) => {
                 ClearOrEncrypted::Encrypted(self.integer_key.unchecked_cmux(
-                    &starts_with_prefix,
+                    starts_with_prefix,
                     &self.create_n(*str_length as u8 - *pfx_length as u8),
                     &self.create_n(*str_length as u8),
                 ))
@@ -235,17 +235,17 @@ impl StringServerKey {
             (ClearOrEncrypted::Encrypted(str_length), ClearOrEncrypted::Clear(pfx_length)) => {
                 ClearOrEncrypted::Encrypted(
                     self.integer_key.unchecked_cmux(
-                        &starts_with_prefix,
+                        starts_with_prefix,
                         &self
                             .integer_key
                             .scalar_sub_parallelized(str_length, *pfx_length as u8),
-                        &str_length,
+                        str_length,
                     ),
                 )
             }
             (ClearOrEncrypted::Clear(str_length), ClearOrEncrypted::Encrypted(pfx_length)) => {
                 ClearOrEncrypted::Encrypted(self.integer_key.unchecked_cmux(
-                    &starts_with_prefix,
+                    starts_with_prefix,
                     &self.integer_key.scalar_add_parallelized(
                         &self.integer_key.neg_parallelized(pfx_length),
                         *str_length as u8,
@@ -255,9 +255,9 @@ impl StringServerKey {
             }
             (ClearOrEncrypted::Encrypted(str_length), ClearOrEncrypted::Encrypted(pfx_length)) => {
                 ClearOrEncrypted::Encrypted(self.integer_key.unchecked_cmux(
-                    &starts_with_prefix,
+                    starts_with_prefix,
                     &self.integer_key.sub_parallelized(str_length, pfx_length),
-                    &str_length,
+                    str_length,
                 ))
             }
         }
@@ -292,18 +292,16 @@ impl StringServerKey {
         let mut result: Vec<FheAsciiChar> = Vec::with_capacity(content.len());
         let overlapping_content_length = std::cmp::min(content.len(), prefix_content.len());
         let zero = self.create_zero();
-        for n in 0..overlapping_content_length {
+        for (n, c) in content.iter().enumerate().take(overlapping_content_length) {
             let erase = self.integer_key.boolean_bitand(
                 starts_with_prefix,
                 &self
                     .integer_key
                     .scalar_ge_parallelized(prefix_length, (n + 1) as u8),
             );
-            result.push(FheAsciiChar(self.integer_key.unchecked_cmux(
-                &erase,
-                &zero,
-                &content[n].0,
-            )));
+            result.push(FheAsciiChar(
+                self.integer_key.unchecked_cmux(&erase, &zero, &c.0),
+            ));
         }
         result.extend_from_slice(&content[overlapping_content_length..]);
         result

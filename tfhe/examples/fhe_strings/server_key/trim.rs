@@ -84,11 +84,11 @@ impl StringServerKey {
         match length {
             FheStrLength::Encrypted(encrypted_len) => FheStrLength::Encrypted(
                 self.integer_key
-                    .add_parallelized(&encrypted_len, &encrypted_int),
+                    .add_parallelized(encrypted_len, encrypted_int),
             ),
             FheStrLength::Clear(len) => FheStrLength::Encrypted(
                 self.integer_key
-                    .scalar_add_parallelized(&encrypted_int, *len as u64),
+                    .scalar_add_parallelized(encrypted_int, *len as u64),
             ),
         }
     }
@@ -152,10 +152,10 @@ impl StringServerKey {
     pub fn trim_start_char(&self, s: &FheString, character: u8) -> FheString {
         match s.padding {
             Padding::None | Padding::Final => {
-                self.trim_start_clear_or_encrypted_char(&s, &ClearOrEncryptedChar::Clear(character))
+                self.trim_start_clear_or_encrypted_char(s, &ClearOrEncryptedChar::Clear(character))
             }
             _ => self.trim_start_clear_or_encrypted_char(
-                &self.push_padding_to_end(&s),
+                &self.push_padding_to_end(s),
                 &ClearOrEncryptedChar::Clear(character),
             ),
         }
@@ -206,7 +206,7 @@ impl StringServerKey {
 
         for c in s.content.iter() {
             self.integer_key
-                .boolean_bitand_assign(&mut continue_triming, &self.is_ascii_white_space(&c));
+                .boolean_bitand_assign(&mut continue_triming, &self.is_ascii_white_space(c));
             result_length =
                 self.sub_radix_to_length(&result_length, &self.bool_to_radix(&continue_triming));
 

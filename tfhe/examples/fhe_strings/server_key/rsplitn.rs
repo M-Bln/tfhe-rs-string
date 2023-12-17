@@ -142,7 +142,7 @@ impl StringServerKey {
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
         let decrement_search_from = self.integer_key.cmux_parallelized(
             &empty_pattern,
             &zero.clone(),
@@ -231,7 +231,7 @@ impl StringServerKey {
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
-        let empty_pattern = self.is_empty_encrypted(&pattern);
+        let empty_pattern = self.is_empty_encrypted(pattern);
         let decrement_search_from = self.integer_key.cmux_parallelized(
             &empty_pattern,
             &zero.clone(),
@@ -286,7 +286,7 @@ impl StringServerKey {
                 &empty_pattern,
                 &self
                     .integer_key
-                    .le_parallelized(&number_parts_rsplit_empty_pattern, &n),
+                    .le_parallelized(&number_parts_rsplit_empty_pattern, n),
             ),
             &number_parts_rsplit_empty_pattern,
             &number_parts,

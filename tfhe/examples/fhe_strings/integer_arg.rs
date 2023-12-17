@@ -69,7 +69,7 @@ impl FheIntegerArg for u32 {
 }
 
 impl FheIntegerArg for usize {
-    impl_splitn_methods!(clear, (|itself: &usize| *itself as usize));
+    impl_splitn_methods!(clear, (|itself: &usize| *itself));
     fn add_one(&self, _server_key: &StringServerKey) -> Self {
         *self + 1
     }
