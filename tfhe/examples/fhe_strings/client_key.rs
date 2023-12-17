@@ -2,10 +2,9 @@ use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::string::FromUtf8Error;
+use tfhe::core_crypto::prelude::UnsignedNumeric;
+use tfhe::integer::block_decomposition::DecomposableInto;
 use tfhe::integer::{RadixCiphertext, RadixClientKey};
-use tfhe::core_crypto::prelude::{UnsignedNumeric};
-use tfhe::integer::block_decomposition::{DecomposableInto};
-
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StringClientKey {
@@ -15,8 +14,8 @@ pub struct StringClientKey {
 impl From<RadixClientKey> for StringClientKey {
     fn from(integer_key: RadixClientKey) -> Self {
         Self {
-	    integer_key: integer_key,
-	}
+            integer_key: integer_key,
+        }
     }
 }
 
@@ -56,8 +55,10 @@ impl StringClientKey {
             )
         }
     }
-    
-    /// Encrypt a string and add `padding_size` encrypted padding zeros dispatched randomly inside the content of the string. For performence reason strings should not be encrypted this way in applications. This function exists for testing purpose.
+
+    /// Encrypt a string and add `padding_size` encrypted padding zeros dispatched randomly inside
+    /// the content of the string. For performence reason strings should not be encrypted this way
+    /// in applications. This function exists for testing purpose.
     pub fn encrypt_str_random_padding(
         &self,
         s: &str,
@@ -83,7 +84,9 @@ impl StringClientKey {
         StringClientKey::string_from_padded_vec(self.decrypt_fhe_ascii_vec(s))
     }
 
-    /// Encrypt a vector of ascii character (encoded as u8) and return an encrypted string. It does not perform any check and the returned string display the length and the padding passed as arguments.
+    /// Encrypt a vector of ascii character (encoded as u8) and return an encrypted string. It does
+    /// not perform any check and the returned string display the length and the padding passed as
+    /// arguments.
     pub fn encrypt_ascii_vec(
         &self,
         ascii_vec: &Vec<u8>,
@@ -116,7 +119,10 @@ impl StringClientKey {
         self.integer_key.decrypt::<u32>(&encrypted_int)
     }
 
-    pub fn encrypt_integer<T: DecomposableInto<u64> + UnsignedNumeric>(&self, n: T) -> RadixCiphertext {
+    pub fn encrypt_integer<T: DecomposableInto<u64> + UnsignedNumeric>(
+        &self,
+        n: T,
+    ) -> RadixCiphertext {
         self.integer_key.encrypt::<T>(n)
     }
 
@@ -180,7 +186,7 @@ impl StringClientKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test, FheStrLength, Padding};
+    use crate::ciphertext::{gen_keys_test};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;

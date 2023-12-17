@@ -1,6 +1,4 @@
-use crate::ciphertext::{
-    FheAsciiChar, FheStrLength, FheString, Padding
-};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
@@ -44,11 +42,12 @@ impl StringServerKey {
                 .cmux_parallelized(&right_index, &c.0, &result);
 
             // Increment `current_index` if the current char is non null
-            let current_char_non_null: BooleanBlock = self
-                .integer_key
-                .scalar_ne_parallelized(&c.0, 0);
-            self.integer_key
-                .add_assign_parallelized(&mut current_index, &self.bool_to_radix(&current_char_non_null));
+            let current_char_non_null: BooleanBlock =
+                self.integer_key.scalar_ne_parallelized(&c.0, 0);
+            self.integer_key.add_assign_parallelized(
+                &mut current_index,
+                &self.bool_to_radix(&current_char_non_null),
+            );
         }
         FheAsciiChar(result)
     }
@@ -75,11 +74,12 @@ impl StringServerKey {
                 .cmux_parallelized(&right_index, &c.0, &result);
 
             // Increment `current_index` if the current char is non null
-            let current_char_non_null: BooleanBlock = self
-                .integer_key
-                .scalar_ne_parallelized(&c.0, 0);
-            self.integer_key
-                .add_assign_parallelized(&mut current_index, &self.bool_to_radix(&current_char_non_null));
+            let current_char_non_null: BooleanBlock =
+                self.integer_key.scalar_ne_parallelized(&c.0, 0);
+            self.integer_key.add_assign_parallelized(
+                &mut current_index,
+                &self.bool_to_radix(&current_char_non_null),
+            );
         }
         FheAsciiChar(result)
     }

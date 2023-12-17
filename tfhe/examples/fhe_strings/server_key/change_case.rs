@@ -7,38 +7,32 @@ pub const UP_LOW_DISTANCE: u8 = 32;
 impl StringServerKey {
     /// Returns a encrypted character encoding the same as c in uppercase.
     pub fn to_uppercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
-	let change_case = &self
-            .integer_key
-            .boolean_bitand(
-                &self.integer_key.scalar_gt_parallelized(&c.0, 96),
-                &self.integer_key.scalar_lt_parallelized(&c.0, 123),
-            );
+        let change_case = &self.integer_key.boolean_bitand(
+            &self.integer_key.scalar_gt_parallelized(&c.0, 96),
+            &self.integer_key.scalar_lt_parallelized(&c.0, 123),
+        );
         FheAsciiChar(
             self.integer_key.sub_parallelized(
                 &c.0,
-                &self.integer_key.scalar_mul_parallelized(
-                    &self.bool_to_radix(change_case),
-		    UP_LOW_DISTANCE,
-                ),
+                &self
+                    .integer_key
+                    .scalar_mul_parallelized(&self.bool_to_radix(change_case), UP_LOW_DISTANCE),
             ),
         )
     }
 
     /// Returns a encrypted character encoding the same as c in lowercase.
     pub fn to_lowercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
-	let change_case = &self
-            .integer_key
-            .boolean_bitand(
-                &self.integer_key.scalar_gt_parallelized(&c.0, 64),
-                &self.integer_key.scalar_lt_parallelized(&c.0, 91),
-            );
+        let change_case = &self.integer_key.boolean_bitand(
+            &self.integer_key.scalar_gt_parallelized(&c.0, 64),
+            &self.integer_key.scalar_lt_parallelized(&c.0, 91),
+        );
         FheAsciiChar(
             self.integer_key.add_parallelized(
                 &c.0,
-                &self.integer_key.scalar_mul_parallelized(
-		    &self.bool_to_radix(change_case),
-                    UP_LOW_DISTANCE,
-                ),
+                &self
+                    .integer_key
+                    .scalar_mul_parallelized(&self.bool_to_radix(change_case), UP_LOW_DISTANCE),
             ),
         )
     }
@@ -72,7 +66,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test};
+    use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;

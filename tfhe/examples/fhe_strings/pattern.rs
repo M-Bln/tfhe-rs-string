@@ -1,11 +1,11 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding, NUMBER_BLOCKS};
+use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::integer_arg::FheIntegerArg;
 use crate::server_key::find::FheOptionInt;
 use crate::server_key::split::FheSplit;
 use crate::server_key::strip::FheOptionString;
 
 use crate::server_key::StringServerKey;
-use tfhe::integer::{BooleanBlock, RadixCiphertext};
+use tfhe::integer::{BooleanBlock};
 
 /// Creates a method with 3 arguments `&self, server_key, s`, that just calls a specified method
 /// of `server_key`.

@@ -1,4 +1,4 @@
-use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
+use crate::ciphertext::{FheString};
 use crate::pattern::FheCharPattern;
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;

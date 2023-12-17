@@ -21,8 +21,8 @@ pub mod strip;
 mod substring;
 mod trim;
 
-use tfhe::integer::ServerKey;
 use serde::{Deserialize, Serialize};
+use tfhe::integer::ServerKey;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct StringServerKey {
