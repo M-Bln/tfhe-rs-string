@@ -36,7 +36,8 @@ macro_rules! impl_integer_arg_method {
             haystack: &FheString,
             pattern: $pattern_type,
         ) -> FheSplit {
-            server_key.$server_key_method($closure(self), haystack, pattern)
+            let closure = $closure;
+            server_key.$server_key_method(closure(self), haystack, pattern)
         }
     };
 }
@@ -55,7 +56,7 @@ macro_rules! impl_splitn_methods {
 }
 
 impl FheIntegerArg for u32 {
-    impl_splitn_methods!(clear, (|itself: &u32| *itself as usize));
+    impl_splitn_methods!(clear, { |itself: &u32| *itself as usize });
     fn add_one(&self, _server_key: &StringServerKey) -> Self {
         *self + 1
     }
@@ -69,7 +70,7 @@ impl FheIntegerArg for u32 {
 }
 
 impl FheIntegerArg for usize {
-    impl_splitn_methods!(clear, (|itself: &usize| *itself));
+    impl_splitn_methods!(clear, { |itself: &usize| *itself });
     fn add_one(&self, _server_key: &StringServerKey) -> Self {
         *self + 1
     }
@@ -83,7 +84,7 @@ impl FheIntegerArg for usize {
 }
 
 impl FheIntegerArg for RadixCiphertext {
-    impl_splitn_methods!(encrypted, (|itself| itself));
+    impl_splitn_methods!(encrypted, { |itself| itself });
     fn add_one(&self, server_key: &StringServerKey) -> Self {
         server_key.integer_key.scalar_add_parallelized(self, 1)
     }
