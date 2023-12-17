@@ -1,7 +1,7 @@
 use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext,BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub type FheOptionString = (BooleanBlock, FheString);
 

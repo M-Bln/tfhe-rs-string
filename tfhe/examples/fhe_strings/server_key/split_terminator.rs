@@ -3,7 +3,7 @@ use crate::client_key::ConversionError;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::split::FheSplit;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     pub fn split_terminator(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
@@ -121,7 +121,7 @@ impl StringServerKey {
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
         let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
-                                                               //let mut number_parts = self.create_n(1); // The result has at least 1 part.
+                                                                                    //let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
@@ -150,8 +150,10 @@ impl StringServerKey {
                 ),
             }
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -198,8 +200,10 @@ impl StringServerKey {
                 ),
             };
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -220,7 +224,7 @@ impl StringServerKey {
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
         let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
-                                                               //        let mut number_parts = self.create_n(1); // The result has at least 1 part.
+                                                                                    //        let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
@@ -249,8 +253,10 @@ impl StringServerKey {
                 ),
             };
         }
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,
@@ -271,7 +277,7 @@ impl StringServerKey {
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
         let mut number_parts = self.bool_to_radix(&self.is_not_empty_encrypted(s)); // The result has at least 1 part if not empty.
-                                                               //        let mut number_parts = self.create_n(1); // The result has at least 1 part.
+                                                                                    //        let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
         let mut start_part = zero.clone();
@@ -322,8 +328,10 @@ impl StringServerKey {
             &self.add_length_scalar(&s.length, 2),
             &number_parts,
         );
-        self.integer_key
-            .sub_assign_parallelized(&mut number_parts, &self.bool_to_radix(&trailing_empty_string));
+        self.integer_key.sub_assign_parallelized(
+            &mut number_parts,
+            &self.bool_to_radix(&trailing_empty_string),
+        );
         FheSplit {
             parts: parts,
             number_parts: number_parts,

@@ -74,24 +74,24 @@ macro_rules! to_string_fhe_result {
         CLIENT_KEY.decrypt_string(&$fhe_result).unwrap()
     };
     ($fhe_result: ident, Bool) => {
-        (CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result)) == 1)
+        (CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&$fhe_result)) == 1)
     };
     ($fhe_result: ident, FheOptionString) => {{
-        if CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)) == 1 {
+        if CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&$fhe_result.0)) == 1 {
             Some(CLIENT_KEY.decrypt_string(&$fhe_result.1).unwrap())
         } else {
             None
         }
     }};
     ($fhe_result: ident, FheOptionInt) => {{
-        if CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&$fhe_result.0)) == 1 {
-            Some(CLIENT_KEY.decrypt_u8(&$fhe_result.1))
+        if CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&$fhe_result.0)) == 1 {
+            Some(CLIENT_KEY.decrypt_integer(&$fhe_result.1))
         } else {
             None
         }
     }};
     ($fhe_result: ident, FheSplit) => {{
-        let clear_len = CLIENT_KEY.decrypt_u8(&$fhe_result.number_parts);
+        let clear_len = CLIENT_KEY.decrypt_integer(&$fhe_result.number_parts);
         $fhe_result.parts[..(clear_len as usize)]
             .iter()
             .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
@@ -234,7 +234,6 @@ macro_rules! map_time_patterns {
 
 // ( $arg_type: ident, $clear_arg: ident, $encrypted_arg: ident, $encrypted_arg_padding: ident,
 // $encryption: ident, $arg_padding: expr)
-
 
 // #[macro_export]
 // macro_rules! all_arguments_from_type {
@@ -677,8 +676,6 @@ macro_rules! time_char_pattern_all_paddings {
         }
     };
 }
-
-
 
 /// Dispatching macro to time all cases of encryption and padding
 
@@ -1147,22 +1144,77 @@ macro_rules! time_replace_all_cases {
             0,
             FheString,
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
-	    (
-		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
-	    )
-	    
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            )
         );
     };
     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
@@ -1176,38 +1228,149 @@ macro_rules! time_replace_all_cases {
             $padding_zeros,
             FheString,
             (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
             (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
-	    (
-		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)
-	    ),
-	    (
-		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros)	    
-	    )	
-	    
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                )
+            )
         );
     };
     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
@@ -1221,26 +1384,80 @@ macro_rules! time_replace_all_cases {
             $padding_zeros,
             FheString,
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                )
             ),
-	    (
-		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0)	    
-	    )
-	    
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                )
+            )
         );
     };
 }
-
 
 #[macro_export]
 macro_rules! time_replacen_all_cases {
@@ -1256,46 +1473,213 @@ macro_rules! time_replacen_all_cases {
             0,
             FheString,
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-            ),
-	    (
-		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
-	    (
-		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    )
-	    
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            )
         );
     };
     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
@@ -1310,85 +1694,421 @@ macro_rules! time_replacen_all_cases {
             $padding_zeros,
             FheString,
             (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
             (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-            ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-            ),
-	    (
-		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
             (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
-	    (
-		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    ),
-	    (
-		(String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    ),
-	    (
-                (String, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, $padding_zeros),
-                (String, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, $padding_zeros),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    )
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    String,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    String,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    $padding_zeros
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            )
         );
     };
     ($method: ident, $clear_s: ident, $encrypted_s: ident, $encrypted_s_padding: ident,  $padding_zeros: expr,
@@ -1403,45 +2123,213 @@ macro_rules! time_replacen_all_cases {
             $padding_zeros,
             FheString,
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-            ),
-	    (
-		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Clear, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
             (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Clear, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
             ),
-	    (
-		($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Clear, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    ),
-	    (
-                ($old_arg_type, $old_clear_pattern, $old_encrypted_pattern, $old_encrypted_pattern_padding, Encrypted, 0),
-                ($arg_type, $clear_pattern, $encrypted_pattern, $encrypted_pattern_padding, Encrypted, 0),
-		(usize, $clear_integer, $encrypted_integer, $encrypted_integer, Encrypted, 0)
-	    )
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Clear,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Clear,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            ),
+            (
+                (
+                    $old_arg_type,
+                    $old_clear_pattern,
+                    $old_encrypted_pattern,
+                    $old_encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    $arg_type,
+                    $clear_pattern,
+                    $encrypted_pattern,
+                    $encrypted_pattern_padding,
+                    Encrypted,
+                    0
+                ),
+                (
+                    usize,
+                    $clear_integer,
+                    $encrypted_integer,
+                    $encrypted_integer,
+                    Encrypted,
+                    0
+                )
+            )
         );
     };
 }

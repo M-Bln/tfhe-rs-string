@@ -1,6 +1,6 @@
 use crate::ciphertext::{ClearOrEncrypted, FheStrLength, FheString};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 #[derive(Debug, PartialEq)]
 pub enum FheBool {
@@ -49,7 +49,7 @@ mod tests {
     use crate::server_key::is_empty::FheBool;
     use crate::server_key::StringServerKey;
     use lazy_static::lazy_static;
-    use tfhe::integer::{RadixCiphertext, BooleanBlock};
+    use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
     lazy_static! {
         pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
@@ -72,7 +72,7 @@ mod tests {
                 panic!();
             }
         };
-        let clear_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&result));
+        let clear_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&result));
         assert_eq!(clear_result, 1);
     }
 }

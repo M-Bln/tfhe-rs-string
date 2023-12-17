@@ -19,7 +19,7 @@ impl StringServerKey {
 
     pub fn rsplitn(
         &self,
-	s: &FheString,
+        s: &FheString,
         n: &impl FheIntegerArg,
         pattern: &impl FhePattern,
     ) -> FheSplit {
@@ -133,7 +133,8 @@ impl StringServerKey {
         };
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts_or_n);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
@@ -226,7 +227,8 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found = fhe_false.clone();
 
@@ -312,7 +314,8 @@ impl StringServerKey {
             _ => s.content.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found = fhe_false.clone();
 
@@ -391,8 +394,10 @@ impl StringServerKey {
         let maximum_number_of_parts = std::cmp::min(maximum_number_of_parts_split, n);
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
-        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
+        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n,
+        // 0));
 
         if n == 1 {
             parts.push(s.clone());
@@ -416,8 +421,11 @@ impl StringServerKey {
                 length: match s.len() {
                     FheStrLength::Clear(_) => FheStrLength::Clear(1),
                     _ => FheStrLength::Encrypted(
-                        self.bool_to_radix(&self.integer_key
-                            .scalar_ne_parallelized(&s.content[s.content.len() - 1 - i].0, 0)),
+                        self.bool_to_radix(
+                            &self
+                                .integer_key
+                                .scalar_ne_parallelized(&s.content[s.content.len() - 1 - i].0, 0),
+                        ),
                     ),
                 },
                 padding: match s.len() {
@@ -453,7 +461,8 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found = fhe_false.clone();
 
@@ -539,7 +548,8 @@ impl StringServerKey {
         };
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts_or_n);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
@@ -634,7 +644,8 @@ impl StringServerKey {
             _ => s.content.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found = fhe_false.clone();
 
@@ -694,7 +705,8 @@ impl StringServerKey {
         };
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts_or_n);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.

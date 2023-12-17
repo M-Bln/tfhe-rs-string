@@ -1,7 +1,7 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     pub fn contains(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
@@ -139,8 +139,8 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -148,8 +148,8 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -158,8 +158,8 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -168,8 +168,8 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
             }
         };
@@ -184,8 +184,8 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -193,8 +193,8 @@ mod tests {
 		    let std_result = $string_arg.$method($pattern_arg);
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -203,8 +203,8 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str(&$string_arg).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -213,8 +213,8 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_str(&$pattern_arg).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
 
 		#[test]
@@ -223,8 +223,8 @@ mod tests {
                     let encrypted_s = CLIENT_KEY.encrypt_str_random_padding(&$string_arg, 2).unwrap();
 		    let encrypted_pattern = CLIENT_KEY.encrypt_str_random_padding(&$pattern_arg, 2).unwrap();
                     let fhe_result = SERVER_KEY.$method(&encrypted_s, &encrypted_pattern);
-                     let clear_fhe_result = CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(&fhe_result));
-		    assert_eq!(std_result as u8, clear_fhe_result);
+                     let clear_fhe_result = CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(&fhe_result));
+		    assert_eq!(std_result as u32, clear_fhe_result);
 		}
             }
         };

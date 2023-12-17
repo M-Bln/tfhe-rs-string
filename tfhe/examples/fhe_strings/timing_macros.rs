@@ -222,7 +222,7 @@ macro_rules! time_function_string_pattern_return_type {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$clear_pattern);
         let fhe_result = (
-            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.0),
             CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
         );
         let duration = start.elapsed();
@@ -243,7 +243,7 @@ macro_rules! time_function_string_pattern_return_type {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padded, &$clear_pattern);
         let fhe_result = (
-            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.0),
             CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
         );
         let duration = start.elapsed();
@@ -264,7 +264,7 @@ macro_rules! time_function_string_pattern_return_type {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$encrypted_pattern);
         let fhe_result = (
-            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.0),
             CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
         );
         let duration = start.elapsed();
@@ -289,7 +289,7 @@ macro_rules! time_function_string_pattern {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$clear_pattern);
         let fhe_result = (
-            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.0),
             CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
         );
         let duration = start.elapsed();
@@ -309,7 +309,7 @@ macro_rules! time_function_string_pattern {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padded, &$clear_pattern);
         let fhe_result = (
-            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.0),
             CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
         );
         let duration = start.elapsed();
@@ -329,7 +329,7 @@ macro_rules! time_function_string_pattern {
         let start = std::time::Instant::now();
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s, &$encrypted_pattern);
         let fhe_result = (
-            CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.0),
+            CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.0),
             CLIENT_KEY.decrypt_string(&encrypted_fhe_result.1).unwrap(),
         );
         let duration = start.elapsed();
@@ -357,7 +357,7 @@ macro_rules! time_fhe_split {
         let encrypted_fhe_result = SERVER_KEY.$method(&$encrypted_s_padding);
         let duration = start.elapsed();
         let std_result: Vec<String> = $clear_s.$method().map(|s| String::from(s)).collect();
-        let clear_len = CLIENT_KEY.decrypt_u8(&encrypted_fhe_result.number_parts);
+        let clear_len = CLIENT_KEY.decrypt_integer(&encrypted_fhe_result.number_parts);
         let fhe_result: Vec<String> = encrypted_fhe_result.parts[..(clear_len as usize)]
             .iter()
             .map(|s| CLIENT_KEY.decrypt_string(s).unwrap())
@@ -381,8 +381,8 @@ macro_rules! time_len {
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
         let fhe_result = match SERVER_KEY.$method(&$encrypted_s) {
-            FheStrLength::Encrypted(encrypted_length) => CLIENT_KEY.decrypt_u8(&encrypted_length),
-            FheStrLength::Clear(clear_length) => *clear_length as u8,
+            FheStrLength::Encrypted(encrypted_length) => CLIENT_KEY.decrypt_integer(&encrypted_length),
+            FheStrLength::Clear(clear_length) => *clear_length as u32,
         };
         let duration = start.elapsed();
         let std_result = $clear_s.$method();
@@ -405,9 +405,10 @@ macro_rules! time_is_empty {
     ($method: ident, $encrypted_s: ident, $clear_s: ident, $padding_zeros: expr) => {
         let start = std::time::Instant::now();
         let (fhe_result, encryption_status) = match &SERVER_KEY.$method(&$encrypted_s) {
-            FheBool::Encrypted(encrypted_bool) => {
-                (CLIENT_KEY.decrypt_u8(&SERVER_KEY.bool_to_radix(encrypted_bool)) != 0, "encrypted")
-            }
+            FheBool::Encrypted(encrypted_bool) => (
+                CLIENT_KEY.decrypt_integer(&SERVER_KEY.bool_to_radix(encrypted_bool)) != 0,
+                "encrypted",
+            ),
             FheBool::Clear(clear_bool) => (*clear_bool, "clear"),
         };
         let duration = start.elapsed();

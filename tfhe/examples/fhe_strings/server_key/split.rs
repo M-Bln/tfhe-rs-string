@@ -3,7 +3,7 @@ use crate::client_key::ConversionError;
 use crate::integer_arg::FheIntegerArg;
 use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub type ResultFheString = (BooleanBlock, FheString);
 
@@ -184,9 +184,10 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
-        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
-        // let empty_string = FheString {
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
+        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n,
+        // 0)); let empty_string = FheString {
         //     content: vec![],
         //     length: FheStrLength::Clear(0),
         //     padding: Padding::None,
@@ -242,8 +243,10 @@ impl StringServerKey {
         let maximum_number_of_parts = std::cmp::min(maximum_number_of_parts_split, n);
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
-        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
+        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n,
+        // 0));
 
         if n == 1 {
             parts.push(s.clone());
@@ -266,9 +269,9 @@ impl StringServerKey {
                 content: vec![s.content[i].clone()],
                 length: match s.len() {
                     FheStrLength::Clear(clear_length) => FheStrLength::Clear(1),
-                    _ => FheStrLength::Encrypted(
-                        self.bool_to_radix(&self.integer_key.scalar_ne_parallelized(&s.content[i].0, 0)),
-                    ),
+                    _ => FheStrLength::Encrypted(self.bool_to_radix(
+                        &self.integer_key.scalar_ne_parallelized(&s.content[i].0, 0),
+                    )),
                 },
                 padding: match s.len() {
                     FheStrLength::Clear(clear_length) => Padding::None,
@@ -338,7 +341,8 @@ impl StringServerKey {
             _ => s.content.len() + 1,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -368,7 +372,8 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -400,7 +405,8 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -436,7 +442,8 @@ impl StringServerKey {
         };
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -473,7 +480,8 @@ impl StringServerKey {
             _ => s.content.len() + 2,
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1); // The result has at least 1 part.
 
         // `start_part` holds the index of the beginning of the current part.
@@ -539,7 +547,8 @@ impl StringServerKey {
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
@@ -607,7 +616,8 @@ impl StringServerKey {
         //        let maximum_number_of_parts_or_n = self.integer(n, maximum_number_of_parts);
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
         // let mut number_parts = match n {
         //     0 => self.create_zero(),
@@ -640,9 +650,11 @@ impl StringServerKey {
                 &end_part,
             );
 
-            found = self.radix_to_bool(&self
-                .integer_key
-                .cmux_parallelized(&out_of_range, &zero.clone(), &self.bool_to_radix(&found)));
+            found = self.radix_to_bool(&self.integer_key.cmux_parallelized(
+                &out_of_range,
+                &zero.clone(),
+                &self.bool_to_radix(&found),
+            ));
             // Increment `number_parts` if the pattern is found.
             self.integer_key
                 .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
@@ -694,7 +706,8 @@ impl StringServerKey {
         };
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
 
         let mut start_part = zero.clone();
@@ -709,10 +722,11 @@ impl StringServerKey {
                 &self.add_length_to_radix(&self.create_zero(), &s.length),
                 &end_part,
             );
-	    found = self.radix_to_bool(
-		&self
-		    .integer_key
-		    .cmux_parallelized(&out_of_range, &zero.clone(), &self.bool_to_radix(&found)));
+            found = self.radix_to_bool(&self.integer_key.cmux_parallelized(
+                &out_of_range,
+                &zero.clone(),
+                &self.bool_to_radix(&found),
+            ));
             // found = self
             //     .integer_key
             //     .cmux_parallelized(&out_of_range, &zero.clone(), &found);
@@ -752,7 +766,8 @@ impl StringServerKey {
         }
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1);
 
         let mut start_part = zero.clone();
@@ -815,7 +830,8 @@ impl StringServerKey {
         }
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1);
 
         let mut start_part = zero.clone();
@@ -868,7 +884,8 @@ impl StringServerKey {
         };
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let zero = self.create_zero(); let fhe_false = self.create_false();
+        let zero = self.create_zero();
+        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
 
         let mut start_part = zero.clone();
@@ -884,11 +901,11 @@ impl StringServerKey {
                 &end_part,
             );
 
-
-	    found = self.radix_to_bool(
-		&self
-		    .integer_key
-                    .cmux_parallelized(&out_of_range, &zero.clone(), &self.bool_to_radix(&found)));
+            found = self.radix_to_bool(&self.integer_key.cmux_parallelized(
+                &out_of_range,
+                &zero.clone(),
+                &self.bool_to_radix(&found),
+            ));
             // found = self
             //     .integer_key
             //     .cmux_parallelized(&out_of_range, &zero.clone(), &found);

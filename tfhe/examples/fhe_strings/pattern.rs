@@ -5,7 +5,7 @@ use crate::server_key::split::FheSplit;
 use crate::server_key::strip::FheOptionString;
 
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 /// Creates a method with 3 arguments `&self, server_key, s`, that just calls a specified method
 /// of `server_key`.
@@ -101,11 +101,7 @@ pub trait FhePattern {
         s: &FheString,
     ) -> FheSplit;
 
-    fn is_contained_in(
-        &self,
-        server_key: &StringServerKey,
-        haystack: &FheString,
-    ) -> BooleanBlock {
+    fn is_contained_in(&self, server_key: &StringServerKey, haystack: &FheString) -> BooleanBlock {
         let mut result = server_key.create_false();
         for i in 0..haystack.content.len() {
             server_key.integer_key.boolean_bitor_assign(
@@ -119,11 +115,7 @@ pub trait FhePattern {
     fn eq_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
-    fn eq_ignore_case_string(
-        &self,
-        server_key: &StringServerKey,
-        s: &FheString,
-    ) -> BooleanBlock {
+    fn eq_ignore_case_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
         server_key.create_false()
     }
     fn le_string(&self, server_key: &StringServerKey, s: &FheString) -> BooleanBlock {
@@ -154,14 +146,14 @@ impl FhePattern for &str {
             return server_key.create_false();
         }
         for n in 0..std::cmp::min(haystack.len(), self.len()) {
-	    result = server_key.integer_key.boolean_bitand(
-		&result,
-		&server_key.eq_clear_char(&haystack[n], self.as_bytes()[n]),
-	    );
+            result = server_key.integer_key.boolean_bitand(
+                &result,
+                &server_key.eq_clear_char(&haystack[n], self.as_bytes()[n]),
+            );
             // server_key.integer_key.boolean_bitand_assign(
             //     &mut result,
-            //     &server_key.bool_to_radix(&server_key.eq_clear_char(&haystack[n], self.as_bytes()[n])),
-            
+            //     &server_key.bool_to_radix(&server_key.eq_clear_char(&haystack[n],
+            // self.as_bytes()[n])),
         }
         result
     }

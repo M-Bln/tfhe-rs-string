@@ -2,7 +2,7 @@ use crate::ciphertext::{ClearOrEncrypted, FheAsciiChar, FheStrLength, FheString,
 use crate::client_key::ConversionError;
 use crate::server_key::split::ResultFheString;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     /// This function create a copy of the substring of `s` between the `start`-th character
@@ -159,8 +159,7 @@ impl StringServerKey {
         let mut result_content: Vec<FheAsciiChar> = Vec::with_capacity(s.content.len());
         for (n, c) in s.content.iter().enumerate() {
             // Check if the index `n` is in the range `start`-`end`.
-            let in_range: BooleanBlock =
-                self.integer_key.scalar_le_parallelized(start, n as u64);
+            let in_range: BooleanBlock = self.integer_key.scalar_le_parallelized(start, n as u64);
 
             // If `n` is in range, take the content of `s` otherwise take a null character.
             let new_char_content: RadixCiphertext =

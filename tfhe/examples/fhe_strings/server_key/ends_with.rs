@@ -1,7 +1,7 @@
 use crate::ciphertext::{FheAsciiChar, FheStrLength, FheString, Padding};
 use crate::pattern::FhePattern;
 use crate::server_key::StringServerKey;
-use tfhe::integer::{RadixCiphertext, BooleanBlock};
+use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     /// Checks if pattern is a prefix of s. Returns an encrypted value of 1 for true, 0 for false.
@@ -40,13 +40,13 @@ mod tests {
             .unwrap();
         let fhe_ends_with_encrypted = server_key.ends_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
-            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_ends_with_encrypted)),
-            std_ends_with as u8
+            client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_ends_with_encrypted)),
+            std_ends_with as u32
         );
         let fhe_ends_with_clear = server_key.ends_with(&encrypted_s, &pattern);
         assert_eq!(
-            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_ends_with_clear)),
-            std_ends_with as u8
+            client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_ends_with_clear)),
+            std_ends_with as u32
         );
     }
 
@@ -76,25 +76,25 @@ mod tests {
         let encrypted_pattern = client_key.encrypt_ascii_char(pattern as u8);
         let mut fhe_ends_with_encrypted = server_key.ends_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
-            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_ends_with_encrypted)),
-            std_ends_with as u8
+            client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_ends_with_encrypted)),
+            std_ends_with as u32
         );
         let mut fhe_ends_with_clear = server_key.ends_with(&encrypted_s, &pattern);
         assert_eq!(
-            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_ends_with_clear)),
-            std_ends_with as u8
+            client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_ends_with_clear)),
+            std_ends_with as u32
         );
 
         encrypted_s = client_key.encrypt_str_padding(s, string_padding).unwrap();
         fhe_ends_with_encrypted = server_key.ends_with(&encrypted_s, &encrypted_pattern);
         assert_eq!(
-            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_ends_with_encrypted)),
-            std_ends_with as u8
+            client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_ends_with_encrypted)),
+            std_ends_with as u32
         );
         let mut fhe_ends_with_clear = server_key.ends_with(&encrypted_s, &pattern);
         assert_eq!(
-            client_key.decrypt_u8(&server_key.bool_to_radix(&fhe_ends_with_clear)),
-            std_ends_with as u8
+            client_key.decrypt_integer(&server_key.bool_to_radix(&fhe_ends_with_clear)),
+            std_ends_with as u32
         );
     }
 
