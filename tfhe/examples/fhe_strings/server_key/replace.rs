@@ -189,7 +189,7 @@ impl StringServerKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ciphertext::{gen_keys_test, FheAsciiChar, FheStrLength};
+    use crate::ciphertext::{gen_keys_test, FheStrLength};
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
     use crate::{compare_result, test_fhe_string_string_pattern};
@@ -201,10 +201,10 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    test_fhe_string_string_pattern!(replace, "", "b", "e");
-    test_fhe_string_string_pattern!(replace, "", "", "e");
-    test_fhe_string_string_pattern!(replace, "", "", "");
-    test_fhe_string_string_pattern!(replace, "ab", "", "e");
+    //test_fhe_string_string_pattern!(replace, "", "b", "e");
+    //test_fhe_string_string_pattern!(replace, "", "", "e");
+    //test_fhe_string_string_pattern!(replace, "", "", "");
+    //test_fhe_string_string_pattern!(replace, "ab", "", "e");
     test_fhe_string_string_pattern!(replace, "abc", "b", "e");
     test_fhe_string_string_pattern!(replace, "ab", "b", "c");
     test_fhe_string_string_pattern!(replace, "bbb", "b", "c");

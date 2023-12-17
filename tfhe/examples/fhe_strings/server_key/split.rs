@@ -697,7 +697,6 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false: BooleanBlock;
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
 
         let mut start_part = zero.clone();
@@ -757,7 +756,6 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1);
 
         let mut start_part = zero.clone();
@@ -769,7 +767,7 @@ impl StringServerKey {
             // u64);
             if n <= i + 1 {
                 end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
-                found = fhe_false.clone();
+                //found = fhe_false.clone();
             } else {
                 (found, end_part) = self.find_clear_from_final_padding(s, pattern, &start_part);
                 self.integer_key
@@ -821,7 +819,6 @@ impl StringServerKey {
 
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.create_n(1);
 
         let mut start_part = zero.clone();
@@ -833,7 +830,7 @@ impl StringServerKey {
             // u64);
             if n <= i + 1 {
                 end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
-                found = fhe_false.clone();
+                //found = fhe_false.clone();
             } else {
                 (found, end_part) = self.find_char_from_final_padding(s, pattern, &start_part);
                 self.integer_key
@@ -970,7 +967,7 @@ mod tests {
     use crate::ciphertext::gen_keys_test;
     use crate::client_key::StringClientKey;
     use crate::server_key::StringServerKey;
-    use crate::{compare_result, test_splitn_char_pattern, test_splitn_string_pattern};
+    use crate::{compare_result, test_splitn_string_pattern};
     use lazy_static::lazy_static;
 
     lazy_static! {

@@ -133,7 +133,6 @@ impl StringServerKey {
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts_or_n);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
@@ -227,7 +226,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found;
 
@@ -314,7 +312,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found;
 
@@ -459,7 +456,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
 
         // `end_part` holds the index of the end of the current part.
@@ -526,7 +522,7 @@ impl StringServerKey {
 
         FheSplit {
             parts,
-            number_parts: number_parts,
+            number_parts,
             current_index: 0,
         }
     }
@@ -545,7 +541,6 @@ impl StringServerKey {
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts_or_n);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.
@@ -641,7 +636,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
         let mut found: BooleanBlock;
 
@@ -702,7 +696,6 @@ impl StringServerKey {
         let maximum_number_of_parts_or_n = std::cmp::min(maximum_number_of_parts, n);
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts_or_n);
         let zero = self.create_zero();
-        let fhe_false = self.create_false();
         let mut number_parts = match n {
             0 => self.create_zero(),
             _ => self.create_n(1), // The result has at least 1 part as long as n > 0.

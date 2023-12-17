@@ -102,9 +102,9 @@ impl StringServerKey {
 
         let length = self.length_of_slice(&s.length, start, end);
         FheString {
-            content: content,
+            content,
             padding: s.padding,
-            length: length,
+            length,
         }
     }
 
