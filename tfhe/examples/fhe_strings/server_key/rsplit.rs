@@ -5,25 +5,15 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::RadixCiphertext;
 
 impl StringServerKey {
-    pub fn rpadding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
-    where
-        F: Fn(&FheString, &FheString) -> FheSplit,
-    {
-        match (s1.padding, s2.padding) {
-            (Padding::None | Padding::Initial, Padding::None | Padding::Initial) => f(s1, s2),
-            (Padding::None | Padding::Initial, _) => f(s1, &self.push_padding_to_start(s2)),
-            (_, Padding::None | Padding::Initial) => f(&self.push_padding_to_start(s1), s2),
-            _ => f(
-                &self.push_padding_to_start(s1),
-                &self.push_padding_to_start(s2),
-            ),
-        }
-    }
+    // The algorithm and complexity are the same as for split. They rely on consecutive application
+    // of rfind_from.
 
+    /// Same as split starting from the end, same behaviour as rsplit from the standard library.
     pub fn rsplit(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
         pattern.rsplit_string(self, s)
     }
 
+    /// Same as rsplit without any trailing empty string.
     pub fn rsplit_terminator(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
         pattern.rsplit_terminator_string(self, s)
     }
@@ -860,58 +850,20 @@ impl StringServerKey {
         }
     }
 
-    // pub fn rsplit_encrypted_final_padding_allow_empty_pattern(
-    //     &self,
-    //     s: &FheString,
-    //     pattern: &FheString,
-    // ) -> FheSplit {
-    //     // Compute the maximum number of parts of the result.
-    //     let maximum_number_of_parts = match &s.length {
-    //         ClearOrEncrypted::Clear(length) => *length + 2,
-    //         _ => s.content.len() + 2,
-    //     };
-    //     let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-    //     let zero = self.create_zero(); let fhe_false = self.create_false();
-    //     let mut number_parts = self.create_n(1); // The result has at least 1 part.
-    //     let empty_pattern = self.is_empty_encrypted(&pattern);
-
-    //     // `end_part` holds the index of the end of the current part.
-    //     let mut end_part = self.initial_index_rfind(&s.length);
-
-    //     for n in (0..maximum_number_of_parts).rev() {
-    //         let found: RadixCiphertext;
-    //         let start_pattern: RadixCiphertext;
-    //         if n >= 1 {
-    //             // When the patern is empty, the search must start at `end_part` minus 1.
-    //             (found, start_pattern) = self.rfind_from_final_padding_allow_empty_pattern(
-    //                 s,
-    //                 pattern,
-    //                 &self.integer_key.sub_parallelized(&end_part, &empty_pattern),
-    //             );
-    //         } else {
-    //             (found, start_pattern) =
-    //                 self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
-    //         }
-
-    //         // Increment `number_parts` if the pattern is found.
-    //         self.integer_key
-    //             .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
-
-    //         let start_part = self.integer_key.cmux_parallelized(
-    //             &found,
-    //             &self.add_length_to_radix(&start_pattern, &pattern.length),
-    //             &zero,
-    //         );
-
-    //         parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
-    //         end_part = start_pattern;
-    //     }
-    //     FheSplit {
-    //         parts,
-    //         number_parts,
-    //         current_index: 0,
-    //     }
-    // }
+    pub fn rpadding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
+    where
+        F: Fn(&FheString, &FheString) -> FheSplit,
+    {
+        match (s1.padding, s2.padding) {
+            (Padding::None | Padding::Initial, Padding::None | Padding::Initial) => f(s1, s2),
+            (Padding::None | Padding::Initial, _) => f(s1, &self.push_padding_to_start(s2)),
+            (_, Padding::None | Padding::Initial) => f(&self.push_padding_to_start(s1), s2),
+            _ => f(
+                &self.push_padding_to_start(s1),
+                &self.push_padding_to_start(s2),
+            ),
+        }
+    }
 }
 
 #[cfg(test)]

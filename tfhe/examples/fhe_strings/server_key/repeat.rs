@@ -3,9 +3,17 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
-    // pub fn repeat(&self, s: &FheString, n: &impl FheIntegerArg) -> FheString {
-    // 	n.repeat_string(self, s)
-    // }
+    /// Repeats the string s n times, for n a clear integer. It just concatenate the content n
+    /// times. Therefore the returned string has padding anywhere as soon as s has some padding. #
+    /// Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let s = client_key.encrypt_str_random_padding("ab", 1).unwrap();
+    /// let repeated_s = server_key.repeat_clear(&s, 3);
+    /// let decrypted_result = client_key.decrypt_string(&repeated_s).unwrap();
+    /// assert_eq!(decrypted_result, "ababab");
+    /// ```
     pub fn repeat_clear(&self, s: &FheString, n: usize) -> FheString {
         let mut result = FheString {
             content: Vec::with_capacity(n * s.content.len()),
@@ -18,6 +26,20 @@ impl StringServerKey {
         result
     }
 
+    /// Repeats the string s n times, for n an encrypted integer. A maximum number of repeatition
+    /// must be provided as a clear integer n_max. n can be any integer smaller than n_max. This is
+    /// necessary as the length of the content vector of the result is known in any case without
+    /// decryption. The returned string has padding anywhere as soon as s has some padding. #
+    /// Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let s = client_key.encrypt_str_random_padding("a", 1).unwrap();
+    /// let encrypted_n = server_key.create_n(2);
+    /// let repeated_s = server_key.repeat_encrypted(&s, &encrypted_n, 2);
+    /// let decrypted_result = client_key.decrypt_string(&repeated_s).unwrap();
+    /// assert_eq!(decrypted_result, "aa");
+    /// ```
     pub fn repeat_encrypted(&self, s: &FheString, n: &RadixCiphertext, n_max: usize) -> FheString {
         let zero = self.create_zero();
 
@@ -48,6 +70,7 @@ impl StringServerKey {
         }
     }
 
+    /// Multiply length by the encrypted integer n.
     pub fn radix_multiply_length(
         &self,
         length: &FheStrLength,

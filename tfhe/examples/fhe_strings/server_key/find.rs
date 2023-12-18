@@ -3,29 +3,65 @@ use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
+/// FHE version of Option<int>, an encryption of (true, n) corresponds to Som(n), an encryption of
+/// (false, _) corresponds to None
 pub type FheOptionInt = (BooleanBlock, RadixCiphertext);
 
 impl StringServerKey {
+    /// Searches for pattern in haystack. Returns an FheOptionInt Some(n) if pattern is find and
+    /// first starts at index n, None otherwise.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
+    /// let pattern = client_key.encrypt_str("a").unwrap();
+    /// let result = server_key.find(&encrypted_str, &pattern);
+    /// let clear_result_bool = client_key.decrypt_integer(&server_key.bool_to_radix(&result.0));
+    /// assert_eq!(clear_result_bool, 1);
+    /// let clear_result_index = client_key.decrypt_integer(&result.1);
+    /// assert_eq!(clear_result_index, 0);
+    /// ```
     pub fn find(&self, haystack: &FheString, pattern: &impl FhePattern) -> FheOptionInt {
         pattern.find_in(self, haystack)
     }
 
+    /// Searches, from the end, for pattern in haystack. Returns an FheOptionInt Some(n) if pattern
+    /// is find and first starts at index n, None otherwise.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
+    /// let pattern = client_key.encrypt_str("a").unwrap();
+    /// let result = server_key.rfind(&encrypted_str, &pattern);
+    /// let clear_result_bool = client_key.decrypt_integer(&server_key.bool_to_radix(&result.0));
+    /// assert_eq!(clear_result_bool, 1);
+    /// let clear_result_index = client_key.decrypt_integer(&result.1);
+    /// assert_eq!(clear_result_index, 2);
+    /// ```
     pub fn rfind(&self, haystack: &FheString, pattern: &impl FhePattern) -> FheOptionInt {
         pattern.rfind_in(self, haystack)
     }
 
+    /// Searches for pattern in haystack. Returns an FheOptionInt Some(n) if pattern is find and
+    /// first starts at index n, None otherwise. The pattern being a character clear or encrypted.
+    /// Works even if s has padding anywhere.
     pub fn find_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
-        match s.length {
-            FheStrLength::Clear(0) => return (fhe_false, zero),
-            _ => (),
+        if let FheStrLength::Clear(0) = s.length {
+            return (fhe_false, zero);
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) = (fhe_false, zero);
         for n in 0..s.content.len() {
             let current_match: BooleanBlock = char_pattern.fhe_eq(self, &s.content[n]);
             self.integer_key
                 .boolean_bitor_assign(&mut found, &current_match);
+            // As s might has padding anywhere, the index is incremented if and only if the pattern
+            // is not found yet and the current character is not a padding zero.
+            // TODO: another version of the function when we know that the string has at worst final
+            // padding.
             let increment_index = self.increment_index(s, n, &found);
             self.integer_key
                 .add_assign_parallelized(&mut index, &increment_index);
@@ -33,12 +69,12 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Same as find_char but from the end
     pub fn rfind_char(&self, s: &FheString, char_pattern: &impl FheCharPattern) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
-        match s.length {
-            FheStrLength::Clear(0) => return (fhe_false, zero),
-            _ => (),
+        if let FheStrLength::Clear(0) = s.length {
+            return (fhe_false, zero);
         }
         let (mut found, mut index): (BooleanBlock, RadixCiphertext) =
             (fhe_false.clone(), self.initial_index_rfind_char(&s.length));
@@ -53,14 +89,12 @@ impl StringServerKey {
         (found, index)
     }
 
-    // pub fn find(
-    // 	&self,
-    // 	s: &FheString,
-    // 	pattern: &impl FhePattern,
-    // ) -> (BooleanBlock, RadixCiphertext) {
-
-    // }
-
+    /// Searches for pattern (an encrypted string) in haystack. Returns an FheOptionInt Some(n) if
+    /// pattern is find and first starts at index n, None otherwise.
+    /// The complexity depends on the padding. It is O(pattern.content.len() * s.content.len()) is
+    /// both string have final padding at worst. Add a O(pattern.content.len()^2) if the patterns
+    /// has padding worst than final. Add a O(haystack.content.len()^2) if haystack has padding
+    /// anywhere.
     pub fn find_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
@@ -69,6 +103,7 @@ impl StringServerKey {
             _ => (),
         }
 
+        // Dispatch according to padding.
         match (s.padding, pattern.padding) {
             (Padding::Anywhere, Padding::None | Padding::Final) => {
                 self.connected_find_unpadded_string(&self.push_padding_to_end(s), pattern)
@@ -82,6 +117,11 @@ impl StringServerKey {
         }
     }
 
+    /// Searches for pattern (a clear string) in haystack. Returns an FheOptionInt Some(n) if
+    /// pattern is find and first starts at index n, None otherwise.
+    /// The complexity depends on the padding. It is O(pattern.content.len() * s.content.len()) is
+    /// both string have final padding at worst. Add a O(haystack.content.len()^2) if haystack has
+    /// padding anywhere.
     pub fn find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
@@ -101,6 +141,8 @@ impl StringServerKey {
         }
     }
 
+    /// Searches from the end for pattern (a clear string) in s. Returns an FheOptionInt Some(n) if
+    /// pattern is find and first starts at index n, None otherwise.
     pub fn rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
@@ -120,6 +162,9 @@ impl StringServerKey {
         }
     }
 
+    /// Searches for pattern (an encrypted string) in s. Returns an FheOptionInt Some(n) if pattern
+    /// is find and first starts at index n, None otherwise. It assumes that s is connected (its
+    /// padding is at wors Initial and Final) and that the pattern has at worst final padding.
     pub fn connected_find_unpadded_string(
         &self,
         s: &FheString,
@@ -139,6 +184,9 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Search for pattern (a clear string) in s. Returns an FheOptionInt Some(n) if pattern is find
+    /// and first starts at index n, None otherwise. It assumes that s is connected (its padding is
+    /// at worst Initial and Final).
     pub fn connected_find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
@@ -156,6 +204,7 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// same as connected_find_clear_string but from the end.
     pub fn connected_rfind_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let mut index = self.initial_index_rfind(&s.length);
         if pattern.is_empty() {
@@ -176,7 +225,9 @@ impl StringServerKey {
         (found, index)
     }
 
-    //Should be called with `pattern.padding` either `Padding::None` or `Padding::Final`.
+    /// Searches for pattern (an encrypted string) in s starting at (encrypted) index from. Assuming
+    /// that both pattern and s have at worst final padding and that pattern is not the empty
+    /// string. The complexity is O(pattern.content.len() * s.content.len()).
     pub fn find_from_final_padding(
         &self,
         s: &FheString,
@@ -205,6 +256,8 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Searches for pattern (a clear string) in s starting at (encrypted) index from. Assuming that
+    /// s has at worst final padding.
     pub fn find_clear_from_final_padding(
         &self,
         s: &FheString,
@@ -234,6 +287,8 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Searches for pattern (a clear or encrypted character) in s starting at (encrypted) index
+    /// from. Assuming that s has at worst final padding.
     pub fn find_char_from_final_padding(
         &self,
         s: &FheString,
@@ -261,6 +316,8 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Same as find_from_final_padding but also works when pattern encrypts the empty string
+    /// (eventually with padding).
     pub fn find_from_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
@@ -294,6 +351,7 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Same as find_string but from the end.
     pub fn rfind_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
@@ -317,6 +375,7 @@ impl StringServerKey {
         }
     }
 
+    /// Same as connected_find_unpadded_string but from the end.
     pub fn connected_rfind_unpadded_string(
         &self,
         s: &FheString,
@@ -343,6 +402,10 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Searches, from the end, for pattern (an encrypted string) in s. The search starts at
+    /// (encrypted) index from. Meaning that for a non empty pattern, the maximum index at which it
+    /// can be found is 'from -1'. Assuming that both pattern and s have at worst final padding and
+    /// that pattern is not the empty string.
     pub fn rfind_from_final_padding(
         &self,
         s: &FheString,
@@ -367,6 +430,8 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Same as rfind_from_final_padding but also works if the pattern is empty. The empty pattern
+    /// is found at index 'from-1'.
     pub fn rfind_from_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
@@ -414,7 +479,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    // is called with non empty pattern str
+    /// Same as rfind_from_final_padding but for clear string pattern.
     pub fn rfind_clear_from_final_padding(
         &self,
         s: &FheString,
@@ -445,6 +510,7 @@ impl StringServerKey {
         (found, index)
     }
 
+    /// Same as rfind_from_final_padding but for character pattern.
     pub fn rfind_char_from_final_padding(
         &self,
         s: &FheString,
@@ -475,73 +541,7 @@ impl StringServerKey {
         (found, index)
     }
 
-    // pub fn rfind_from_to_final_padding_allow_empty_pattern(
-    //     &self,
-    //     s: &FheString,
-    //     pattern: &FheString,
-    //     from: &RadixCiphertext,
-    //     to: &RadixCiphertext,
-    // ) -> (BooleanBlock, RadixCiphertext) {
-    //     let from_greater_than_zero = self.integer_key.scalar_gt_parallelized(from, 0);
-    //     let zero: RadixCiphertext = self.create_zero();
-    //     match (s.content.len(), pattern.content.len()) {
-    //         (0, 0) => return (from_greater_than_zero, zero),
-    //         (0, _) => {
-    //             return (
-    //                 self.integer_key.boolean_bitand(
-    //                     &self.eq_clear_char(&pattern.content[0], 0),
-    //                     &from_greater_than_zero,
-    //                 ),
-    //                 zero,
-    //             )
-    //         }
-    //         _ => (),
-    //     }
-
-    //     let mut index = self.initial_index_rfind(&s.length);
-    //     let mut found = zero;
-    //     for n in (0..s.content.len()).rev() {
-    //         let increment_index = self.rincrement_index(s, n, &found);
-    //         let current_match = self.integer_key.boolean_bitand(
-    //             &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-    //             &self.integer_key.scalar_ge_parallelized(from, n as u64),
-    //         );
-    //         self.integer_key
-    //             .boolean_bitor_assign(&mut found, &current_match);
-    //         self.integer_key
-    //             .sub_assign_parallelized(&mut index, &increment_index);
-    //     }
-    //     index = self.integer_key.cmux_parallelized(
-    //         &self.is_empty_encrypted(pattern),
-    //         &self.min_length_radix(&s.length, from),
-    //         &index,
-    //     );
-    //     (found, index)
-    // }
-
-    // pub fn rfind_from_final_padding_allow_empty_pattern(
-    //     &self,
-    //     s: &FheString,
-    //     pattern: &FheString,
-    //     to: &RadixCiphertext,
-    // ) -> (BooleanBlock, RadixCiphertext) {
-    //     let zero: RadixCiphertext = self.create_zero();
-    //     let mut index = self.initial_index_rfind(&s.length);
-    //     let mut found = zero;
-    //     for n in (0..=s.content.len()).rev() {
-    //         let current_match = self.integer_key.boolean_bitand(
-    //             &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-    //             &self.integer_key.scalar_gt_parallelized(to, n as u64),
-    //         );
-    //         self.integer_key
-    //             .boolean_bitor_assign(&mut found, &current_match);
-    // 	    let increment_index = self.increment_index(s, n, &found);
-    //         self.integer_key
-    //             .sub_assign_parallelized(&mut index, &increment_index);
-    //     }
-    //     (found, index)
-    // }
-
+    /// Return a radix encoding the min of length and to.
     pub fn min_length_radix(&self, length: &FheStrLength, to: &RadixCiphertext) -> RadixCiphertext {
         match length {
             FheStrLength::Clear(clear_length) => self
@@ -550,53 +550,6 @@ impl StringServerKey {
             FheStrLength::Encrypted(l) => self.integer_key.min_parallelized(to, l),
         }
     }
-
-    // pub fn min_length_radix_mi(&self, length: &FheStrLength, to: &RadixCiphertext) ->
-    // RadixCiphertext {     match length {
-    //         FheStrLength::Clear(clear_length) => self
-    //             .integer_key
-    //             .scalar_min_parallelized(to, *clear_length as u64),
-    //         FheStrLength::Encrypted(l) => self.integer_key.min_parallelized(to, l),
-    //     }
-    // }
-
-    // pub fn rfind_from_final_padding_allow_empty_pattern(
-    //     &self,
-    //     s: &FheString,
-    //     pattern: &FheString,
-    //     to: &RadixCiphertext,
-    // ) -> (BooleanBlock, RadixCiphertext) {
-    //     let zero: RadixCiphertext = self.create_zero();
-    //     let mut found = self.is_empty_encrypted(&pattern);
-    //     let positive_to = self.integer_key.scalar_max_parallelized(to, 0);
-    //     let upper_bound: RadixCiphertext = match &s.length {
-    //         FheStrLength::Clear(clear_length) => self
-    //             .integer_key
-    //             .scalar_min_parallelized(&positive_to, *clear_length as u64),
-    //         FheStrLength::Encrypted(l) => self.integer_key.min_parallelized(&positive_to, l),
-    //     };
-
-    //     let mut index = self.integer_key.cmux_parallelized(
-    //         &found,
-    //         &upper_bound,
-    //         &self.initial_index_rfind(&s.length),
-    //     );
-
-    //     for n in (0..s.content.len()).rev() {
-    //         let increment_index = self.increment_index(s, n, &found);
-
-    //         let current_match = self.integer_key.boolean_bitand(
-    //             &self.starts_with_encrypted_vec(&s.content[n..], pattern),
-    //             &self.integer_key.scalar_gt_parallelized(to, n as u64),
-    //         );
-    //         self.integer_key
-    //             .boolean_bitor_assign(&mut found, &current_match);
-
-    //         self.integer_key
-    //             .sub_assign_parallelized(&mut index, &increment_index);
-    //     }
-    //     (found, index)
-    // }
 
     pub fn initial_index_rfind_allow_empty_pattern(
         &self,
@@ -636,6 +589,8 @@ impl StringServerKey {
         }
     }
 
+    // The index is incremented if and only if the pattern is not found yet and the current
+    // character is not a padding zero.
     pub fn increment_index(
         &self,
         s: &FheString,
@@ -674,26 +629,6 @@ impl StringServerKey {
             ),
         )
     }
-
-    // pub fn decrement_index(
-    //     &self,
-    //     s: &FheString,
-    //     content_index: usize,
-    //     found: &RadixCiphertext,
-    // ) -> RadixCiphertext {
-    //     match s.padding {
-    //         Padding::None | Padding::Initial => self.integer_key.scalar_eq_parallelized(&found,
-    // 0),         _ if content_index > s.content.len() => {
-    //             self.integer_key.scalar_eq_parallelized(&found, 0)
-    //         }
-    //         _ => self.integer_key.boolean_bitand(
-    //             &self.integer_key.scalar_eq_parallelized(&found, 0),
-    //             &self
-    //                 .integer_key
-    //                 .scalar_ne_parallelized(&s.content[content_index].0, 0),
-    //         ),
-    //     }
-    // }
 }
 
 #[cfg(test)]
@@ -710,66 +645,11 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
-    // macro_rules! unit_test_char{
-    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, char , $result_type: ty,
-    // $string_padding: expr) => { 	    #[test]
-    // 	    fn test_name!($method, $string_arg, $pattern_arg, char, $string_padding) () {
-    // 		let std_result = $string_arg.$method($pattern_arg);
-    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
-    // $string_padding).unwrap();             let fhe_result = SERVER_KEY.$method(&encrypted_s,
-    // &$pattern_arg); 		compare_result!($result_type, std_result, fhe_result);
-    // 	    }
-    // 	};
-
-    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, FheChar, $result_type: ty,
-    // $string_padding: expr) => { 	    #[test]
-    // 	    fn test_name!($method, $string_arg, $pattern_arg, FheChar, $string_padding) () {
-    // 		let std_result = $string_arg.$method($pattern_arg);
-    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
-    // $string_padding).unwrap(); 		let encrypted_pattern =
-    // CLIENT_KEY.encrypt_ascii_char($pattern_arg as u8);             let fhe_result =
-    // SERVER_KEY.$method(&encrypted_s, &$pattern_arg); 		compare_result!($result_type,
-    // std_result, fhe_result); 	    }
-    // 	};
-    // }
-
-    // macro_rules! test_string {
-    //     ($method: ident, $string_arg: expr, $pattern_arg: expr) => {
-    //         unit_test_char!($method, $string_arg, $pattern_arg, 0, 0);
-    //         unit_test_char!($method, $string_arg, $pattern_arg, 2, 0);
-    //         unit_test_char!($method, $string_arg, $pattern_arg, 0, 2);
-    //         unit_test_char!($method, $string_arg, $pattern_arg, 2, 2);
-    //     };
-    // }
-    // macro_rules! unit_test_string {
-    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, &str, $result_type: ty,
-    // $string_padding: expr) => { 	    #[test]
-    // 	    fn test_name!($method, $string_arg, $pattern_arg, &str, $string_padding) () {
-    // 		let std_result = $string_arg.$method($pattern_arg);
-    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
-    // $string_padding).unwrap();             let fhe_result = SERVER_KEY.$method(&encrypted_s,
-    // &$pattern_arg); 		compare_result!($result_type, std_result, fhe_result);
-    // 	    }
-    // 	};
-    // 	($method: ident, $string_arg: expr, $pattern_arg: expr, FheString, $result_type: ty,
-    // $string_padding: expr, $pattern_padding: expr) => { 	    #[test]
-    // 	    fn test_name!($method, $string_arg, $pattern_arg, FheChar, $string_padding,
-    // $pattern_padding) () { 		let std_result = $string_arg.$method($pattern_arg);
-    //             let encrypted_s = CLIENT_KEY.encrypt_str_padding(&$string_arg,
-    // $string_padding).unwrap(); 		let encrypted_pattern =
-    // CLIENT_KEY.encrypt_str_padding($pattern_arg as u8, $pattern_padding);             let
-    // fhe_result = SERVER_KEY.$method(&encrypted_s, &$pattern_arg); 		compare_result!
-    // ($result_type, std_result, fhe_result); 	    }
-    // 	};
-    // }
-
     test_option_index_char_pattern!(find, "abc", 'a');
     test_option_index_char_pattern!(find, "abc", 'b');
     test_option_index_char_pattern!(find, "abc", 'c');
     test_option_index_char_pattern!(find, "abc", 'd');
     //test_option_index_char_pattern!(find, "", 'b');
-
-    //    write_test_char!(find);
 
     // test_char_fhe_option!(find, "abc", 'a');
     // test_char_fhe_option!(find, "abc", 'b');

@@ -152,7 +152,7 @@ impl FhePattern for &str {
         {
             result = server_key
                 .integer_key
-                .boolean_bitand(&result, &server_key.eq_clear_char(&c, self.as_bytes()[n]));
+                .boolean_bitand(&result, &server_key.eq_clear_char(c, self.as_bytes()[n]));
             // server_key.integer_key.boolean_bitand_assign(
             //     &mut result,
             //     &server_key.bool_to_radix(&server_key.eq_clear_char(&haystack[n],
@@ -270,7 +270,7 @@ impl FhePattern for FheString {
                 {
                     server_key.integer_key.boolean_bitand_assign(
                         &mut result,
-                        &server_key.eq_char(&c, &self.content[n]),
+                        &server_key.eq_char(c, &self.content[n]),
                     )
                 }
             }
@@ -281,7 +281,7 @@ impl FhePattern for FheString {
                     .take(std::cmp::min(max_needle_length, haystack.len()))
                 {
                     let match_or_end_needle = server_key.integer_key.boolean_bitor(
-                        &server_key.eq_char(&c, &self.content[n]),
+                        &server_key.eq_char(c, &self.content[n]),
                         &server_key.eq_clear_char(&self.content[n], 0),
                     );
                     server_key
@@ -303,7 +303,7 @@ impl FhePattern for FheString {
                     .take(std::cmp::min(max_needle_length, haystack.len()))
                 {
                     let match_or_end_needle = server_key.integer_key.boolean_bitor(
-                        &server_key.eq_char(&c, &unpadded_needle.content[n]),
+                        &server_key.eq_char(c, &unpadded_needle.content[n]),
                         &server_key.eq_clear_char(&unpadded_needle.content[n], 0),
                     );
                     server_key

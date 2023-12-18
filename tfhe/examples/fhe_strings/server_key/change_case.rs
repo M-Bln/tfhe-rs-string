@@ -5,6 +5,50 @@ pub const UP_LOW_DISTANCE: u8 = 32;
 
 // Implement functions to change case of encrypted characters and string.
 impl StringServerKey {
+    /// Returns a encrypted string encoding the same as c in uppercase.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aB.").unwrap();
+    /// let encrypted_str_upper = server_key.to_uppercase(&encrypted_str);
+    /// let decrypted_str_upper = client_key.decrypt_string(&encrypted_str_upper).unwrap();
+    /// assert_eq!(&decrypted_str_upper, "AB.");
+    /// ```
+    pub fn to_uppercase(&self, c: &FheString) -> FheString {
+        FheString {
+            content: c
+                .content
+                .iter()
+                .map(|c| self.to_uppercase_char(c))
+                .collect(),
+            padding: c.padding,
+            length: c.length.clone(),
+        }
+    }
+
+    /// Returns a encrypted string encoding the same as c in lowercase.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str_random_padding("BCD", 0).unwrap();
+    /// let encrypted_str_lower = server_key.to_lowercase(&encrypted_str);
+    /// let decrypted_str_lower = client_key.decrypt_string(&encrypted_str_lower).unwrap();
+    /// assert_eq!(&decrypted_str_lower, "bcd");
+    /// ```
+    pub fn to_lowercase(&self, c: &FheString) -> FheString {
+        FheString {
+            content: c
+                .content
+                .iter()
+                .map(|c| self.to_lowercase_char(c))
+                .collect(),
+            padding: c.padding,
+            length: c.length.clone(),
+        }
+    }
+
     /// Returns a encrypted character encoding the same as c in uppercase.
     pub fn to_uppercase_char(&self, c: &FheAsciiChar) -> FheAsciiChar {
         let change_case = &self.integer_key.boolean_bitand(
@@ -35,32 +79,6 @@ impl StringServerKey {
                     .scalar_mul_parallelized(&self.bool_to_radix(change_case), UP_LOW_DISTANCE),
             ),
         )
-    }
-
-    /// Returns a encrypted string encoding the same as c in uppercase.
-    pub fn to_uppercase(&self, c: &FheString) -> FheString {
-        FheString {
-            content: c
-                .content
-                .iter()
-                .map(|c| self.to_uppercase_char(c))
-                .collect(),
-            padding: c.padding,
-            length: c.length.clone(),
-        }
-    }
-
-    /// Returns a encrypted string encoding the same as c in lowercase.
-    pub fn to_lowercase(&self, c: &FheString) -> FheString {
-        FheString {
-            content: c
-                .content
-                .iter()
-                .map(|c| self.to_lowercase_char(c))
-                .collect(),
-            padding: c.padding,
-            length: c.length.clone(),
-        }
     }
 }
 

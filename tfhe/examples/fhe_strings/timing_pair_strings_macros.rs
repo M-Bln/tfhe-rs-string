@@ -420,19 +420,19 @@ macro_rules! to_string_std_result {
         s1 + $clear_s2
     }};
     (le, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
-        ($clear_s1 <= (*$clear_s2).to_string())
+        ($clear_s1.as_str() <= $clear_s2)
     };
     (ge, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
-        ($clear_s1 >= (*$clear_s2).to_string())
+        ($clear_s1.as_str() >= $clear_s2)
     };
     (eq, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
-        ($clear_s1 == (*$clear_s2).to_string())
+        ($clear_s1.as_str() == $clear_s2)
     };
     (eq_ignore_case, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
         $clear_s1.eq_ignore_ascii_case($clear_s2)
     };
     (ne, $clear_s1: ident, $clear_s2: ident, $return_type: ident, String) => {
-        ($clear_s1 != $clear_s2)
+        ($clear_s1.as_str() != $clear_s2)
     };
     ($method: ident, $clear_s1: ident, $clear_s2: ident, FheSplit, String) => {{
         let std_result = $clear_s1.$method(&$clear_s2);

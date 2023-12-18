@@ -6,16 +6,6 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
-    pub fn rpadding_dispatch<F>(&self, s: &FheString, f: F) -> FheSplit
-    where
-        F: Fn(&FheString) -> FheSplit,
-    {
-        match s.padding {
-            Padding::None | Padding::Initial => f(s),
-            _ => f(&self.push_padding_to_start(s)),
-        }
-    }
-
     pub fn rsplitn(
         &self,
         s: &FheString,
@@ -448,6 +438,16 @@ impl StringServerKey {
         }
     }
 
+    pub fn rpadding_dispatch<F>(&self, s: &FheString, f: F) -> FheSplit
+    where
+        F: Fn(&FheString) -> FheSplit,
+    {
+        match s.padding {
+            Padding::None | Padding::Initial => f(s),
+            _ => f(&self.push_padding_to_start(s)),
+        }
+    }
+
     pub fn rsplit_encrypted_n_empty_pattern(&self, n: &RadixCiphertext, s: &FheString) -> FheSplit {
         // Compute the maximum number of parts of the result.
         let maximum_number_of_parts = match &s.length {
@@ -456,48 +456,26 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0)); // The result has at least 1 part as long as n>0
+        let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n, 0));
+        // The result has at least 1 part as long as n>0
 
         // `end_part` holds the index of the end of the current part.
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
-        //let empty_pattern = self.is_empty_encrypted(&pattern);
-        // let decrement_search_from = self.integer_key.cmux_parallelized(
-        //     &empty_pattern,
-        //     &zero.clone(),
-        //     &self.sub_scalar_to_length(&pattern.length, 1),
-        // );
 
         for i in 0..maximum_number_of_parts {
-            // let start_pattern: RadixCiphertext;
-            // (found, start_pattern) =
-            //         self.rfind_from_final_padding_allow_empty_pattern(s, pattern, &end_part);
-
             let in_range_n = self.integer_key.scalar_gt_parallelized(n, (i + 1) as u64);
-
-            // Increment `number_parts` is the pattern found and in range, i.e., i < n-1
-            //let found_in_range = self.integer_key.boolean_bitand(&found, &in_range_n);
             self.integer_key
                 .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&in_range_n));
 
-            // The new part starts at the end of the pattern if it is found in range, at zero
-            // otherwise
             let start_part = self.integer_key.cmux_parallelized(
                 &in_range_n,
                 &self.integer_key.scalar_sub_parallelized(&end_part, 1),
                 &zero,
             );
-            // let start_part = self.integer_key.cmux_parallelized(
-            //     &found_in_range,
-            //     &self.add_length_to_radix(&start_pattern, &pattern.length),
-            //     &zero,
-            // );
 
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
 
             end_part = start_part;
-            // self
-            // .integer_key
-            // .cmux_parallelized(&in_range_n, &start_part, &zero);
         }
 
         let number_parts_rsplit_empty_pattern = self.add_length_scalar(&s.length, 2);
@@ -509,16 +487,6 @@ impl StringServerKey {
             &number_parts_rsplit_empty_pattern,
             &number_parts,
         );
-        // number_parts = self.integer_key.cmux_parallelized(
-        //     &self.integer_key.boolean_bitand(
-        //         &empty_pattern,
-        //         &self
-        //             .integer_key
-        //             .le_parallelized(&number_parts_rsplit_empty_pattern, &n),
-        //     ),
-        //     &number_parts_rsplit_empty_pattern,
-        //     &number_parts,
-        // );
 
         FheSplit {
             parts,
@@ -552,11 +520,6 @@ impl StringServerKey {
         let mut end_part = self.add_length_to_radix(&self.create_n(1), &s.length);
         //        let empty_pattern = self.is_empty_encrypted(&pattern);
         let decrement_search_from = pattern.len() - 1;
-        // self.integer_key.cmux_parallelized(
-        //     &empty_pattern,
-        //     &zero.clone(),
-        //     &self.sub_scalar_to_length(&pattern.length, 1),
-        // );
 
         for i in 0..maximum_number_of_parts_or_n {
             let start_pattern: RadixCiphertext;
@@ -602,19 +565,6 @@ impl StringServerKey {
                     .cmux_parallelized(&found, &start_pattern, &zero);
             }
         }
-
-        //        let number_parts_rsplit_empty_pattern = &self.add_length_scalar(&s.length, 2);
-        // Count parts when the pattern is empty
-        // number_parts = self.integer_key.cmux_parallelized(
-        //     &self.integer_key.boolean_bitand(
-        //         &empty_pattern,
-        //         &self
-        //             .integer_key
-        //             .scalar_le_parallelized(&number_parts_rsplit_empty_pattern, n as u64),
-        //     ),
-        //     &number_parts_rsplit_empty_pattern,
-        //     &number_parts,
-        // );
 
         FheSplit {
             parts,

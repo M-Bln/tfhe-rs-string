@@ -26,11 +26,7 @@ pub enum ConversionError {
 impl StringClientKey {
     /// Encrypt a string.
     pub fn encrypt_str(&self, s: &str) -> Result<FheString, ConversionError> {
-        self.encrypt_ascii_vec(
-            &s.as_bytes().to_vec(),
-            Padding::None,
-            FheStrLength::Clear(s.len()),
-        )
+        self.encrypt_ascii_vec(s.as_bytes(), Padding::None, FheStrLength::Clear(s.len()))
     }
 
     /// Encrypt a string and add `padding_size` encrypted padding zeros at the end of the string.

@@ -4,12 +4,27 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::BooleanBlock;
 
 impl StringServerKey {
+    /// Return an encryption of true if the encrypted string s contains the pattern (a string or
+    /// character, clear or encrypted) # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("abc").unwrap();
+    /// let pattern = client_key.encrypt_str("bc").unwrap();
+    /// let result = server_key.contains(&encrypted_str, &pattern);
+    /// let clear_result = client_key.decrypt_integer(&server_key.bool_to_radix(&result));
+    /// assert_eq!(clear_result, 1);
+    /// ```
     pub fn contains(&self, s: &FheString, pattern: &impl FhePattern) -> BooleanBlock {
         pattern.is_contained_in(self, s)
     }
 
+    /// Return an encryption of true if the encrypted string s contains the pattern (an encrypted
+    /// string)
     pub fn contains_string(&self, s: &FheString, pattern: &FheString) -> BooleanBlock {
         match (s.padding, pattern.padding) {
+            // Push padding to the end if necessary, the string s can have at worst initial and
+            // final padding zeros, the pattern must have at worst final padding zeros
             (Padding::Anywhere, Padding::Final | Padding::None) => {
                 self.contains_unpadded_string(&self.push_padding_to_end(s), pattern)
             }
@@ -22,6 +37,7 @@ impl StringServerKey {
         }
     }
 
+    /// Return an encryption of true if the encrypted string s contains the pattern (a clear string)
     pub fn contains_clear_string(&self, s: &FheString, pattern: &str) -> BooleanBlock {
         match (s.content.len(), pattern.len()) {
             (0, 0) => return self.create_true(),
@@ -32,6 +48,8 @@ impl StringServerKey {
             _ => (),
         }
         match s.padding {
+            // Push padding to the end if necessary, the string s can have at worst initial and
+            // final padding zeros.
             Padding::Anywhere => {
                 self.connected_contains_clear_string(&self.push_padding_to_end(s), pattern)
             }
@@ -39,6 +57,9 @@ impl StringServerKey {
         }
     }
 
+    /// Return an encryption of true if the encrypted string s contains the pattern (a clear
+    /// string). Assuming that s is connected, meaning that it's padding is at worst initial and
+    /// final.
     fn connected_contains_clear_string(&self, s: &FheString, pattern: &str) -> BooleanBlock {
         let mut result = self.create_false();
         for n in 0..s.content.len() {
@@ -50,6 +71,9 @@ impl StringServerKey {
         result
     }
 
+    /// Return an encryption of true if the encrypted string s contains the pattern (a clear
+    /// string). Assuming that s is connected, meaning that it's padding is at worst initial and
+    /// final. And assuming that the pattern has at worst final padding zeros.
     pub fn contains_unpadded_string(&self, s: &FheString, pattern: &FheString) -> BooleanBlock {
         match (s.content.len(), pattern.content.len()) {
             (0, 0) => return self.create_true(),
@@ -85,10 +109,10 @@ impl StringServerKey {
                 &mut result,
                 &match prefix.padding {
                     Padding::None => {
-                        self.compare_char(&c, &prefix.content[n], std::cmp::Ordering::Equal)
+                        self.compare_char(c, &prefix.content[n], std::cmp::Ordering::Equal)
                     }
                     _ => self.integer_key.boolean_bitor(
-                        &self.compare_char(&c, &prefix.content[n], std::cmp::Ordering::Equal),
+                        &self.compare_char(c, &prefix.content[n], std::cmp::Ordering::Equal),
                         &self
                             .integer_key
                             .scalar_eq_parallelized(&prefix.content[n].0, 0),
@@ -118,7 +142,7 @@ impl StringServerKey {
         {
             self.integer_key.boolean_bitand_assign(
                 &mut result,
-                &self.compare_clear_char(&c, prefix.as_bytes()[n], std::cmp::Ordering::Equal),
+                &self.compare_clear_char(c, prefix.as_bytes()[n], std::cmp::Ordering::Equal),
             )
         }
         result

@@ -6,6 +6,10 @@ use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 pub type ResultFheString = (BooleanBlock, FheString);
 
+/// A structure to store results of split functions on encrypted strings. The parts obtained by
+/// splitting are stored as the first number_parts encrypted string in the vector parts. Number of
+/// parts is an encrypted integer. The elements in parts after number_parts are not assured to be
+/// empty string and should be ignored.
 pub struct FheSplit {
     pub parts: Vec<FheString>,
     pub number_parts: RadixCiphertext,
@@ -13,35 +17,31 @@ pub struct FheSplit {
 }
 
 impl StringServerKey {
-    pub fn padding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
-    where
-        F: Fn(&FheString, &FheString) -> FheSplit,
-    {
-        match (s1.padding, s2.padding) {
-            (Padding::None | Padding::Final, Padding::None | Padding::Final) => f(s1, s2),
-            (Padding::None | Padding::Final, _) => f(s1, &self.push_padding_to_end(s2)),
-            (_, Padding::None | Padding::Final) => f(&self.push_padding_to_end(s1), s2),
-            _ => f(&self.push_padding_to_end(s1), &self.push_padding_to_end(s2)),
-        }
-    }
-
-    pub fn padding_dispatch<F>(&self, s: &FheString, f: F) -> FheSplit
-    where
-        F: Fn(&FheString) -> FheSplit,
-    {
-        match s.padding {
-            Padding::None | Padding::Final => f(s),
-            _ => f(&self.push_padding_to_end(s)),
-        }
-    }
+    /// Splits the string s at each occurence of pattern.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
+    /// let pattern = client_key.encrypt_str("a").unwrap();
+    /// let fhe_result = server_key.split(&encrypted_str, &pattern);
+    /// let std_result = "aba".to_string().split("a");
+    /// let clear_len = client_key.decrypt_integer(&fhe_result.number_parts);
+    /// let std_split: Vec<String> = std_result.map(|s| String::from(s)).collect();
+    /// let clear_split: Vec<String> = $fhe_result.parts[..(clear_len as usize)]
+    ///     .iter()
+    ///     .map(|s| client_key.decrypt_string(s).unwrap())
+    ///     .collect();
+    /// assert_eq!(clear_split, std_split);
+    /// ```
     pub fn split(&self, s: &FheString, pattern: &impl FhePattern) -> FheSplit {
         pattern.split_string(self, s)
     }
 
-    // pub fn split_ascii_whitespace(&self, s: &FheString) -> FheSplit {
-    //     self.split_char(&s, &' ')
-    // }
-
+    /// Splits the string s at each occurence of pattern (encrypted string).
+    ///  The complexity is O(length(s)^2*length(pattern)) FHE operations.  Add a
+    /// O(pattern.content.len()^2) if the patterns has padding worst than final. Add a
+    /// O(haystack.content.len()^2) if haystack has padding worst than final.
     pub fn split_encrypted(&self, s: &FheString, pattern: &FheString) -> FheSplit {
         match &pattern.length {
             ClearOrEncrypted::Clear(0) => {
@@ -56,6 +56,7 @@ impl StringServerKey {
         }
     }
 
+    /// Splits the string s at each occurence of pattern (clear string).
     pub fn split_clear(&self, s: &FheString, pattern: &str) -> FheSplit {
         match s.padding {
             _ if pattern.is_empty() => {
@@ -66,6 +67,7 @@ impl StringServerKey {
         }
     }
 
+    /// Splits the string s at each occurence of pattern (clear or encrypted character).
     pub fn split_char(&self, s: &FheString, pattern: &impl FheCharPattern) -> FheSplit {
         match s.padding {
             Padding::None | Padding::Final => self.split_char_final_padding(s, pattern),
@@ -73,6 +75,24 @@ impl StringServerKey {
         }
     }
 
+    /// Splits n times the string s at each occurence of pattern.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
+    /// let pattern = client_key.encrypt_str("a").unwrap();
+    /// let n = client_key.encrypt_integer(1);
+    /// let fhe_result = server_key.splitn(&encrypted_str, &n, &pattern);
+    /// let std_result = "aba".to_string().splitn(1,"a");
+    /// let clear_len = client_key.decrypt_integer(&fhe_result.number_parts);
+    /// let std_split: Vec<String> = std_result.map(|s| String::from(s)).collect();
+    /// let clear_split: Vec<String> = $fhe_result.parts[..(clear_len as usize)]
+    ///     .iter()
+    ///     .map(|s| client_key.decrypt_string(s).unwrap())
+    ///     .collect();
+    /// assert_eq!(clear_split, std_split);
+    /// ```
     pub fn splitn(
         &self,
         s: &FheString,
@@ -82,6 +102,7 @@ impl StringServerKey {
         pattern.splitn_string(self, n, s)
     }
 
+    // Following functions cover various possibility of encryption for arguments of splitn.
     pub fn splitn_encrypted_string(
         &self,
         n: &impl FheIntegerArg,
@@ -176,6 +197,8 @@ impl StringServerKey {
         })
     }
 
+    /// Splits n times the string s at each occurence of the empty pattern, same behaviour as splitn
+    /// for clear strings form the standard library.
     pub fn split_encrypted_n_empty_pattern(&self, n: &RadixCiphertext, s: &FheString) -> FheSplit {
         // Compute the maximum number of parts of the result.
         let maximum_number_of_parts = match &s.length {
@@ -184,13 +207,6 @@ impl StringServerKey {
         };
         let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
         let zero = self.create_zero();
-        //let mut number_parts = self.bool_to_radix(&self.integer_key.scalar_gt_parallelized(n,
-        // 0)); let empty_string = FheString {
-        //     content: vec![],
-        //     length: FheStrLength::Clear(0),
-        //     padding: Padding::None,
-        // };
-        // parts.push(empty_string);
         let mut start_part = zero.clone();
         let mut end_part = self.integer_key.cmux_parallelized(
             &self.integer_key.scalar_eq_parallelized(n, 1),
@@ -296,6 +312,8 @@ impl StringServerKey {
         }
     }
 
+    /// Splits the string s at each occurence of the empty pattern, same behaviour as splitn for
+    /// clear strings form the standard library.
     pub fn split_empty_pattern(&self, s: &FheString, _empty_pattern: &FheString) -> FheSplit {
         let max_number_parts = s.content.len() + 2;
         let mut parts: Vec<FheString> = Vec::with_capacity(max_number_parts);
@@ -462,6 +480,13 @@ impl StringServerKey {
         }
     }
 
+    /// Splits the string s at each occurence of the pattern. It assumes that both s and pattern
+    /// have at worst final padding. It works even if pattern is the empty string eventually padded.
+    /// The algorithm relies on consecutive applications of
+    /// find_from_final_padding_allow_empty_pattern. The complexity is
+    /// O(length(s)^2*length(pattern)) FHE operations.  Add a O(pattern.content.len()^2) if the
+    /// patterns has padding worst than final. Add a O(haystack.content.len()^2) if haystack has
+    /// padding worst than final.
     pub fn split_encrypted_final_padding_allow_empty_pattern(
         &self,
         s: &FheString,
@@ -523,6 +548,30 @@ impl StringServerKey {
             ClearOrEncrypted::Encrypted(encrypted_length) => self
                 .integer_key
                 .scalar_add_parallelized(encrypted_length, n),
+        }
+    }
+
+    /// Call the function F with s1 and s2 after pushing back their padding zeros if necessary.
+    pub fn padding_pair_dispatch<F>(&self, s1: &FheString, s2: &FheString, f: F) -> FheSplit
+    where
+        F: Fn(&FheString, &FheString) -> FheSplit,
+    {
+        match (s1.padding, s2.padding) {
+            (Padding::None | Padding::Final, Padding::None | Padding::Final) => f(s1, s2),
+            (Padding::None | Padding::Final, _) => f(s1, &self.push_padding_to_end(s2)),
+            (_, Padding::None | Padding::Final) => f(&self.push_padding_to_end(s1), s2),
+            _ => f(&self.push_padding_to_end(s1), &self.push_padding_to_end(s2)),
+        }
+    }
+
+    /// Call the function F with s after pushing back its padding zeros.
+    pub fn padding_dispatch<F>(&self, s: &FheString, f: F) -> FheSplit
+    where
+        F: Fn(&FheString) -> FheSplit,
+    {
+        match s.padding {
+            Padding::None | Padding::Final => f(s),
+            _ => f(&self.push_padding_to_end(s)),
         }
     }
 
@@ -663,19 +712,6 @@ impl StringServerKey {
             &number_parts_for_split_with_empty_pattern,
             &number_parts,
         );
-        // // Count the final empty string when the pattern is empty
-        // let count_final_empty_string = self.integer_key.boolean_bitand(
-        //     &empty_pattern,
-        //     &self
-        //         .integer_key
-        //         .scalar_ne_parallelized(&s.content[s.content.len() - 1].0, 0),
-        // );
-
-        // self.integer_key
-        //     .add_assign_parallelized(&mut number_parts,
-        // 			     &self.integer_key.boolean_bitand(
-        // 				 &count_final_empty_string,
-        // 				 &self.integer_key.scalar_ge_parallelized(n, maximum_number_of_parts as u64)));
 
         FheSplit {
             parts,
@@ -716,10 +752,6 @@ impl StringServerKey {
                 &zero.clone(),
                 &self.bool_to_radix(&found),
             ));
-            // found = self
-            //     .integer_key
-            //     .cmux_parallelized(&out_of_range, &zero.clone(), &found);
-            // Increment `number_parts` if the pattern is found.
             self.integer_key
                 .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
@@ -763,8 +795,6 @@ impl StringServerKey {
         for i in 0..maximum_number_of_parts {
             let found: BooleanBlock;
             let end_part: RadixCiphertext;
-            //            let out_of_range = self.integer_key.scalar_le_parallelized(n, (i + 1) as
-            // u64);
             if n <= i + 1 {
                 end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
                 //found = fhe_false.clone();
@@ -773,18 +803,6 @@ impl StringServerKey {
                 self.integer_key
                     .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
             }
-            // end_part = self.integer_key.cmux_parallelized(
-            //     &out_of_range,
-            //     &self.add_length_to_radix(&self.create_zero(), &s.length),
-            //     &end_part,
-            // );
-
-            // found = self
-            //     .integer_key
-            //     .cmux_parallelized(&out_of_range, &zero.clone(), &found);
-            // Increment `number_parts` if the pattern is found.
-            // self.integer_key
-            //     .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             start_part = self
                 .integer_key
@@ -826,8 +844,7 @@ impl StringServerKey {
         for i in 0..maximum_number_of_parts {
             let found: BooleanBlock;
             let end_part: RadixCiphertext;
-            //            let out_of_range = self.integer_key.scalar_le_parallelized(n, (i + 1) as
-            // u64);
+
             if n <= i + 1 {
                 end_part = self.add_length_to_radix(&self.create_zero(), &s.length);
                 //found = fhe_false.clone();
@@ -836,18 +853,6 @@ impl StringServerKey {
                 self.integer_key
                     .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
             }
-            // end_part = self.integer_key.cmux_parallelized(
-            //     &out_of_range,
-            //     &self.add_length_to_radix(&self.create_zero(), &s.length),
-            //     &end_part,
-            // );
-
-            // found = self
-            //     .integer_key
-            //     .cmux_parallelized(&out_of_range, &zero.clone(), &found);
-            // Increment `number_parts` if the pattern is found.
-            // self.integer_key
-            //     .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));
             start_part = self.integer_key.scalar_add_parallelized(&end_part, 1);
         }
@@ -892,10 +897,6 @@ impl StringServerKey {
                 &zero.clone(),
                 &self.bool_to_radix(&found),
             ));
-            // found = self
-            //     .integer_key
-            //     .cmux_parallelized(&out_of_range, &zero.clone(), &found);
-            // Increment `number_parts` if the pattern is found.
             self.integer_key
                 .add_assign_parallelized(&mut number_parts, &self.bool_to_radix(&found));
             parts.push(self.substring_encrypted_final_padding(s, &start_part, &end_part));

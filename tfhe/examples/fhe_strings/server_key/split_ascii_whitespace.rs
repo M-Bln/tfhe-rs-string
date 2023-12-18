@@ -11,6 +11,55 @@ pub struct FheSplit {
 }
 
 impl StringServerKey {
+    // TODO add doc
+
+    /// Same behaviour as the function from the standard library but for encrypted strings.
+    pub fn split_ascii_whitespace(&self, s: &FheString) -> FheSplit {
+        let maximum_number_of_parts: usize;
+        let zero = self.create_zero();
+        match s.len() {
+            _ if s.content.is_empty() => {
+                return FheSplit {
+                    parts: vec![],
+                    number_parts: zero,
+                    current_index: 0,
+                }
+            }
+            FheStrLength::Clear(0) => {
+                return FheSplit {
+                    parts: vec![],
+                    number_parts: zero,
+                    current_index: 0,
+                }
+            }
+            FheStrLength::Clear(clear_length) if *clear_length > 0 => {
+                maximum_number_of_parts = *clear_length / 2 + 1;
+            }
+            _ => {
+                maximum_number_of_parts = s.content.len() / 2 + 1;
+            }
+        }
+        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
+        let mut number_parts = zero.clone();
+        let mut from = zero;
+        for _ in 0..maximum_number_of_parts {
+            let (start_chunk, end_chunk) = self.next_non_white_chunk(s, &from);
+            // Count the chunk one is found (i.e. if it is a non empty range)
+            self.integer_key.add_assign_parallelized(
+                &mut number_parts,
+                &self.bool_to_radix(&self.integer_key.ne_parallelized(&start_chunk, &end_chunk)),
+            );
+
+            parts.push(self.content_slice(s, &start_chunk, &end_chunk));
+            from = end_chunk;
+        }
+        FheSplit {
+            parts,
+            number_parts,
+            current_index: 0,
+        }
+    }
+
     pub fn is_ascii_white_space(&self, c: &FheAsciiChar) -> BooleanBlock {
         let is_tab_feed_return = self.integer_key.boolean_bitand(
             &self.integer_key.scalar_ge_parallelized(&c.0, 9),
@@ -63,16 +112,9 @@ impl StringServerKey {
         for (i, c) in s.content.iter().enumerate() {
             let in_range = self.integer_key.scalar_le_parallelized(from, i as u32);
             let is_white = self.is_ascii_white_space(c);
-            //let non_null = self.integer_key.scalar_ne_parallelized(&c.0, 0);
+
             let is_white_in_range = &self.integer_key.boolean_bitand(&in_range, &is_white);
 
-            // self.integer_key.boolean_bitand(
-            // 	&self.integer_key.boolean_bitand(
-            // 	    &in_range,
-            // 	    &non_white,
-            // 	),
-            // 	&non_null,
-            // );
             self.integer_key
                 .boolean_bitor_assign(&mut found, is_white_in_range);
             self.integer_key.add_assign_parallelized(
@@ -151,52 +193,6 @@ impl StringServerKey {
             &end_chunk,
         );
         (start_chunk, end_chunk)
-    }
-
-    pub fn split_ascii_whitespace(&self, s: &FheString) -> FheSplit {
-        let maximum_number_of_parts: usize;
-        let zero = self.create_zero();
-        match s.len() {
-            _ if s.content.is_empty() => {
-                return FheSplit {
-                    parts: vec![],
-                    number_parts: zero,
-                    current_index: 0,
-                }
-            }
-            FheStrLength::Clear(0) => {
-                return FheSplit {
-                    parts: vec![],
-                    number_parts: zero,
-                    current_index: 0,
-                }
-            }
-            FheStrLength::Clear(clear_length) if *clear_length > 0 => {
-                maximum_number_of_parts = *clear_length / 2 + 1;
-            }
-            _ => {
-                maximum_number_of_parts = s.content.len() / 2 + 1;
-            }
-        }
-        let mut parts: Vec<FheString> = Vec::with_capacity(maximum_number_of_parts);
-        let mut number_parts = zero.clone();
-        let mut from = zero;
-        for _ in 0..maximum_number_of_parts {
-            let (start_chunk, end_chunk) = self.next_non_white_chunk(s, &from);
-            // Count the chunk one is found (i.e. if it is a non empty range)
-            self.integer_key.add_assign_parallelized(
-                &mut number_parts,
-                &self.bool_to_radix(&self.integer_key.ne_parallelized(&start_chunk, &end_chunk)),
-            );
-
-            parts.push(self.content_slice(s, &start_chunk, &end_chunk));
-            from = end_chunk;
-        }
-        FheSplit {
-            parts,
-            number_parts,
-            current_index: 0,
-        }
     }
 
     pub fn content_slice(

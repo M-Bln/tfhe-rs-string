@@ -8,8 +8,12 @@ impl StringServerKey {
     /// # Examples
     ///
     /// ```
-    /// let x = 5;
-    /// assert_eq!(x, 5);
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str1 = client_key.encrypt_str_random_padding("ab", 0).unwrap();
+    /// let encrypted_str2 = client_key.encrypt_str_random_padding("bc", 0).unwrap();
+    /// let add_str1_str2 = server_key.add_encrypted(encrypted_str1, &encrypted_str2);
+    /// let decrypted_str = client_key.decrypt_string(&add_str1_str2).unwrap();
+    /// assert_eq!(decrypted_str, "abbc");
     /// ```
     pub fn add(&self, s1: FheString, pattern: &impl FhePattern) -> FheString {
         pattern.push_to(self, s1)
