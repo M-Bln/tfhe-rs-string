@@ -63,7 +63,8 @@ struct Arguments {
 }
 
 lazy_static! {
-    pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys_test();
+    // gen_keys_test() can be used instead of gen_keys() for fast testing, if cryptographically secure parameters are not necessary
+    pub static ref KEYS: (StringClientKey, StringServerKey) = gen_keys();
     pub static ref CLIENT_KEY: &'static StringClientKey = &KEYS.0;
     pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
 }
@@ -396,7 +397,9 @@ fn main() {
         }
     }
 
-    let _test_key = gen_keys();
+    // Trick to avoid pcc error. gen_keys_test can be use for testing purpose instead of gen_keys if
+    // cryptographically secure parameter are not necessary.
+    let _test_key = gen_keys_test();
 }
 
 /// Times repeat for a clear integer argument.
@@ -425,9 +428,11 @@ fn time_repeat_clear(clear_s: &str, encrypted_s: &FheString, clear_n: usize, pad
     println!("time:                               {:?}", duration);
 }
 
-/// Identifier used to pattern match in macro definition.
+// Identifier used to pattern match in macro definition.
 pub type Clear = ();
 pub type Encrypted = ();
+// Tricks to avoid pcc errors of unused type. The purpose of those types is to provide an ident for
+// pattern match in macros.
 pub fn return_clear() -> Clear {}
 pub fn return_encrypted() -> Encrypted {}
 

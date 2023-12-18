@@ -3,9 +3,12 @@ use crate::pattern::{FheCharPattern, FhePattern};
 use crate::server_key::StringServerKey;
 use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
+/// FHE version of Option<String>, an encryption of (true, s) corresponds to Som(s), an encryption
+/// of (false, _) corresponds to None
 pub type FheOptionString = (BooleanBlock, FheString);
 
 impl StringServerKey {
+    /// Same behaviours as strip_prefix from standard library, returns an FheOptionString
     pub fn strip_prefix(&self, s: &FheString, prefix: &impl FhePattern) -> FheOptionString {
         prefix.strip_prefix_in(self, s)
     }

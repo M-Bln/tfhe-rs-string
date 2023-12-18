@@ -133,7 +133,8 @@ impl StringClientKey {
         result.append(&mut vec![0; padding_size]);
         result
     }
-
+    /// Create a vector with padding in `padding_size` zeros in random position in between the
+    /// characters of s.
     pub fn randomly_null_padded_vec_from_str(s: &str, padding_size: usize) -> Vec<u8> {
         let result_length = s.len() + padding_size;
         let mut result: Vec<u8> = Vec::with_capacity(result_length);
@@ -153,21 +154,6 @@ impl StringClientKey {
         }
         result
     }
-
-    // /// Trim the initial and final '\0' bytes from a Vec<u8>
-    // /// The resulting String starts directly after the last initial '\0'
-    // /// if any, and ends just before the first '\0'.
-    // pub fn fstring_from_padded_vec(ascii_src: &Vec<u8>) -> Result<String, FromUtf8Error> {
-    //     let range_start = ascii_src
-    //         .iter()
-    //         .position(|&c| c != b'\0')
-    //         .unwrap_or(ascii_src.len()); // default to length if only `\0` are present
-    //     let range_end = ascii_src[range_start..ascii_src.len()]
-    //         .iter()
-    //         .position(|&c| c == b'\0')
-    //         .unwrap_or(ascii_src.len() - range_start); // default to length remaining if no
-    // trailing '\0'     String::from_utf8(ascii_src[range_start..(range_end +
-    // range_start)].to_vec()) }
 
     pub fn string_from_padded_vec(ascii_src: Vec<u8>) -> Result<String, FromUtf8Error> {
         let string_content: Vec<u8> = ascii_src
