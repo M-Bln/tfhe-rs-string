@@ -9,7 +9,8 @@ pub type FheOptionInt = (BooleanBlock, RadixCiphertext);
 
 impl StringServerKey {
     /// Searches for pattern in haystack. Returns an FheOptionInt Some(n) if pattern is find and
-    /// first starts at index n, None otherwise. # Examples
+    /// first starts at index n, None otherwise.
+    /// # Examples
     ///
     /// ```
     /// let (client_key, server_key) = gen_keys_test();
@@ -26,7 +27,8 @@ impl StringServerKey {
     }
 
     /// Searches, from the end, for pattern in haystack. Returns an FheOptionInt Some(n) if pattern
-    /// is find and first starts at index n, None otherwise. # Examples
+    /// is find and first starts at index n, None otherwise.
+    /// # Examples
     ///
     /// ```
     /// let (client_key, server_key) = gen_keys_test();

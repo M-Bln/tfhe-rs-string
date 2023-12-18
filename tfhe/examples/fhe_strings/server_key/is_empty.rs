@@ -3,15 +3,35 @@ use crate::server_key::StringServerKey;
 use tfhe::integer::BooleanBlock;
 
 #[derive(Debug, PartialEq)]
+/// A type for boolean results wich can be known without decryption in some cases.
 pub enum FheBool {
     Clear(bool),
     Encrypted(BooleanBlock),
 }
 
 impl StringServerKey {
+    /// Returns a reference to the length of s, it can be either clear or encrypted.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
+    /// let length = server_key.len(&encrypted_str);
+    /// assert_eq!(*length, FheStrLength::Clear(3));
+    /// ```
     pub fn len<'a>(&self, s: &'a FheString) -> &'a FheStrLength {
         s.len()
     }
+
+    /// Returns a FheBool true if the string is empty, false otherwise.
+    /// # Examples
+    ///
+    /// ```
+    /// let (client_key, server_key) = gen_keys_test();
+    /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
+    /// let result = server_key.is_empty(&encrypted_str);
+    /// assert_eq!(result, FheBool::Clear(false));
+    /// ```
     pub fn is_empty(&self, s: &FheString) -> FheBool {
         match &s.len() {
             FheStrLength::Clear(0) => FheBool::Clear(true),
