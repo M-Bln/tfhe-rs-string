@@ -91,6 +91,10 @@ impl StringServerKey {
 
     /// Searches for pattern (an encrypted string) in haystack. Returns an FheOptionInt Some(n) if
     /// pattern is find and first starts at index n, None otherwise.
+    /// The complexity depends on the padding. It is O(pattern.content.len() * s.content.len()) is
+    /// both string have final padding at worst. Add a O(pattern.content.len()^2) if the patterns
+    /// has padding worst than final. Add a O(haystack.content.len()^2) if haystack has padding
+    /// anywhere.
     pub fn find_string(&self, s: &FheString, pattern: &FheString) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         match (s.content.len(), pattern.content.len()) {
@@ -115,6 +119,9 @@ impl StringServerKey {
 
     /// Searches for pattern (a clear string) in haystack. Returns an FheOptionInt Some(n) if
     /// pattern is find and first starts at index n, None otherwise.
+    /// The complexity depends on the padding. It is O(pattern.content.len() * s.content.len()) is
+    /// both string have final padding at worst. Add a O(haystack.content.len()^2) if haystack has
+    /// padding anywhere.
     pub fn find_clear_string(&self, s: &FheString, pattern: &str) -> FheOptionInt {
         let zero: RadixCiphertext = self.create_zero();
         let fhe_false: BooleanBlock = self.create_false();
@@ -220,7 +227,7 @@ impl StringServerKey {
 
     /// Searches for pattern (an encrypted string) in s starting at (encrypted) index from. Assuming
     /// that both pattern and s have at worst final padding and that pattern is not the empty
-    /// string.
+    /// string. The complexity is O(pattern.content.len() * s.content.len()).
     pub fn find_from_final_padding(
         &self,
         s: &FheString,

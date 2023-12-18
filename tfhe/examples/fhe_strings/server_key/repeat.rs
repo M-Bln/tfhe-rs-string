@@ -4,7 +4,8 @@ use tfhe::integer::{BooleanBlock, RadixCiphertext};
 
 impl StringServerKey {
     /// Repeats the string s n times, for n a clear integer. It just concatenate the content n
-    /// times. Therefore the returned string has padding anywhere as soon as s has some padding. # Examples
+    /// times. Therefore the returned string has padding anywhere as soon as s has some padding. #
+    /// Examples
     ///
     /// ```
     /// let (client_key, server_key) = gen_keys_test();
@@ -28,7 +29,8 @@ impl StringServerKey {
     /// Repeats the string s n times, for n an encrypted integer. A maximum number of repeatition
     /// must be provided as a clear integer n_max. n can be any integer smaller than n_max. This is
     /// necessary as the length of the content vector of the result is known in any case without
-    /// decryption. The returned string has padding anywhere as soon as s has some padding. # Examples
+    /// decryption. The returned string has padding anywhere as soon as s has some padding. #
+    /// Examples
     ///
     /// ```
     /// let (client_key, server_key) = gen_keys_test();
