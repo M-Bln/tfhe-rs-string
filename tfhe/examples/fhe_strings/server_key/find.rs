@@ -645,6 +645,18 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
+    #[test]
+    fn doctest_find() {
+        let (client_key, server_key) = gen_keys_test();
+        let encrypted_str = client_key.encrypt_str("aba").unwrap();
+        let pattern = client_key.encrypt_str("a").unwrap();
+        let result = server_key.find(&encrypted_str, &pattern);
+        let clear_result_bool = client_key.decrypt_integer(&server_key.bool_to_radix(&result.0));
+        assert_eq!(clear_result_bool, 1);
+        let clear_result_index = client_key.decrypt_integer(&result.1);
+        assert_eq!(clear_result_index, 0);
+    }
+
     test_option_index_char_pattern!(find, "abc", 'a');
     test_option_index_char_pattern!(find, "abc", 'b');
     test_option_index_char_pattern!(find, "abc", 'c');

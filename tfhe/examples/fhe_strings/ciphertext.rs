@@ -156,37 +156,9 @@ mod tests {
             .is_err());
     }
 
-    //    use crate::ciphertext::decrypt_fhe_ascii_vec;
-
-    #[test]
-    fn test_decrypt_encrypt_ascii_vec() {
-        let encrypted_s = CLIENT_KEY
-            .encrypt_ascii_vec(
-                &vec![0, 0, 97, 98, 99, 100, 0],
-                Padding::InitialAndFinal,
-                FheStrLength::Clear(4),
-            )
-            .unwrap();
-        let decrypted_s = CLIENT_KEY.decrypt_fhe_ascii_vec(&encrypted_s);
-        println!("the decrypted vec is \"{:?}\"", decrypted_s);
-        println!("it is expected to be \"[0,0,97,98,99,100,0]\"");
-        assert_eq!(decrypted_s, vec![0, 0, 97, 98, 99, 100, 0]);
-    }
-
     #[test]
     fn test_encrypt() {
         assert!(CLIENT_KEY.encrypt_str("Hello world!").is_ok())
-    }
-
-    #[test]
-    fn test_decrypt_encrypt() {
-        let plain_text = "abc";
-        let encrypted_str = CLIENT_KEY.encrypt_str(plain_text).unwrap();
-        let decrypted_str = CLIENT_KEY.decrypt_string(&encrypted_str).unwrap();
-        println!(
-            "the decrypted string is \"{}\", it is expected to be \"{}\"",
-            decrypted_str, plain_text,
-        )
     }
 
     #[test]

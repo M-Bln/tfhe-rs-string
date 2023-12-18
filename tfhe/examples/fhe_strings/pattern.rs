@@ -32,6 +32,8 @@ macro_rules! forward_splitn_to_server_key {
     };
 }
 
+/// A trait to work with patterns either character or string, clear or encrypted. Its purpose is to
+/// dispatch between various functions.
 pub trait FhePattern {
     fn is_prefix_of_slice(
         &self,
@@ -153,10 +155,6 @@ impl FhePattern for &str {
             result = server_key
                 .integer_key
                 .boolean_bitand(&result, &server_key.eq_clear_char(c, self.as_bytes()[n]));
-            // server_key.integer_key.boolean_bitand_assign(
-            //     &mut result,
-            //     &server_key.bool_to_radix(&server_key.eq_clear_char(&haystack[n],
-            // self.as_bytes()[n])),
         }
         result
     }

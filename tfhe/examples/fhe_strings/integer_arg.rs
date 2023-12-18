@@ -15,6 +15,8 @@ macro_rules! generate_fhe_integer_arg_method {
         ) -> FheSplit;
     };
 }
+
+/// A trait to work either with clear or encrypted integer (for instance as indices in FheStrings)
 pub trait FheIntegerArg {
     generate_fhe_integer_arg_method!(splitn_encrypted_string, &FheString);
     generate_fhe_integer_arg_method!(splitn_clear_string_pattern, &str);
@@ -63,10 +65,6 @@ impl FheIntegerArg for u32 {
     fn to_string(&self) -> String {
         "clear".to_string()
     }
-
-    // fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString {
-    // 	server_key.repeat_clear(s, *self)
-    // }
 }
 
 impl FheIntegerArg for usize {
@@ -77,10 +75,6 @@ impl FheIntegerArg for usize {
     fn to_string(&self) -> String {
         "clear".to_string()
     }
-
-    // fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString {
-    // 	server_key.repeat_clear(s, *self)
-    // }
 }
 
 impl FheIntegerArg for RadixCiphertext {
@@ -91,8 +85,4 @@ impl FheIntegerArg for RadixCiphertext {
     fn to_string(&self) -> String {
         "encrypted".to_string()
     }
-
-    // fn repeat_string(&self, server_key: &StringServerKey, s: &FheString) -> FheString {
-    // 	server_key.repeat_encrypted(s, self)
-    // }
 }

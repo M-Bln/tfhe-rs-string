@@ -82,12 +82,13 @@ impl StringServerKey {
     /// let (client_key, server_key) = gen_keys_test();
     /// let encrypted_str = client_key.encrypt_str("aba").unwrap();
     /// let pattern = client_key.encrypt_str("a").unwrap();
-    /// let n = client_key.encrypt_integer(1);
+    /// let n = client_key.encrypt_integer(1 as u32);
     /// let fhe_result = server_key.splitn(&encrypted_str, &n, &pattern);
-    /// let std_result = "aba".to_string().splitn(1,"a");
+    /// let clear_string: String = "aba".to_string();
+    /// let std_result = clear_string.splitn(1, "a");
     /// let clear_len = client_key.decrypt_integer(&fhe_result.number_parts);
     /// let std_split: Vec<String> = std_result.map(|s| String::from(s)).collect();
-    /// let clear_split: Vec<String> = $fhe_result.parts[..(clear_len as usize)]
+    /// let clear_split: Vec<String> = fhe_result.parts[..(clear_len as usize)]
     ///     .iter()
     ///     .map(|s| client_key.decrypt_string(s).unwrap())
     ///     .collect();
@@ -977,6 +978,40 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
+    #[test]
+    fn doctest_split() {
+        let (client_key, server_key) = gen_keys_test();
+        let encrypted_str = client_key.encrypt_str("aba").unwrap();
+        let pattern = client_key.encrypt_str("a").unwrap();
+        let fhe_result = server_key.split(&encrypted_str, &pattern);
+        let clear_string: String = "aba".to_string();
+        let std_result = clear_string.split("a");
+        let clear_len = client_key.decrypt_integer(&fhe_result.number_parts);
+        let std_split: Vec<String> = std_result.map(|s| String::from(s)).collect();
+        let clear_split: Vec<String> = fhe_result.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| client_key.decrypt_string(s).unwrap())
+            .collect();
+        assert_eq!(clear_split, std_split);
+    }
+
+    #[test]
+    fn doctest_splitn() {
+        let (client_key, server_key) = gen_keys_test();
+        let encrypted_str = client_key.encrypt_str("aba").unwrap();
+        let pattern = client_key.encrypt_str("a").unwrap();
+        let n = client_key.encrypt_integer(1 as u32);
+        let fhe_result = server_key.splitn(&encrypted_str, &n, &pattern);
+        let clear_string: String = "aba".to_string();
+        let std_result = clear_string.splitn(1, "a");
+        let clear_len = client_key.decrypt_integer(&fhe_result.number_parts);
+        let std_split: Vec<String> = std_result.map(|s| String::from(s)).collect();
+        let clear_split: Vec<String> = fhe_result.parts[..(clear_len as usize)]
+            .iter()
+            .map(|s| client_key.decrypt_string(s).unwrap())
+            .collect();
+        assert_eq!(clear_split, std_split);
+    }
     test_splitn_string_pattern!(splitn, 0, "aaa", "a");
     test_splitn_string_pattern!(splitn, 1, "aaa", "a");
     test_splitn_string_pattern!(splitn, 4, "aaa", "a");

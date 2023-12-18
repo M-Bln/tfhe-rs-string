@@ -103,6 +103,15 @@ mod tests {
         pub static ref SERVER_KEY: &'static StringServerKey = &KEYS.1;
     }
 
+    #[test]
+    fn doctest_add() {
+        let (client_key, server_key) = gen_keys_test();
+        let encrypted_str1 = client_key.encrypt_str("ab").unwrap();
+        let encrypted_str2 = client_key.encrypt_str("bc").unwrap();
+        let add_str1_str2 = server_key.add_encrypted(encrypted_str1, &encrypted_str2);
+        let decrypted_str = client_key.decrypt_string(&add_str1_str2).unwrap();
+        assert_eq!(decrypted_str, "abbc");
+    }
     //test_fhe_add_string_pattern!(add, "", "");
     //test_fhe_add_string_pattern!(add, "ab", "");
     test_fhe_add_string_pattern!(add, "aezfb", "cdfzefzef");
